@@ -1,4 +1,4 @@
-# Medha (मेधा) — AI Chat App Agile Plan
+# Medha — AI Chat App Agile Plan
 
 > **Sanskrit for wisdom/intelligence** — Open-source, BYOK AI chat client
 > Built with: Expo SDK 55 + React Native 0.83 + React 19.2 + react-native-reusables

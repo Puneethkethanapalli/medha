@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/puneeth/.claude/skills/find-skills/**)",
+      "Read(//home/puneeth/.agents/skills/find-skills/**)",
+      "Bash(npx skills *)"
+    ]
+  }
+}
