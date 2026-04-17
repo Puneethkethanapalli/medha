@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Medha - Search</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #09090B;
+            color: #FAFAFA;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "tertiary": "#e4e1e5",
+                        "tertiary-container": "#919094",
+                        "surface-variant": "#353437",
+                        "surface-dim": "#131315",
+                        "on-surface": "#e5e1e4",
+                        "on-secondary-fixed-variant": "#3b3b3e",
+                        "surface-tint": "#c6c6c7",
+                        "on-surface-variant": "#c6c6c6",
+                        "tertiary-fixed": "#5f5e61",
+                        "on-error": "#690005",
+                        "primary-fixed": "#5d5f5f",
+                        "surface-container-low": "#1c1b1d",
+                        "secondary-fixed-dim": "#acaaae",
+                        "primary-container": "#d4d4d4",
+                        "primary": "#ffffff",
+                        "on-error-container": "#ffdad6",
+                        "outline-variant": "#474747",
+                        "surface": "#131315",
+                        "inverse-primary": "#5d5f5f",
+                        "on-tertiary-fixed-variant": "#e4e1e5",
+                        "on-primary": "#1a1c1c",
+                        "on-primary-fixed": "#ffffff",
+                        "inverse-on-surface": "#313032",
+                        "on-tertiary-container": "#000000",
+                        "outline": "#919191",
+                        "on-secondary-container": "#e4e1e6",
+                        "on-secondary": "#1b1b1e",
+                        "surface-container-high": "#2a2a2c",
+                        "on-primary-fixed-variant": "#e2e2e2",
+                        "tertiary-fixed-dim": "#47464a",
+                        "error": "#ffb4ab",
+                        "primary-fixed-dim": "#454747",
+                        "secondary-fixed": "#c8c5ca",
+                        "surface-container": "#201f22",
+                        "on-tertiary": "#1b1b1e",
+                        "on-secondary-fixed": "#1b1b1e",
+                        "inverse-surface": "#e5e1e4",
+                        "on-primary-container": "#000000",
+                        "surface-container-lowest": "#0e0e10",
+                        "secondary-container": "#47464a",
+                        "on-tertiary-fixed": "#ffffff",
+                        "background": "#131315",
+                        "surface-bright": "#39393b",
+                        "error-container": "#93000a",
+                        "surface-container-highest": "#353437",
+                        "on-background": "#e5e1e4",
+                        "secondary": "#c8c5ca"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="antialiased h-screen w-full flex flex-col mx-auto max-w-[393px] relative overflow-hidden bg-[#09090B]">
+<!-- Search Bar -->
+<header class="flex items-center w-full h-[56px] px-4 border-b border-[#27272A] shrink-0 bg-[#09090B] z-10 pt-safe">
+<button class="flex items-center justify-center w-6 h-6 mr-3 text-[#A1A1AA] hover:text-[#FAFAFA] transition-colors focus:outline-none">
+<span class="material-symbols-outlined text-[24px]" data-icon="arrow_back">arrow_back</span>
+</button>
+<div class="flex-1 flex items-center relative h-full">
+<input class="w-full h-full bg-transparent border-none text-[#FAFAFA] text-[16px] placeholder:text-[#71717A] focus:ring-0 px-0" placeholder="Search messages..." type="text" value="python"/>
+</div>
+<button class="flex items-center justify-center w-6 h-6 ml-3 text-[#71717A] hover:text-[#A1A1AA] transition-colors focus:outline-none">
+<span class="material-symbols-outlined text-[20px]" data-icon="close">close</span>
+</button>
+</header>
+<!-- Search Results Canvas -->
+<main class="flex-1 overflow-y-auto w-full pb-safe">
+<div class="px-4 py-4 w-full">
+<h2 class="text-[12px] font-medium tracking-wide text-[#71717A] uppercase mb-2">3 conversations</h2>
+</div>
+<ul class="flex flex-col w-full pb-8">
+<!-- Result Row 1 -->
+<li class="group flex flex-col px-4 py-3 border-b border-[#27272A]/50 hover:bg-[#18181B] transition-colors cursor-pointer">
+<div class="flex justify-between items-baseline mb-1">
+<h3 class="text-[14px] font-medium text-[#FAFAFA] truncate pr-4">Python async patterns</h3>
+<span class="text-[12px] text-[#71717A] shrink-0">Yesterday</span>
+</div>
+<p class="text-[13px] text-[#A1A1AA] line-clamp-2 leading-relaxed">
+                    ...use <strong class="text-[#FAFAFA] font-medium">python</strong> asyncio to handle concurrent...
+                </p>
+</li>
+<!-- Result Row 2 -->
+<li class="group flex flex-col px-4 py-3 border-b border-[#27272A]/50 hover:bg-[#18181B] transition-colors cursor-pointer">
+<div class="flex justify-between items-baseline mb-1">
+<h3 class="text-[14px] font-medium text-[#FAFAFA] truncate pr-4">Debug memory leak in Node</h3>
+<span class="text-[12px] text-[#71717A] shrink-0">Apr 12</span>
+</div>
+<p class="text-[13px] text-[#A1A1AA] line-clamp-2 leading-relaxed">
+                    ...similar to <strong class="text-[#FAFAFA] font-medium">python</strong>'s garbage collection...
+                </p>
+</li>
+<!-- Result Row 3 -->
+<li class="group flex flex-col px-4 py-3 border-b border-transparent hover:bg-[#18181B] transition-colors cursor-pointer">
+<div class="flex justify-between items-baseline mb-1">
+<h3 class="text-[14px] font-medium text-[#FAFAFA] truncate pr-4">Help me write a script</h3>
+<span class="text-[12px] text-[#71717A] shrink-0">Apr 10</span>
+</div>
+<p class="text-[13px] text-[#A1A1AA] line-clamp-2 leading-relaxed">
+                    ...here's a <strong class="text-[#FAFAFA] font-medium">python</strong> script that...
+                </p>
+</li>
+</ul>
+</main>
+</body></html>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Medha - API Keys</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-high": "#2a2a2c",
+                        "on-tertiary": "#1b1b1e",
+                        "primary": "#ffffff",
+                        "surface-container": "#201f22",
+                        "on-surface": "#e5e1e4",
+                        "on-surface-variant": "#c6c6c6",
+                        "background": "#131315",
+                        "on-primary-fixed": "#ffffff",
+                        "tertiary": "#e4e1e5",
+                        "on-tertiary-fixed-variant": "#e4e1e5",
+                        "secondary-container": "#47464a",
+                        "on-secondary-container": "#e4e1e6",
+                        "on-error": "#690005",
+                        "secondary-fixed": "#c8c5ca",
+                        "surface-tint": "#c6c6c7",
+                        "on-primary": "#1a1c1c",
+                        "on-secondary-fixed": "#1b1b1e",
+                        "error": "#ffb4ab",
+                        "on-secondary-fixed-variant": "#3b3b3e",
+                        "inverse-on-surface": "#313032",
+                        "tertiary-fixed": "#5f5e61",
+                        "outline-variant": "#474747",
+                        "surface-bright": "#39393b",
+                        "on-secondary": "#1b1b1e",
+                        "outline": "#919191",
+                        "on-primary-fixed-variant": "#e2e2e2",
+                        "on-tertiary-fixed": "#ffffff",
+                        "secondary-fixed-dim": "#acaaae",
+                        "surface-dim": "#131315",
+                        "primary-fixed-dim": "#454747",
+                        "on-error-container": "#ffdad6",
+                        "inverse-surface": "#e5e1e4",
+                        "on-tertiary-container": "#000000",
+                        "surface-container-highest": "#353437",
+                        "primary-fixed": "#5d5f5f",
+                        "secondary": "#c8c5ca",
+                        "surface-variant": "#353437",
+                        "primary-container": "#d4d4d4",
+                        "on-background": "#e5e1e4",
+                        "surface": "#131315",
+                        "inverse-primary": "#5d5f5f",
+                        "on-primary-container": "#000000",
+                        "surface-container-lowest": "#0e0e10",
+                        "surface-container-low": "#1c1b1d",
+                        "error-container": "#93000a",
+                        "tertiary-fixed-dim": "#47464a",
+                        "tertiary-container": "#919094"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"],
+                        "mono": ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", "monospace"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen flex flex-col items-center">
+<div class="w-full max-w-md mx-auto min-h-screen bg-background relative flex flex-col pb-safe">
+<!-- TOP BAR -->
+<header class="flex justify-between items-center px-6 h-16 w-full fixed top-0 w-full z-50 bg-[#131315]/80 backdrop-blur-md shadow-none">
+<button class="text-on-surface-variant hover:text-primary transition-colors duration-300 active:scale-95 transition-transform flex items-center justify-center p-2 -ml-2 rounded-full hover:bg-surface-container">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">arrow_back</span>
+</button>
+<h1 class="font-headline font-semibold text-base text-primary absolute left-1/2 transform -translate-x-1/2">API Keys</h1>
+<div class="w-10"></div> <!-- Spacer for centering -->
+</header>
+<!-- MAIN CONTENT -->
+<main class="flex-1 overflow-y-auto px-4 pt-20 pb-8 flex flex-col gap-4">
+<!-- PROVIDER CARDS -->
+<!-- OpenRouter Card -->
+<div class="bg-surface-container-lowest rounded-xl p-4 transition-colors duration-300 outline outline-1 outline-outline-variant/15 flex flex-col gap-3 group relative overflow-hidden">
+<!-- Subtle ambient glow for connected state -->
+<div class="absolute inset-0 bg-primary/5 opacity-0 transition-opacity duration-300 pointer-events-none group-hover:opacity-100"></div>
+<div class="flex items-center justify-between z-10 relative">
+<h2 class="font-headline font-semibold text-primary text-base tracking-tight">OpenRouter</h2>
+<div class="flex items-center gap-2">
+<span class="text-xs text-on-surface-variant font-medium">Connected</span>
+<div class="w-2 h-2 rounded-full bg-[#22C55E]"></div>
+</div>
+</div>
+<div class="z-10 relative">
+<p class="font-mono text-[13px] text-on-surface-variant break-all bg-surface-container-low px-3 py-2 rounded-md border border-outline-variant/10">sk-or-...x4f2</p>
+</div>
+<div class="flex items-center gap-2 pt-1 z-10 relative">
+<button class="bg-surface-container hover:bg-surface-container-high transition-colors text-on-surface-variant flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium active:scale-95">
+<span class="material-symbols-outlined text-[14px]">bolt</span>
+                        Test
+                    </button>
+<button class="bg-surface-container hover:bg-surface-container-high transition-colors text-error flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium active:scale-95">
+<span class="material-symbols-outlined text-[14px]">delete</span>
+                        Delete
+                    </button>
+</div>
+</div>
+<!-- Gemini Card -->
+<div class="bg-surface-container-lowest rounded-xl p-4 transition-colors duration-300 outline outline-1 outline-outline-variant/15 flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<h2 class="font-headline font-semibold text-primary text-base tracking-tight">Gemini</h2>
+<span class="text-[13px] text-on-surface-variant">Not connected</span>
+</div>
+<button class="w-full h-11 bg-surface-container hover:bg-surface-container-high transition-colors rounded-lg outline outline-1 outline-dashed outline-outline-variant/30 flex items-center justify-center gap-2 text-sm text-on-surface-variant font-medium active:scale-95">
+<span class="material-symbols-outlined text-[16px]">add</span>
+                    Add Gemini API Key
+                </button>
+</div>
+<!-- Anthropic Card -->
+<div class="bg-surface-container-lowest rounded-xl p-4 transition-colors duration-300 outline outline-1 outline-outline-variant/15 flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<h2 class="font-headline font-semibold text-primary text-base tracking-tight">Anthropic</h2>
+<span class="text-[13px] text-on-surface-variant">Not connected</span>
+</div>
+<button class="w-full h-11 bg-surface-container hover:bg-surface-container-high transition-colors rounded-lg outline outline-1 outline-dashed outline-outline-variant/30 flex items-center justify-center gap-2 text-sm text-on-surface-variant font-medium active:scale-95">
+<span class="material-symbols-outlined text-[16px]">add</span>
+                    Add Anthropic API Key
+                </button>
+</div>
+<!-- BOTTOM NOTE -->
+<div class="mt-6 flex flex-col items-center justify-center gap-2 text-center">
+<span class="material-symbols-outlined text-on-surface-variant text-[16px]">shield</span>
+<p class="text-xs text-on-surface-variant font-medium tracking-wide">Keys are encrypted and stored locally on your device</p>
+</div>
+</main>
+</div>
+</body></html>

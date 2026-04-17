@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Medha - Edit Mode</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary": "#e4e1e5",
+                        "tertiary-container": "#919094",
+                        "surface-variant": "#353437",
+                        "surface-dim": "#131315",
+                        "on-surface": "#e5e1e4",
+                        "on-secondary-fixed-variant": "#3b3b3e",
+                        "surface-tint": "#c6c6c7",
+                        "on-surface-variant": "#c6c6c6",
+                        "tertiary-fixed": "#5f5e61",
+                        "on-error": "#690005",
+                        "primary-fixed": "#5d5f5f",
+                        "surface-container-low": "#1c1b1d",
+                        "secondary-fixed-dim": "#acaaae",
+                        "primary-container": "#d4d4d4",
+                        "primary": "#ffffff",
+                        "on-error-container": "#ffdad6",
+                        "outline-variant": "#474747",
+                        "surface": "#131315",
+                        "inverse-primary": "#5d5f5f",
+                        "on-tertiary-fixed-variant": "#e4e1e5",
+                        "on-primary": "#1a1c1c",
+                        "on-primary-fixed": "#ffffff",
+                        "inverse-on-surface": "#313032",
+                        "on-tertiary-container": "#000000",
+                        "outline": "#919191",
+                        "on-secondary-container": "#e4e1e6",
+                        "on-secondary": "#1b1b1e",
+                        "surface-container-high": "#2a2a2c",
+                        "on-primary-fixed-variant": "#e2e2e2",
+                        "tertiary-fixed-dim": "#47464a",
+                        "error": "#ffb4ab",
+                        "primary-fixed-dim": "#454747",
+                        "secondary-fixed": "#c8c5ca",
+                        "surface-container": "#201f22",
+                        "on-tertiary": "#1b1b1e",
+                        "on-secondary-fixed": "#1b1b1e",
+                        "inverse-surface": "#e5e1e4",
+                        "on-primary-container": "#000000",
+                        "surface-container-lowest": "#0e0e10",
+                        "secondary-container": "#47464a",
+                        "on-tertiary-fixed": "#ffffff",
+                        "background": "#131315",
+                        "surface-bright": "#39393b",
+                        "error-container": "#93000a",
+                        "surface-container-highest": "#353437",
+                        "on-background": "#e5e1e4",
+                        "secondary": "#c8c5ca"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["Inter", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20; }
+        
+        /* Simulating the blinking cursor */
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        .cursor-blink {
+            animation: blink 1s step-end infinite;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-black flex items-center justify-center min-h-screen">
+<!-- Mobile Device Container (393x852) -->
+<div class="w-[393px] h-[852px] bg-background relative overflow-hidden flex flex-col font-body border border-outline-variant/30 shadow-2xl">
+<!-- Top App Bar -->
+<header class="flex items-center justify-between px-6 h-16 shrink-0 border-b border-outline-variant/20 bg-background/90 backdrop-blur-md z-10">
+<div class="flex items-center gap-3">
+<span class="text-lg font-bold tracking-widest text-primary font-headline">MEDHA</span>
+<div class="px-2.5 py-0.5 rounded-full bg-surface-container-low border border-outline-variant/30 flex items-center">
+<span class="text-[10px] text-tertiary-fixed font-label tracking-wide uppercase">Editing</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-primary cursor-pointer">more_vert</span>
+</header>
+<!-- Chat Canvas -->
+<main class="flex-1 overflow-y-auto px-6 pt-8 pb-12 flex flex-col gap-12 relative">
+<!-- Previous AI Message -->
+<div class="flex flex-col gap-2 w-full max-w-[85%]">
+<div class="bg-surface-container-lowest rounded-tr-xl rounded-tl-xl rounded-br-xl p-5">
+<p class="text-primary text-[1rem] leading-[1.6] font-body">The initial projections indicate a strong alignment with our Q3 objectives. The variance model suggests a ±4% deviation based on current market volatility.</p>
+</div>
+</div>
+<!-- Active Edit Mode Block (User) -->
+<div class="flex flex-col gap-3 self-end w-full max-w-[90%] relative z-20">
+<!-- Editable Text Area -->
+<div class="bg-surface-container-low rounded-xl border border-primary-container p-4 focus-within:border-primary transition-colors duration-200">
+<p class="text-primary text-[1rem] leading-[1.6] font-body m-0 p-0 outline-none">Can we run that variance model again, but constrain the volatility parameters to the historical average of the last 12 months?<span class="inline-block w-[2px] h-4 bg-primary ml-[2px] align-middle cursor-blink"></span></p>
+</div>
+<!-- Action Buttons -->
+<div class="flex items-center justify-end gap-2 mt-1">
+<button class="h-[36px] px-4 rounded-lg bg-surface-container-low text-secondary-fixed-dim text-[13px] font-medium transition-colors hover:bg-surface-container-high border border-outline-variant/20">
+                        Cancel
+                    </button>
+<button class="h-[36px] px-5 rounded-lg bg-primary text-on-primary text-[13px] font-medium transition-colors hover:bg-primary-container">
+                        Send
+                    </button>
+</div>
+</div>
+<!-- Visual Divider for "Will be replaced" state -->
+<div class="relative flex items-center py-2 mt-4">
+<div class="flex-grow border-t border-outline-variant/20"></div>
+<div class="px-4 flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px] text-tertiary-fixed">history</span>
+<span class="text-[10px] text-tertiary-fixed font-label tracking-wide uppercase">Will be replaced</span>
+</div>
+<div class="flex-grow border-t border-outline-variant/20"></div>
+</div>
+<!-- Dimmed Subsequent Messages -->
+<div class="flex flex-col gap-10 opacity-40 transition-opacity duration-300 pointer-events-none grayscale-[30%]">
+<!-- Dimmed AI Message -->
+<div class="flex flex-col gap-2 w-full max-w-[85%]">
+<div class="bg-surface-container-lowest rounded-tr-xl rounded-tl-xl rounded-br-xl p-5">
+<p class="text-on-surface-variant text-[1rem] leading-[1.6] font-body">Understood. Recalculating the variance model with standard volatility parameters. This will take a moment to process the historical dataset.</p>
+</div>
+</div>
+<!-- Dimmed User Message (Anti-bubble style per DS) -->
+<div class="self-end pl-4 border-l border-tertiary-fixed max-w-[80%]">
+<p class="text-on-surface-variant text-[1rem] leading-[1.6] font-body">Let me know when it's ready.</p>
+</div>
+<!-- Dimmed AI Message -->
+<div class="flex flex-col gap-2 w-full max-w-[85%]">
+<div class="bg-surface-container-lowest rounded-tr-xl rounded-tl-xl rounded-br-xl p-5">
+<p class="text-on-surface-variant text-[1rem] leading-[1.6] font-body">The recalculation is complete. Using the constrained parameters, the deviation tightens to ±1.8%, presenting a much more conservative projection.</p>
+</div>
+</div>
+</div>
+<!-- Padding at bottom to ensure content isn't cut off abruptly -->
+<div class="h-10"></div>
+</main>
+<!-- Bottom Area (Hidden/Disabled Input) -->
+<!-- The input bar is removed from the DOM structure to emphasize focus on the edit area above -->
+<div class="h-8 bg-background shrink-0 pb-safe"></div>
+</div>
+</body></html>

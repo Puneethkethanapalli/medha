@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Medha - Offline</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-error-container": "#ffdad6",
+                        "on-primary-fixed-variant": "#e2e2e2",
+                        "on-tertiary-fixed-variant": "#e4e1e5",
+                        "secondary-fixed-dim": "#acaaae",
+                        "on-tertiary-container": "#000000",
+                        "on-tertiary": "#1b1b1e",
+                        "inverse-surface": "#e5e1e4",
+                        "outline-variant": "#474747",
+                        "primary-fixed": "#5d5f5f",
+                        "outline": "#919191",
+                        "inverse-primary": "#5d5f5f",
+                        "surface-tint": "#c6c6c7",
+                        "primary-fixed-dim": "#454747",
+                        "on-surface-variant": "#c6c6c6",
+                        "surface-container-low": "#1c1b1d",
+                        "on-primary-container": "#000000",
+                        "surface-bright": "#39393b",
+                        "primary": "#ffffff",
+                        "surface": "#131315",
+                        "secondary-fixed": "#c8c5ca",
+                        "on-surface": "#e5e1e4",
+                        "surface-container-highest": "#353437",
+                        "tertiary": "#e4e1e5",
+                        "secondary": "#c8c5ca",
+                        "on-primary": "#1a1c1c",
+                        "on-secondary": "#1b1b1e",
+                        "surface-container-high": "#2a2a2c",
+                        "on-tertiary-fixed": "#ffffff",
+                        "surface-dim": "#131315",
+                        "secondary-container": "#47464a",
+                        "inverse-on-surface": "#313032",
+                        "tertiary-fixed": "#5f5e61",
+                        "surface-container-lowest": "#0e0e10",
+                        "error": "#ffb4ab",
+                        "surface-container": "#201f22",
+                        "on-secondary-container": "#e4e1e6",
+                        "on-secondary-fixed": "#1b1b1e",
+                        "on-background": "#e5e1e4",
+                        "on-error": "#690005",
+                        "tertiary-fixed-dim": "#47464a",
+                        "tertiary-container": "#919094",
+                        "on-secondary-fixed-variant": "#3b3b3e",
+                        "error-container": "#93000a",
+                        "primary-container": "#d4d4d4",
+                        "on-primary-fixed": "#ffffff",
+                        "surface-variant": "#353437",
+                        "background": "#131315"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface w-full h-screen overflow-hidden flex flex-col antialiased" style="max-width: 393px; margin: 0 auto; height: 852px; position: relative;">
+<!-- TopAppBar from JSON -->
+<header class="fixed top-0 w-full z-50 bg-[#09090B] flex items-center justify-between px-6 h-16 border-b border-[#27272A]" style="max-width: 393px;">
+<button class="text-[#FAFAFA] hover:bg-[#18181B] transition-colors active:scale-95 duration-200 p-2 -ml-2 rounded-lg">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<h1 class="font-['Inter'] font-semibold text-base tracking-tight text-[#FAFAFA] text-lg font-bold tracking-tighter">Medha</h1>
+<button class="text-[#FAFAFA] hover:bg-[#18181B] transition-colors active:scale-95 duration-200 p-2 -mr-2 rounded-lg">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</header>
+<!-- Offline Banner -->
+<div class="fixed top-16 w-full z-40 bg-[#18181B] border-b border-[#27272A] h-9 flex items-center justify-center gap-2" style="max-width: 393px;">
+<span class="material-symbols-outlined text-[14px] text-[#A1A1AA]">wifi_off</span>
+<span class="text-[12px] font-medium text-[#A1A1AA]">No internet connection</span>
+</div>
+<!-- Main Chat Canvas -->
+<main class="flex-1 overflow-y-auto w-full pt-[100px] pb-24 px-4 flex flex-col gap-[80px]">
+<!-- Model Pill -->
+<div class="flex justify-center mt-4">
+<div class="bg-surface-container-highest rounded-full px-4 py-1.5 flex items-center gap-2">
+<span class="material-symbols-outlined text-[14px] text-on-surface">auto_awesome</span>
+<span class="text-xs font-medium text-on-surface">Medha Pro</span>
+<span class="material-symbols-outlined text-[14px] text-secondary-fixed-dim">expand_more</span>
+</div>
+</div>
+<!-- Chat History -->
+<div class="flex flex-col gap-12">
+<!-- User Message Block -->
+<div class="flex flex-col items-end w-full pl-8">
+<div class="text-xs text-outline mb-2">10:42 AM</div>
+<div class="text-base leading-relaxed text-on-surface text-right border-l border-outline-variant/20 pl-4 py-1 w-full max-w-[85%]">
+                    Can you explain the layering principle in UI design? I'm trying to avoid using shadows.
+                </div>
+</div>
+<!-- AI Message Block -->
+<div class="flex flex-col items-start w-full pr-8">
+<div class="flex items-center gap-2 mb-3">
+<div class="w-6 h-6 rounded-sm bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px] text-primary">auto_awesome</span>
+</div>
+<span class="text-xs font-medium text-on-surface">Medha</span>
+</div>
+<div class="bg-surface-container-lowest rounded-tr-xl rounded-tl-xl p-5 text-base leading-[1.6] text-on-surface w-full">
+<p class="mb-4">The layering principle replaces shadows by using tonal density to communicate depth. Instead of projecting a shadow to lift an element, you alter its material brightness.</p>
+<h3 class="text-lg font-semibold mb-2 text-primary">Core Tenets</h3>
+<ul class="list-none space-y-2 mb-4 text-on-surface-variant">
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] mt-1 text-primary-fixed-dim">horizontal_rule</span>
+<span><strong>The Void (Background):</strong> The absolute lowest layer, usually pure black or near-black.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] mt-1 text-primary-fixed-dim">horizontal_rule</span>
+<span><strong>The Canvas (Surface Low):</strong> The primary resting place for content.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] mt-1 text-primary-fixed-dim">horizontal_rule</span>
+<span><strong>The Interactive (Surface High):</strong> Elevated elements like inputs or active cards.</span>
+</li>
+</ul>
+<p>By nesting higher tonal values inside lower ones, the human eye perceives an elevation shift without needing a blurry drop shadow.</p>
+</div>
+<!-- Action Row -->
+<div class="flex items-center gap-4 mt-2 px-2 text-outline">
+<button class="hover:text-primary transition-colors"><span class="material-symbols-outlined text-[18px]">content_copy</span></button>
+<button class="hover:text-primary transition-colors"><span class="material-symbols-outlined text-[18px]">thumb_up</span></button>
+<button class="hover:text-primary transition-colors"><span class="material-symbols-outlined text-[18px]">thumb_down</span></button>
+<button class="hover:text-primary transition-colors ml-auto"><span class="material-symbols-outlined text-[18px]">more_horiz</span></button>
+</div>
+</div>
+<!-- User Message Block (Offline Attempt) -->
+<div class="flex flex-col items-end w-full pl-8 opacity-50">
+<div class="text-xs text-outline mb-2">10:45 AM</div>
+<div class="text-base leading-relaxed text-on-surface text-right border-l border-outline-variant/20 pl-4 py-1 w-full max-w-[85%]">
+                    How does that apply to mobile nav bars?
+                </div>
+<div class="flex items-center gap-1 mt-1 text-error text-[10px] uppercase tracking-widest font-medium">
+<span class="material-symbols-outlined text-[12px]">error</span>
+                    Failed to send
+                </div>
+</div>
+</div>
+</main>
+<!-- Chat Input Area -->
+<div class="fixed bottom-0 w-full z-40 bg-background/90 backdrop-blur-xl pb-safe px-4 pt-4 pb-6" style="max-width: 393px;">
+<div class="flex items-center gap-2 bg-surface-container-highest rounded-[20px] p-2 pl-4 border border-outline-variant/20">
+<button class="text-secondary-fixed-dim p-1 pointer-events-none opacity-50">
+<span class="material-symbols-outlined text-[20px]">add</span>
+</button>
+<input class="flex-1 bg-transparent border-none text-sm text-secondary-fixed-dim placeholder-secondary-fixed-dim focus:ring-0 px-2 cursor-not-allowed" disabled="" placeholder="Offline — reconnect to send" type="text"/>
+<button class="bg-[#27272A] text-[#71717A] p-2 rounded-full flex items-center justify-center cursor-not-allowed transition-colors" disabled="">
+<span class="material-symbols-outlined text-[18px]">arrow_upward</span>
+</button>
+</div>
+<div class="text-center mt-3 text-[10px] text-outline">
+            Medha can make mistakes. Consider verifying important information.
+        </div>
+</div>
+</body></html>

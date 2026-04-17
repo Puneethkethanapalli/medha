@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Medha AI - Chat Conversation</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {},
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "headline": ["Public Sans", "sans-serif"],
+                        "body": ["Public Sans", "sans-serif"],
+                        "label": ["Public Sans", "sans-serif"],
+                        "mono": ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", "monospace"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        /* Cursor blink animation */
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        .cursor-blink {
+            animation: blink 1s step-end infinite;
+        }
+        
+        /* Safe area handling for mobile */
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom, 16px); }
+        .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-[#09090B] text-[#FAFAFA] font-body h-screen w-full flex flex-col overflow-hidden antialiased selection:bg-[#27272A] selection:text-white">
+<!-- Status Bar Spacer (Simulated Mobile Environment) -->
+<div class="h-6 w-full bg-[#09090B] flex-shrink-0 pt-safe z-50 fixed top-0 left-0 right-0"></div>
+<!-- TOP BAR -->
+<header class="fixed top-6 left-0 right-0 h-14 flex items-center justify-between px-4 bg-[#09090B]/80 backdrop-blur-md border-b border-[#27272A]/50 z-40">
+<button aria-label="Menu" class="p-2 -ml-2 text-[#A1A1AA] hover:text-[#FAFAFA] transition-colors rounded-full" type="button">
+<span class="material-symbols-outlined text-[24px]">menu</span>
+</button>
+<div class="flex items-center px-3 py-1.5 bg-[#18181B] rounded-[20px] border border-[#27272A] cursor-pointer hover:bg-[#27272A] transition-colors">
+<span class="text-xs font-medium text-[#A1A1AA]">Claude 3.5 Sonnet</span>
+<span class="material-symbols-outlined text-[16px] text-[#A1A1AA] ml-1">expand_more</span>
+</div>
+<button aria-label="More options" class="p-2 -mr-2 text-[#A1A1AA] hover:text-[#FAFAFA] transition-colors rounded-full" type="button">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</header>
+<!-- MESSAGE LIST (Scrollable Area) -->
+<main class="flex-1 overflow-y-auto px-4 pt-24 pb-28 scroll-smooth" id="chat-container">
+<div class="flex flex-col space-y-8 max-w-3xl mx-auto pb-4">
+<!-- USER MESSAGE 1 -->
+<div class="flex flex-col items-end w-full">
+<div class="bg-[#18181B] text-[#FAFAFA] px-4 py-3 text-[14px] leading-relaxed max-w-[85%] border border-[#27272A]" style="border-radius: 16px 16px 4px 16px;">
+                    Can you explain how React Server Components work?
+                </div>
+</div>
+<!-- ASSISTANT MESSAGE 1 -->
+<div class="flex flex-col items-start w-full gap-2">
+<div class="flex items-center gap-2 text-[#71717A] mb-1">
+<span class="material-symbols-outlined text-[16px]">temp_preferences_custom</span>
+<span class="text-xs font-medium uppercase tracking-wider">Medha</span>
+</div>
+<div class="text-[#FAFAFA] text-[15px] leading-relaxed w-full space-y-4">
+<p>React Server Components (RSC) introduce a new paradigm in React development by allowing components to render exclusively on the server. This shifts the rendering environment from the client (browser) to the server infrastructure.</p>
+<p class="font-semibold text-white">Core Concepts</p>
+<ul class="list-disc pl-5 space-y-2 text-[#A1A1AA]">
+<li><strong class="text-[#FAFAFA]">Zero Bundle Size:</strong> Server components don't ship their code to the client. Only the HTML/JSON output is sent.</li>
+<li><strong class="text-[#FAFAFA]">Direct Backend Access:</strong> They can directly access databases or internal microservices without needing an API layer.</li>
+<li><strong class="text-[#FAFAFA]">Automatic Code Splitting:</strong> Client components imported inside server components are automatically code-split.</li>
+</ul>
+<p>Unlike traditional Server-Side Rendering (SSR) which happens once on initial load, RSCs can be re-fetched dynamically without losing client state. You define a client component using the <code class="bg-[#18181B] text-[#A1A1AA] px-1.5 py-0.5 rounded text-[13px] font-mono border border-[#27272A]">'use client'</code> directive.</p>
+</div>
+<!-- Action Row -->
+<div class="flex items-center gap-3 mt-2">
+<button class="p-1.5 text-[#71717A] hover:text-[#FAFAFA] transition-colors rounded-md hover:bg-[#18181B] flex items-center gap-1 group" title="Copy">
+<span class="material-symbols-outlined text-[16px]">content_copy</span>
+</button>
+<button class="p-1.5 text-[#71717A] hover:text-[#FAFAFA] transition-colors rounded-md hover:bg-[#18181B] flex items-center gap-1 group" title="Regenerate">
+<span class="material-symbols-outlined text-[16px]">refresh</span>
+</button>
+</div>
+</div>
+<!-- USER MESSAGE 2 -->
+<div class="flex flex-col items-end w-full mt-4">
+<div class="bg-[#18181B] text-[#FAFAFA] px-4 py-3 text-[14px] leading-relaxed max-w-[85%] border border-[#27272A]" style="border-radius: 16px 16px 4px 16px;">
+                    Show me a code example
+                </div>
+</div>
+<!-- ASSISTANT MESSAGE 2 -->
+<div class="flex flex-col items-start w-full gap-2">
+<div class="flex items-center gap-2 text-[#71717A] mb-1">
+<span class="material-symbols-outlined text-[16px]">temp_preferences_custom</span>
+<span class="text-xs font-medium uppercase tracking-wider">Medha</span>
+</div>
+<div class="text-[#FAFAFA] text-[15px] leading-relaxed w-full">
+<p class="mb-4">Here is a basic example of a Server Component fetching data directly, and importing a Client Component for interactivity:</p>
+<!-- Code Block -->
+<div class="bg-[#18181B] rounded-lg border border-[#27272A] overflow-hidden my-3 w-full">
+<div class="flex items-center justify-between px-4 py-2 bg-[#18181B] border-b border-[#27272A]">
+<span class="text-[11px] font-mono text-[#71717A]">typescript</span>
+<button class="text-[#71717A] hover:text-[#FAFAFA] transition-colors flex items-center">
+<span class="material-symbols-outlined text-[14px]">content_copy</span>
+</button>
+</div>
+<div class="p-4 overflow-x-auto">
+<pre class="font-mono text-[13px] leading-relaxed"><code class="language-typescript"><span class="text-[#A1A1AA]">// app/page.tsx (Server Component by default in Next.js App Router)</span>
+<span class="text-[#E4E4E7]">import</span> <span class="text-[#FAFAFA]">db</span> <span class="text-[#E4E4E7]">from</span> <span class="text-[#A1A1AA]">'@/lib/db'</span><span class="text-[#E4E4E7]">;</span>
+<span class="text-[#E4E4E7]">import</span> <span class="text-[#FAFAFA]">LikeButton</span> <span class="text-[#E4E4E7]">from</span> <span class="text-[#A1A1AA]">'./LikeButton'</span><span class="text-[#E4E4E7]">;</span>
+
+<span class="text-[#E4E4E7]">export default async function</span> <span class="text-[#FAFAFA] font-medium">Post</span><span class="text-[#E4E4E7]">({</span> <span class="text-[#FAFAFA]">id</span> <span class="text-[#E4E4E7]">}: {</span> <span class="text-[#FAFAFA]">id</span><span class="text-[#E4E4E7]">::</span> <span class="text-[#FAFAFA]">string</span> <span class="text-[#E4E4E7]">}) {</span>
+  <span class="text-[#A1A1AA]">// Direct database access on the server</span>
+  <span class="text-[#E4E4E7]">const</span> <span class="text-[#FAFAFA]">post</span> <span class="text-[#E4E4E7]">=</span> <span class="text-[#E4E4E7]">await</span> <span class="text-[#FAFAFA]">db</span><span class="text-[#E4E4E7]">.</span><span class="text-[#FAFAFA]">query</span><span class="text-[#E4E4E7]&gt;(&lt;/span&gt;&lt;span class=" text-[#a1a1aa]"="">'SELECT * FROM posts WHERE id = ?'</span><span class="text-[#E4E4E7]">, [</span><span class="text-[#FAFAFA]">id</span><span class="text-[#E4E4E7]">]);</span>
+
+  <span class="text-[#E4E4E7]">return</span> <span class="text-[#E4E4E7]&gt;(&lt;/span&gt; &lt;span class=" text-[#e4e4e7]"="">&lt;</span><span class="text-[#FAFAFA]">article</span> <span class="text-[#FAFAFA]">className</span><span class="text-[#E4E4E7]&gt;=&lt;/span&gt;&lt;span class=" text-[#a1a1aa]"="">"p-4"</span><span class="text-[#E4E4E7]&gt;&gt;&lt;/span&gt; &lt;span class=" text-[#e4e4e7]"="">&lt;</span><span class="text-[#FAFAFA]">h1</span><span class="text-[#E4E4E7]&gt;&gt;{&lt;/span&gt;&lt;span class=" text-[#fafafa]"="">post</span><span class="text-[#E4E4E7]">.</span><span class="text-[#FAFAFA]">title</span><span class="text-[#E4E4E7]&gt;}&lt;/span&gt;&lt;span class=" text-[#e4e4e7]="">&lt;/</span><span class="text-[#FAFAFA]">h1</span><span class="text-[#E4E4E7]&gt;&gt;&lt;/span&gt; &lt;span class=" text-[#e4e4e7]"="">&lt;</span><span class="text-[#FAFAFA]">p</span><span class="text-[#E4E4E7]&gt;&gt;{&lt;/span&gt;&lt;span class=" text-[#fafafa]"="">post</span><span class="text-[#E4E4E7]">.</span><span class="text-[#FAFAFA]">content</span><span class="text-[#E4E4E7]&gt;}&lt;/span&gt;&lt;span class=" text-[#e4e4e7]="">&lt;/</span><span class="text-[#FAFAFA]">p</span><span class="text-[#E4E4E7]&gt;&gt;&lt;/span&gt; &lt;span class=" text-[#a1a1aa]"="">{/* Client component injected here */}</span>
+      <span class="text-[#E4E4E7]">&lt;</span><span class="text-[#FAFAFA]">LikeButton</span> <span class="text-[#FAFAFA]">initialLikes</span><span class="text-[#E4E4E7]&gt;=&lt;/span&gt;&lt;span class=" text-[#e4e4e7]="">{</span><span class="text-[#FAFAFA]">post</span><span class="text-[#E4E4E7]">.</span><span class="text-[#FAFAFA]">likes</span><span class="text-[#E4E4E7]">}</span> <span class="text-[#FAFAFA]">postId</span><span class="text-[#E4E4E7]&gt;=&lt;/span&gt;&lt;span class=" text-[#e4e4e7]="">{</span><span class="text-[#FAFAFA]">id</span><span class="text-[#E4E4E7]">}</span> <span class="text-[#E4E4E7]">/&gt;</span>
+    <span class="text-[#E4E4E7]">&lt;/</span><span class="text-[#FAFAFA]">article</span><span class="text-[#E4E4E7]&gt;&gt;&lt;/span&gt; &lt;span class=" text-[#e4e4e7]"="">);</span>
+<span class="text-[#E4E4E7]">}</span></code></pre>
+</div>
+</div>
+</div>
+<!-- Action Row -->
+<div class="flex items-center gap-3 mt-1">
+<button class="p-1.5 text-[#71717A] hover:text-[#FAFAFA] transition-colors rounded-md hover:bg-[#18181B] flex items-center gap-1" title="Copy">
+<span class="material-symbols-outlined text-[16px]">content_copy</span>
+</button>
+<button class="p-1.5 text-[#71717A] hover:text-[#FAFAFA] transition-colors rounded-md hover:bg-[#18181B] flex items-center gap-1" title="Regenerate">
+<span class="material-symbols-outlined text-[16px]">refresh</span>
+</button>
+</div>
+</div>
+<!-- ASSISTANT STREAMING (Currently typing) -->
+<div class="flex flex-col items-start w-full gap-2 mt-4">
+<div class="flex items-center gap-2 text-[#71717A] mb-1">
+<span class="material-symbols-outlined text-[16px] animate-pulse">temp_preferences_custom</span>
+<span class="text-xs font-medium uppercase tracking-wider">Medha</span>
+</div>
+<div class="text-[#FAFAFA] text-[15px] leading-relaxed w-full">
+<p>Here's how you would implement the Client Component part<span class="cursor-blink inline-block w-2 bg-[#FAFAFA] h-[1em] translate-y-[2px] ml-1"></span></p>
+</div>
+</div>
+<!-- Spacer to ensure last message isn't hidden behind input -->
+<div class="h-4"></div>
+</div>
+</main>
+<!-- INPUT BAR (Sticky Bottom) -->
+<div class="fixed bottom-0 left-0 right-0 p-4 pb-safe bg-gradient-to-t from-[#09090B] via-[#09090B] to-transparent z-40">
+<div class="max-w-3xl mx-auto flex items-end gap-2 relative">
+<div class="flex-1 bg-[#18181B] border border-[#27272A] rounded-[12px] min-h-[52px] flex items-center px-4 shadow-sm relative overflow-hidden">
+<!-- Text area visually represented -->
+<div class="w-full text-[15px] py-3.5 text-[#A1A1AA] cursor-text min-h-[52px]">
+<!-- Empty since streaming -->
+</div>
+<!-- Attachment Button (left) -->
+<button aria-label="Attach file" class="absolute left-3 bottom-3 text-[#A1A1AA] hover:text-[#FAFAFA] transition-colors p-1" type="button">
+<span class="material-symbols-outlined text-[20px]">add</span>
+</button>
+<!-- Padding to offset absolute button -->
+<div class="w-8"></div>
+</div>
+<!-- STOP Button (active stream indicator) -->
+<button aria-label="Stop generation" class="w-[32px] h-[32px] bg-[#FAFAFA] rounded-full flex items-center justify-center shrink-0 mb-2.5 transition-transform active:scale-95 shadow-sm" type="button">
+<span class="material-symbols-outlined text-[#09090B] text-[14px]" style="font-variation-settings: 'FILL' 1;">square</span>
+</button>
+</div>
+<div class="text-center mt-3 mb-1">
+<p class="text-[10px] text-[#71717A]">Medha can make mistakes. Verify important information.</p>
+</div>
+</div>
+<script>
+        // Simple script to scroll to bottom on load (simulating chat behavior)
+        document.addEventListener("DOMContentLoaded", () => {
+            const chatContainer = document.getElementById("chat-container");
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        });
+    </script>
+</body></html>

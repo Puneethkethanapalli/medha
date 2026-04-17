@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Medha - Model Picker</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-surface": "#e5e1e4",
+                    "surface-container-highest": "#353437",
+                    "on-tertiary": "#1b1b1e",
+                    "surface-variant": "#353437",
+                    "inverse-on-surface": "#313032",
+                    "surface-container-low": "#1c1b1d",
+                    "tertiary": "#e4e1e5",
+                    "background": "#131315",
+                    "surface-bright": "#39393b",
+                    "on-error-container": "#ffdad6",
+                    "tertiary-fixed-dim": "#47464a",
+                    "surface-container": "#201f22",
+                    "secondary": "#c8c5ca",
+                    "on-primary": "#1a1c1c",
+                    "inverse-primary": "#5d5f5f",
+                    "on-primary-fixed-variant": "#e2e2e2",
+                    "on-background": "#e5e1e4",
+                    "on-error": "#690005",
+                    "outline": "#919191",
+                    "surface-container-high": "#2a2a2c",
+                    "on-primary-fixed": "#ffffff",
+                    "tertiary-container": "#919094",
+                    "on-tertiary-fixed": "#ffffff",
+                    "surface-dim": "#131315",
+                    "on-secondary-fixed-variant": "#3b3b3e",
+                    "surface": "#131315",
+                    "on-secondary-fixed": "#1b1b1e",
+                    "inverse-surface": "#e5e1e4",
+                    "on-tertiary-fixed-variant": "#e4e1e5",
+                    "surface-tint": "#c6c6c7",
+                    "outline-variant": "#474747",
+                    "primary-container": "#d4d4d4",
+                    "on-surface-variant": "#c6c6c6",
+                    "on-primary-container": "#000000",
+                    "on-secondary-container": "#e4e1e6",
+                    "secondary-fixed-dim": "#acaaae",
+                    "on-secondary": "#1b1b1e",
+                    "error-container": "#93000a",
+                    "secondary-container": "#47464a",
+                    "surface-container-lowest": "#0e0e10",
+                    "primary-fixed-dim": "#454747",
+                    "primary": "#ffffff",
+                    "primary-fixed": "#5d5f5f",
+                    "tertiary-fixed": "#5f5e61",
+                    "error": "#ffb4ab",
+                    "on-tertiary-container": "#000000",
+                    "secondary-fixed": "#c8c5ca"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {},
+            "fontFamily": {
+                    "headline": ["Inter"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface font-body h-screen w-full overflow-hidden relative selection:bg-surface-variant">
+<!-- Background Chat Interface (Dimmed) -->
+<div class="h-full w-full flex flex-col bg-background z-0">
+<!-- TopAppBar (from JSON) -->
+<header class="flex justify-between items-center w-full px-4 h-14 bg-[#09090B] border-b border-[#27272A] fixed top-0 w-full z-10 docked full-width top-0 border-b">
+<button class="text-[#FAFAFA] hover:bg-[#18181B] transition-colors active:opacity-70 transition-all duration-150 p-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">menu</span>
+</button>
+<h1 class="font-['Inter'] font-semibold tracking-tight text-base font-bold text-[#FAFAFA] tracking-widest uppercase">Medha</h1>
+<button class="text-[#FAFAFA] hover:bg-[#18181B] transition-colors active:opacity-70 transition-all duration-150 p-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">more_vert</span>
+</button>
+</header>
+<!-- Dummy Chat Content -->
+<main class="flex-1 overflow-y-auto pt-16 pb-20 px-4 space-y-6 opacity-30">
+<div class="flex flex-col space-y-4">
+<div class="self-end max-w-[85%]">
+<div class="pl-4 border-l border-outline-variant/20 py-2">
+<p class="text-on-surface text-base">Can you summarize the main differences between GPT-4 and Claude 3 Opus for coding tasks?</p>
+</div>
+</div>
+<div class="self-start max-w-[90%] bg-surface-container-lowest rounded-tr-xl rounded-tl-xl p-4">
+<p class="text-on-surface text-base leading-[1.6]">GPT-4 and Claude 3 Opus are both highly capable models for coding, but they exhibit distinct characteristics...</p>
+</div>
+</div>
+</main>
+</div>
+<!-- Overlay Dimmer -->
+<div class="fixed inset-0 bg-black/50 z-40 transition-opacity"></div>
+<!-- Bottom Sheet -->
+<div class="fixed bottom-0 left-0 w-full h-[618px] bg-[#09090B] rounded-t-[16px] border-t border-[#27272A] z-50 flex flex-col transform transition-transform duration-300 ease-out shadow-2xl">
+<!-- Handle & Header Area -->
+<div class="w-full flex flex-col pt-3 pb-4 px-4 border-b border-outline-variant/20 shrink-0">
+<div class="w-10 h-1 bg-[#27272A] rounded-full mx-auto mb-4"></div>
+<div class="flex items-center justify-between">
+<h2 class="font-['Inter'] font-semibold text-[16px] text-[#FAFAFA]">Select Model</h2>
+<button class="text-[#A1A1AA] hover:text-[#FAFAFA] transition-colors p-1 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">close</span>
+</button>
+</div>
+<!-- Search Input -->
+<div class="mt-4 relative flex items-center w-full h-[40px] bg-[#18181B] rounded-[8px] px-3 focus-within:ring-1 focus-within:ring-outline-variant transition-shadow">
+<span class="material-symbols-outlined text-[#71717A] text-[18px] mr-2">search</span>
+<input class="w-full bg-transparent border-none text-[14px] text-[#FAFAFA] placeholder-[#71717A] focus:ring-0 p-0 font-body" placeholder="Search models..." type="text"/>
+</div>
+</div>
+<!-- Scrollable Model List -->
+<div class="flex-1 overflow-y-auto px-4 pb-8">
+<!-- Provider Group: OPENAI -->
+<div class="mt-6 mb-2">
+<span class="text-[10px] uppercase tracking-widest text-[#71717A] font-semibold pl-2">OPENAI</span>
+</div>
+<div class="flex flex-col">
+<!-- Selected Row -->
+<button class="w-full flex items-center justify-between h-[52px] px-2 border-b border-outline-variant/20 hover:bg-[#18181B]/50 transition-colors group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#FAFAFA] text-[18px]">check</span>
+<span class="text-[15px] font-medium text-[#FAFAFA]">GPT-4o</span>
+</div>
+<span class="text-[12px] text-[#71717A] group-hover:text-[#A1A1AA] transition-colors">128K</span>
+</button>
+<button class="w-full flex items-center justify-between h-[52px] px-2 border-b border-outline-variant/20 hover:bg-[#18181B]/50 transition-colors group">
+<div class="flex items-center gap-3 pl-[30px]">
+<span class="text-[15px] text-[#FAFAFA]">GPT-4 Turbo</span>
+</div>
+<span class="text-[12px] text-[#71717A] group-hover:text-[#A1A1AA] transition-colors">128K</span>
+</button>
+<button class="w-full flex items-center justify-between h-[52px] px-2 border-b border-outline-variant/20 hover:bg-[#18181B]/50 transition-colors group">
+<div class="flex items-center gap-3 pl-[30px]">
+<span class="text-[15px] text-[#FAFAFA]">GPT-3.5 Turbo</span>
+</div>
+<span class="text-[12px] text-[#71717A] group-hover:text-[#A1A1AA] transition-colors">16K</span>
+</button>
+</div>
+<!-- Provider Group: ANTHROPIC -->
+<div class="mt-6 mb-2">
+<span class="text-[10px] uppercase tracking-widest text-[#71717A] font-semibold pl-2">ANTHROPIC</span>
+</div>
+<div class="flex flex-col">
+<button class="w-full flex items-center justify-between h-[52px] px-2 border-b border-outline-variant/20 hover:bg-[#18181B]/50 transition-colors group">
+<div class="flex items-center gap-3 pl-[30px]">
+<span class="text-[15px] text-[#FAFAFA]">Claude 3.5 Sonnet</span>
+</div>
+<span class="text-[12px] text-[#71717A] group-hover:text-[#A1A1AA] transition-colors">200K</span>
+</button>
+<button class="w-full flex items-center justify-between h-[52px] px-2 border-b border-outline-variant/20 hover:bg-[#18181B]/50 transition-colors group">
+<div class="flex items-center gap-3 pl-[30px]">
+<span class="text-[15px] text-[#FAFAFA]">Claude 3 Opus</span>
+</div>
+<span class="text-[12px] text-[#71717A] group-hover:text-[#A1A1AA] transition-colors">200K</span>
+</button>
+<button class="w-full flex items-center justify-between h-[52px] px-2 border-b border-outline-variant/20 hover:bg-[#18181B]/50 transition-colors group">
+<div class="flex items-center gap-3 pl-[30px]">
+<span class="text-[15px] text-[#FAFAFA]">Claude 3 Haiku</span>
+</div>
+<span class="text-[12px] text-[#71717A] group-hover:text-[#A1A1AA] transition-colors">200K</span>
+</button>
+</div>
+<!-- Provider Group: GOOGLE -->
+<div class="mt-6 mb-2">
+<span class="text-[10px] uppercase tracking-widest text-[#71717A] font-semibold pl-2">GOOGLE</span>
+</div>
+<div class="flex flex-col">
+<button class="w-full flex items-center justify-between h-[52px] px-2 border-b border-outline-variant/20 hover:bg-[#18181B]/50 transition-colors group">
+<div class="flex items-center gap-3 pl-[30px]">
+<span class="text-[15px] text-[#FAFAFA]">Gemini 1.5 Pro</span>
+</div>
+<span class="text-[12px] text-[#71717A] group-hover:text-[#A1A1AA] transition-colors">1M</span>
+</button>
+<button class="w-full flex items-center justify-between h-[52px] px-2 border-b border-outline-variant/20 hover:bg-[#18181B]/50 transition-colors group">
+<div class="flex items-center gap-3 pl-[30px]">
+<span class="text-[15px] text-[#FAFAFA]">Gemini 1.5 Flash</span>
+</div>
+<span class="text-[12px] text-[#71717A] group-hover:text-[#A1A1AA] transition-colors">1M</span>
+</button>
+</div>
+<!-- Provider Group: META -->
+<div class="mt-6 mb-2">
+<span class="text-[10px] uppercase tracking-widest text-[#71717A] font-semibold pl-2">META</span>
+</div>
+<div class="flex flex-col pb-8">
+<button class="w-full flex items-center justify-between h-[52px] px-2 hover:bg-[#18181B]/50 transition-colors group">
+<div class="flex items-center gap-3 pl-[30px]">
+<span class="text-[15px] text-[#FAFAFA]">Llama 3 70B</span>
+</div>
+<span class="text-[12px] text-[#71717A] group-hover:text-[#A1A1AA] transition-colors">8K</span>
+</button>
+</div>
+</div>
+</div>
+</body></html>

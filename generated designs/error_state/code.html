@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Medha - Error State</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-error-container": "#ffdad6",
+                        "on-primary-fixed-variant": "#e2e2e2",
+                        "on-tertiary-fixed-variant": "#e4e1e5",
+                        "secondary-fixed-dim": "#acaaae",
+                        "on-tertiary-container": "#000000",
+                        "on-tertiary": "#1b1b1e",
+                        "inverse-surface": "#e5e1e4",
+                        "outline-variant": "#474747",
+                        "primary-fixed": "#5d5f5f",
+                        "outline": "#919191",
+                        "inverse-primary": "#5d5f5f",
+                        "surface-tint": "#c6c6c7",
+                        "primary-fixed-dim": "#454747",
+                        "on-surface-variant": "#c6c6c6",
+                        "surface-container-low": "#1c1b1d",
+                        "on-primary-container": "#000000",
+                        "surface-bright": "#39393b",
+                        "primary": "#ffffff",
+                        "surface": "#131315",
+                        "secondary-fixed": "#c8c5ca",
+                        "on-surface": "#e5e1e4",
+                        "surface-container-highest": "#353437",
+                        "tertiary": "#e4e1e5",
+                        "secondary": "#c8c5ca",
+                        "on-primary": "#1a1c1c",
+                        "on-secondary": "#1b1b1e",
+                        "surface-container-high": "#2a2a2c",
+                        "on-tertiary-fixed": "#ffffff",
+                        "surface-dim": "#131315",
+                        "secondary-container": "#47464a",
+                        "inverse-on-surface": "#313032",
+                        "tertiary-fixed": "#5f5e61",
+                        "surface-container-lowest": "#0e0e10",
+                        "error": "#ffb4ab",
+                        "surface-container": "#201f22",
+                        "on-secondary-container": "#e4e1e6",
+                        "on-secondary-fixed": "#1b1b1e",
+                        "on-background": "#e5e1e4",
+                        "on-error": "#690005",
+                        "tertiary-fixed-dim": "#47464a",
+                        "tertiary-container": "#919094",
+                        "on-secondary-fixed-variant": "#3b3b3e",
+                        "error-container": "#93000a",
+                        "primary-container": "#d4d4d4",
+                        "on-primary-fixed": "#ffffff",
+                        "surface-variant": "#353437",
+                        "background": "#131315"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background h-screen flex flex-col overflow-hidden max-w-[393px] mx-auto border-x border-[#27272A] relative">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full max-w-[393px] z-50 bg-[#09090B] border-b border-[#27272A] flex items-center justify-between px-6 h-16">
+<button class="text-[#FAFAFA] hover:bg-[#18181B] transition-colors p-2 rounded-full active:scale-95 duration-200 -ml-2">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<div class="flex items-center gap-2">
+<h1 class="text-lg font-bold tracking-tighter text-[#FAFAFA] font-['Inter']">Medha</h1>
+<div class="px-2 py-0.5 rounded-full border border-outline-variant/20 bg-surface-container-low text-[10px] text-secondary">v4.0</div>
+</div>
+<button class="text-[#FAFAFA] hover:bg-[#18181B] transition-colors p-2 rounded-full active:scale-95 duration-200 -mr-2">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+</header>
+<!-- Main Chat Canvas -->
+<main class="flex-1 overflow-y-auto pt-20 pb-28 px-4 flex flex-col gap-8">
+<!-- Prior Conversation Block 1 -->
+<div class="flex flex-col gap-6">
+<!-- User Message -->
+<div class="flex flex-col items-end w-full">
+<div class="max-w-[85%] border-l border-outline-variant/20 pl-4 py-1 text-on-background text-sm leading-[1.6]">
+                    Can you explain how tonal nesting works in UI design?
+                </div>
+</div>
+<!-- AI Response -->
+<div class="flex flex-col items-start w-full">
+<div class="bg-surface-container-lowest rounded-tr-xl rounded-tl-xl p-4 max-w-[90%] w-full">
+<p class="text-on-background text-sm leading-[1.6]">
+                        Tonal nesting relies on subtle shifts in background material rather than using drop shadows to create structural hierarchy. For instance, placing a <code class="text-[12px] bg-surface px-1 py-0.5 rounded border border-outline-variant/20 text-secondary">surface_container_highest</code> element over a <code class="text-[12px] bg-surface px-1 py-0.5 rounded border border-outline-variant/20 text-secondary">surface_container_low</code> background gives perceived depth.
+                    </p>
+</div>
+</div>
+</div>
+<!-- Current Interaction Block -->
+<div class="flex flex-col gap-6 mt-4">
+<!-- User Message -->
+<div class="flex flex-col items-end w-full">
+<div class="max-w-[85%] border-l border-outline-variant/20 pl-4 py-1 text-on-background text-sm leading-[1.6]">
+                    What's the weather today?
+                </div>
+</div>
+<!-- Error State Block (Replacing AI Bubble) -->
+<div class="flex flex-col items-start w-full">
+<div class="bg-[#18181B] rounded-lg p-4 max-w-[90%] w-full border border-error/30 flex flex-col gap-3">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-error text-[18px] mt-0.5" data-icon="warning">warning</span>
+<div class="flex flex-col gap-1">
+<span class="text-[#FAFAFA] font-medium text-[14px]">Failed to get a response</span>
+<span class="text-[#A1A1AA] text-[12px] leading-relaxed">Rate limited by OpenRouter. Try again in 30 seconds.</span>
+</div>
+</div>
+<button class="self-start mt-1 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#18181B] border border-[#27272A] hover:bg-surface-container-high transition-colors active:scale-95">
+<span class="material-symbols-outlined text-[#A1A1AA] text-[14px]" data-icon="refresh">refresh</span>
+<span class="text-[#A1A1AA] text-[12px] font-medium">Retry</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Input Area -->
+<div class="fixed bottom-0 w-full max-w-[393px] bg-background/90 backdrop-blur-xl border-t border-[#27272A] p-4 pb-safe z-50">
+<div class="relative w-full">
+<button class="absolute left-3 top-1/2 -translate-y-1/2 text-secondary p-1 rounded-full hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-[20px]" data-icon="add">add</span>
+</button>
+<input class="w-full bg-surface-container-high border-none rounded-full py-3 pl-12 pr-12 text-sm text-on-background placeholder:text-secondary focus:ring-1 focus:ring-outline-variant/50 focus:outline-none transition-all" placeholder="Message Medha..." type="text"/>
+<button class="absolute right-3 top-1/2 -translate-y-1/2 bg-primary text-on-primary p-1.5 rounded-full hover:opacity-90 transition-opacity flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]" data-icon="arrow_upward" style="font-variation-settings: 'FILL' 1;">arrow_upward</span>
+</button>
+</div>
+<div class="text-center mt-2">
+<span class="text-[10px] text-tertiary">Medha AI Pro v1.0.4</span>
+</div>
+</div>
+</body></html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Medha - Premium AI Chat Client</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {},
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["Inter", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-[#09090B] text-[#FAFAFA] antialiased h-[852px] w-[393px] mx-auto relative overflow-hidden flex">
+<!-- Dimmed Background Overlay representing main chat screen -->
+<div class="absolute inset-0 bg-[#09090B] flex flex-col z-0">
+<!-- Faux TopAppBar to hint at main content underneath -->
+<header class="flex items-center justify-between px-4 h-16 w-full bg-slate-950 border-b border-slate-900 opacity-50">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-indigo-400">menu</span>
+<h1 class="text-xl font-bold tracking-tight text-slate-50">Medha</h1>
+</div>
+<span class="material-symbols-outlined text-indigo-400">search</span>
+</header>
+<main class="flex-1 p-4 opacity-30">
+<div class="space-y-4">
+<div class="flex justify-end"><div class="bg-indigo-900/50 p-3 rounded-lg max-w-[80%] text-sm">Tell me about React Server Components.</div></div>
+<div class="flex justify-start"><div class="bg-[#18181B] p-3 rounded-lg max-w-[80%] border border-[#27272A] text-sm">React Server Components (RSC) allow you to...</div></div>
+</div>
+</main>
+<!-- Overlay -->
+<div class="absolute inset-0 bg-black/50 z-10"></div>
+</div>
+<!-- Navigation Drawer (85% width) -->
+<nav class="h-full w-[334px] border-r border-[#27272A] bg-[#09090B] fixed inset-y-0 left-0 z-50 flex flex-col p-4 shadow-2xl divide-y divide-[#27272A]">
+<!-- Drawer Header -->
+<div class="flex items-center justify-between pb-4">
+<h2 class="text-[18px] font-semibold text-[#FAFAFA]">Medha</h2>
+<button class="flex items-center justify-center bg-[#18181B] border border-[#27272A] rounded-[20px] px-3 py-1.5 gap-1.5 hover:bg-[#27272A] transition-colors">
+<span class="material-symbols-outlined text-[#FAFAFA]" style="font-size: 16px;">edit_square</span>
+<span class="text-sm font-medium text-[#FAFAFA]">New</span>
+</button>
+</div>
+<!-- Search Bar -->
+<div class="py-4">
+<div class="relative flex items-center w-full bg-[#18181B] rounded-lg border border-[#27272A] px-3 py-2">
+<span class="material-symbols-outlined text-[#71717A] mr-2" style="font-size: 18px;">search</span>
+<input class="w-full bg-transparent border-none p-0 text-[13px] text-[#FAFAFA] placeholder:text-[#71717A] focus:ring-0" placeholder="Search conversations..." type="text"/>
+</div>
+</div>
+<!-- Scrollable Conversation List -->
+<div class="flex-1 overflow-y-auto py-2 -mx-2 px-2 scrollbar-hide space-y-6">
+<!-- Pinned Section -->
+<div class="space-y-1">
+<h3 class="text-[10px] font-semibold text-[#71717A] uppercase tracking-wider px-2 mb-2">Pinned</h3>
+<a class="flex items-center gap-3 px-2 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-[#18181B] transition-colors group" href="#">
+<span class="material-symbols-outlined text-[#71717A] group-hover:text-[#FAFAFA]" style="font-size: 18px;">push_pin</span>
+<span class="text-sm font-medium truncate flex-1">Project architecture notes</span>
+</a>
+<a class="flex items-center gap-3 px-2 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-[#18181B] transition-colors group" href="#">
+<span class="material-symbols-outlined text-[#71717A] group-hover:text-[#FAFAFA]" style="font-size: 18px;">push_pin</span>
+<span class="text-sm font-medium truncate flex-1">API reference cheatsheet</span>
+</a>
+</div>
+<!-- Today Section -->
+<div class="space-y-1">
+<h3 class="text-[10px] font-semibold text-[#71717A] uppercase tracking-wider px-2 mb-2">Today</h3>
+<!-- Active Item -->
+<a class="flex items-center gap-3 px-2 py-2.5 bg-[#18181B] text-indigo-400 rounded-lg relative transition-colors group" href="#">
+<div class="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-[60%] bg-[#FAFAFA] rounded-r-full"></div>
+<span class="material-symbols-outlined text-indigo-400" style="font-size: 18px;">chat_bubble</span>
+<span class="text-sm font-medium truncate flex-1 text-[#FAFAFA]">React Server Components explanation</span>
+</a>
+<a class="flex items-center gap-3 px-2 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-[#18181B] transition-colors group" href="#">
+<span class="material-symbols-outlined text-[#71717A] group-hover:text-[#FAFAFA]" style="font-size: 18px;">chat_bubble</span>
+<span class="text-sm font-medium truncate flex-1">Python async patterns</span>
+</a>
+</div>
+<!-- Yesterday Section -->
+<div class="space-y-1">
+<h3 class="text-[10px] font-semibold text-[#71717A] uppercase tracking-wider px-2 mb-2">Yesterday</h3>
+<a class="flex items-center gap-3 px-2 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-[#18181B] transition-colors group" href="#">
+<span class="material-symbols-outlined text-[#71717A] group-hover:text-[#FAFAFA]" style="font-size: 18px;">chat_bubble</span>
+<span class="text-sm font-medium truncate flex-1">SQL query optimization</span>
+</a>
+<a class="flex items-center gap-3 px-2 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-[#18181B] transition-colors group" href="#">
+<span class="material-symbols-outlined text-[#71717A] group-hover:text-[#FAFAFA]" style="font-size: 18px;">chat_bubble</span>
+<span class="text-sm font-medium truncate flex-1">Docker compose setup for local dev</span>
+</a>
+</div>
+<!-- Last 7 Days Section -->
+<div class="space-y-1">
+<h3 class="text-[10px] font-semibold text-[#71717A] uppercase tracking-wider px-2 mb-2">Previous 7 Days</h3>
+<a class="flex items-center gap-3 px-2 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-[#18181B] transition-colors group" href="#">
+<span class="material-symbols-outlined text-[#71717A] group-hover:text-[#FAFAFA]" style="font-size: 18px;">chat_bubble</span>
+<span class="text-sm font-medium truncate flex-1">Tailwind CSS utility variants</span>
+</a>
+<a class="flex items-center gap-3 px-2 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-[#18181B] transition-colors group" href="#">
+<span class="material-symbols-outlined text-[#71717A] group-hover:text-[#FAFAFA]" style="font-size: 18px;">chat_bubble</span>
+<span class="text-sm font-medium truncate flex-1">Understanding OAuth 2.0 flow</span>
+</a>
+</div>
+</div>
+<!-- Footer / Settings -->
+<div class="pt-4 mt-auto">
+<a class="flex items-center gap-3 px-2 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-[#18181B] transition-colors group" href="#">
+<span class="material-symbols-outlined text-[#A1A1AA] group-hover:text-[#FAFAFA]" style="font-size: 20px;">settings</span>
+<span class="text-[14px] font-medium text-[#A1A1AA] group-hover:text-[#FAFAFA]">Settings</span>
+</a>
+</div>
+</nav>
+</body></html>

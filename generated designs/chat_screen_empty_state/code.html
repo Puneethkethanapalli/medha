@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Medha AI Assistant</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {},
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {},
+                    fontFamily: {
+                        "headline": ["Public Sans"],
+                        "body": ["Public Sans"],
+                        "label": ["Public Sans"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Public Sans', sans-serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-zinc-950 text-zinc-100 antialiased h-[852px] w-[393px] mx-auto overflow-hidden flex flex-col relative font-body">
+<!-- Top App Bar -->
+<header class="flex justify-between items-center w-full px-4 h-14 bg-zinc-950 border-b border-zinc-800 shrink-0 z-10 font-sans antialiased">
+<button class="text-zinc-100 hover:bg-zinc-900 transition-colors active:scale-95 duration-100 p-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="menu" style="font-variation-settings: 'FILL' 0;">menu</span>
+</button>
+<div class="text-lg font-semibold tracking-tight text-zinc-100">AI Assistant</div>
+<button class="text-zinc-100 hover:bg-zinc-900 transition-colors active:scale-95 duration-100 p-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="add" style="font-variation-settings: 'FILL' 0;">add</span>
+</button>
+</header>
+<!-- Main Content Area (Empty State) -->
+<main class="flex-1 flex flex-col items-center justify-center p-6 pb-24 overflow-y-auto">
+<!-- Logo / Greeting -->
+<div class="flex flex-col items-center text-center mb-8">
+<div class="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center mb-4 border border-zinc-800">
+<span class="material-symbols-outlined text-4xl text-zinc-400" data-icon="auto_awesome">auto_awesome</span>
+</div>
+<h1 class="text-2xl font-headline font-semibold text-zinc-100 tracking-tight">What can I help with?</h1>
+</div>
+<!-- Suggestion Grid (Bento style) -->
+<div class="grid grid-cols-2 gap-3 w-full max-w-md">
+<!-- Chip 1 -->
+<button class="flex flex-col items-start p-4 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800/50 transition-colors text-left group">
+<span class="material-symbols-outlined text-zinc-400 mb-2 group-hover:text-zinc-100 transition-colors" data-icon="code">code</span>
+<span class="text-sm font-medium text-zinc-300">Help me debug...</span>
+</button>
+<!-- Chip 2 -->
+<button class="flex flex-col items-start p-4 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800/50 transition-colors text-left group">
+<span class="material-symbols-outlined text-zinc-400 mb-2 group-hover:text-zinc-100 transition-colors" data-icon="description">description</span>
+<span class="text-sm font-medium text-zinc-300">Summarize...</span>
+</button>
+<!-- Chip 3 -->
+<button class="flex flex-col items-start p-4 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800/50 transition-colors text-left group">
+<span class="material-symbols-outlined text-zinc-400 mb-2 group-hover:text-zinc-100 transition-colors" data-icon="lightbulb">lightbulb</span>
+<span class="text-sm font-medium text-zinc-300">Brainstorm...</span>
+</button>
+<!-- Chip 4 -->
+<button class="flex flex-col items-start p-4 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800/50 transition-colors text-left group">
+<span class="material-symbols-outlined text-zinc-400 mb-2 group-hover:text-zinc-100 transition-colors" data-icon="translate">translate</span>
+<span class="text-sm font-medium text-zinc-300">Translate...</span>
+</button>
+</div>
+</main>
+<!-- Input Bar -->
+<div class="absolute bottom-20 left-0 right-0 px-4">
+<div class="flex items-center bg-zinc-900 border border-zinc-800 rounded-xl p-2 pl-4 shadow-sm">
+<input class="flex-1 bg-transparent border-none text-zinc-100 placeholder-zinc-500 focus:ring-0 text-sm py-2" placeholder="Message Medha..." type="text"/>
+<button class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700 transition-colors ml-2 shrink-0">
+<span class="material-symbols-outlined text-sm" data-icon="arrow_upward">arrow_upward</span>
+</button>
+</div>
+</div>
+<!-- Bottom Nav Bar -->
+<nav class="fixed bottom-0 w-full z-50 flex justify-around items-center py-3 px-6 bg-zinc-950 border-t border-zinc-800 text-xs font-medium shrink-0">
+<button class="flex flex-col items-center justify-center text-zinc-100 bg-zinc-900 rounded-lg p-2 hover:text-zinc-300 tap-highlight-transparent">
+<span class="material-symbols-outlined mb-1" data-icon="chat_bubble" style="font-variation-settings: 'FILL' 1;">chat_bubble</span>
+</button>
+<button class="flex flex-col items-center justify-center text-zinc-500 p-2 hover:text-zinc-300 tap-highlight-transparent">
+<span class="material-symbols-outlined mb-1" data-icon="history" style="font-variation-settings: 'FILL' 0;">history</span>
+</button>
+<button class="flex flex-col items-center justify-center text-zinc-500 p-2 hover:text-zinc-300 tap-highlight-transparent">
+<span class="material-symbols-outlined mb-1" data-icon="settings" style="font-variation-settings: 'FILL' 0;">settings</span>
+</button>
+</nav>
+</body></html>

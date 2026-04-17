@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=393, height=852, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Medha - AI Chat Context Menu</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary": "#e4e1e5",
+                        "tertiary-container": "#919094",
+                        "surface-variant": "#353437",
+                        "surface-dim": "#131315",
+                        "on-surface": "#e5e1e4",
+                        "on-secondary-fixed-variant": "#3b3b3e",
+                        "surface-tint": "#c6c6c7",
+                        "on-surface-variant": "#c6c6c6",
+                        "tertiary-fixed": "#5f5e61",
+                        "on-error": "#690005",
+                        "primary-fixed": "#5d5f5f",
+                        "surface-container-low": "#1c1b1d",
+                        "secondary-fixed-dim": "#acaaae",
+                        "primary-container": "#d4d4d4",
+                        "primary": "#ffffff",
+                        "on-error-container": "#ffdad6",
+                        "outline-variant": "#474747",
+                        "surface": "#131315",
+                        "inverse-primary": "#5d5f5f",
+                        "on-tertiary-fixed-variant": "#e4e1e5",
+                        "on-primary": "#1a1c1c",
+                        "on-primary-fixed": "#ffffff",
+                        "inverse-on-surface": "#313032",
+                        "on-tertiary-container": "#000000",
+                        "outline": "#919191",
+                        "on-secondary-container": "#e4e1e6",
+                        "on-secondary": "#1b1b1e",
+                        "surface-container-high": "#2a2a2c",
+                        "on-primary-fixed-variant": "#e2e2e2",
+                        "tertiary-fixed-dim": "#47464a",
+                        "error": "#ffb4ab",
+                        "primary-fixed-dim": "#454747",
+                        "secondary-fixed": "#c8c5ca",
+                        "surface-container": "#201f22",
+                        "on-tertiary": "#1b1b1e",
+                        "on-secondary-fixed": "#1b1b1e",
+                        "inverse-surface": "#e5e1e4",
+                        "on-primary-container": "#000000",
+                        "surface-container-lowest": "#0e0e10",
+                        "secondary-container": "#47464a",
+                        "on-tertiary-fixed": "#ffffff",
+                        "background": "#09090B",
+                        "surface-bright": "#39393b",
+                        "error-container": "#93000a",
+                        "surface-container-highest": "#353437",
+                        "on-background": "#e5e1e4",
+                        "secondary": "#c8c5ca"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #09090B;
+            color: #FAFAFA;
+            margin: 0;
+            padding: 0;
+            width: 393px;
+            height: 852px;
+            overflow: hidden;
+            position: relative;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
+        }
+        /* Custom scrollbar to hide it but keep functionality if needed */
+        ::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="antialiased flex flex-col items-center justify-center min-h-screen bg-black">
+<!-- Mobile Device Container -->
+<div class="relative w-[393px] h-[852px] bg-[#09090B] overflow-hidden border border-[#27272A]">
+<!-- TopAppBar (from JSON) -->
+<header class="fixed top-0 w-[393px] z-[40] bg-[#09090B] text-[#FAFAFA] border-b border-[#27272A] flex items-center justify-between px-6 h-16 font-['Inter'] tracking-tight">
+<button class="flex items-center justify-center w-10 h-10 hover:bg-[#18181B] transition-colors rounded-full text-[#71717A] active:scale-95 duration-200">
+<span class="material-symbols-outlined text-xl">search</span>
+</button>
+<h1 class="text-lg font-bold tracking-widest text-[#FAFAFA] text-center flex-1">NOVA</h1>
+<button class="flex items-center justify-center w-10 h-10 hover:bg-[#18181B] transition-colors rounded-full text-[#71717A] active:scale-95 duration-200">
+<span class="material-symbols-outlined text-xl">more_vert</span>
+</button>
+</header>
+<!-- Chat Canvas (Underneath Overlay) -->
+<main class="absolute top-16 bottom-20 left-0 right-0 overflow-y-auto px-6 py-8 flex flex-col gap-10 opacity-40 select-none">
+<!-- Past User Message -->
+<div class="flex flex-col items-end w-full pl-12">
+<div class="text-right border-l border-outline-variant/20 pl-4 py-1 text-on-background/80 text-[1rem] leading-[1.6]">
+                    Explain the concept of quantum entanglement in simple terms, emphasizing its potential applications in secure communications.
+                </div>
+<div class="text-[0.75rem] text-tertiary-fixed mt-2">10:42 AM</div>
+</div>
+<!-- Past Assistant Message -->
+<div class="flex flex-col items-start w-full pr-12">
+<div class="bg-surface-container-lowest rounded-tr-xl rounded-tl-xl rounded-br-xl p-5 text-on-background text-[1rem] leading-[1.6]">
+<p class="mb-4">Imagine two coins that are magically linked. No matter how far apart they are—even across the galaxy—if you flip one and it lands on heads, the other will instantly land on heads too.</p>
+<p>That "magical link" is quantum entanglement. In the quantum world, particles like photons can become entangled, meaning the state of one instantly determines the state of the other.</p>
+</div>
+<div class="text-[0.75rem] text-tertiary-fixed mt-2">10:43 AM</div>
+</div>
+<!-- Recent User Message -->
+<div class="flex flex-col items-end w-full pl-12">
+<div class="text-right border-l border-outline-variant/20 pl-4 py-1 text-on-background text-[1rem] leading-[1.6]">
+                    How does that actually secure a network though? Wouldn't someone just intercept the linked coin?
+                </div>
+<div class="text-[0.75rem] text-tertiary-fixed mt-2">10:45 AM</div>
+</div>
+</main>
+<!-- Chat Input Area (Underneath Overlay) -->
+<footer class="absolute bottom-0 w-[393px] bg-[#09090B] px-6 py-4 pb-8 z-[40] opacity-40">
+<div class="bg-surface-container-highest rounded-[20px] h-12 flex items-center px-4">
+<span class="material-symbols-outlined text-[#71717A] mr-3 text-[20px]">add</span>
+<input class="flex-1 bg-transparent border-none text-[#FAFAFA] placeholder-[#71717A] text-[1rem] focus:ring-0 p-0" disabled="" placeholder="Message Nova..." type="text"/>
+<button class="ml-3 bg-[#FFFFFF] text-[#1A1C1C] w-8 h-8 flex items-center justify-center rounded-[8px]">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">arrow_upward</span>
+</button>
+</div>
+</footer>
+<!-- DIMMING OVERLAY -->
+<div class="absolute inset-0 bg-black/40 z-[45] pointer-events-auto backdrop-blur-[2px]"></div>
+<!-- FOCUSED MESSAGE & CONTEXT MENU LAYER -->
+<div class="absolute inset-0 z-[50] pointer-events-none flex flex-col justify-center px-6">
+<!-- Focused Message Wrapper (Simulated position mid-screen) -->
+<div class="relative w-full pr-12 mt-20 pointer-events-auto">
+<!-- Elevated Assistant Message -->
+<div class="bg-surface-container-lowest rounded-tr-xl rounded-tl-xl rounded-br-xl p-5 text-[#FAFAFA] text-[1rem] leading-[1.6] shadow-2xl relative">
+<p class="mb-4">That's the beauty of it. You can't just intercept it without changing it.</p>
+<p>In quantum mechanics, the act of observing a particle alters its state. If an eavesdropper tries to intercept the entangled photons used to create a cryptographic key (a process called Quantum Key Distribution, or QKD), the entanglement breaks, and the interference is immediately detected by the communicating parties.</p>
+</div>
+<!-- Action Menu (Positioned directly below the message) -->
+<div class="absolute top-[calc(100%+12px)] left-0 w-[220px] bg-[#0A0A0C] border border-[#27272A] rounded-xl p-2 flex flex-col">
+<!-- Copy Action -->
+<button class="flex items-center w-full h-[44px] px-3 hover:bg-[#18181B] rounded-lg transition-colors group">
+<span class="material-symbols-outlined text-[18px] text-[#A1A1AA] mr-3 group-hover:text-[#FAFAFA] transition-colors">content_copy</span>
+<span class="text-[14px] text-[#FAFAFA] font-medium">Copy</span>
+</button>
+<!-- Divider -->
+<div class="w-full h-px bg-[#27272A] my-1 opacity-50"></div>
+<!-- Regenerate Action -->
+<button class="flex items-center w-full h-[44px] px-3 hover:bg-[#18181B] rounded-lg transition-colors group">
+<span class="material-symbols-outlined text-[18px] text-[#A1A1AA] mr-3 group-hover:text-[#FAFAFA] transition-colors">refresh</span>
+<span class="text-[14px] text-[#FAFAFA] font-medium">Regenerate</span>
+</button>
+<!-- Divider -->
+<div class="w-full h-px bg-[#27272A] my-1 opacity-50"></div>
+<!-- Delete Action -->
+<button class="flex items-center w-full h-[44px] px-3 hover:bg-[#18181B] rounded-lg transition-colors group">
+<span class="material-symbols-outlined text-[18px] text-[#EF4444] mr-3">delete</span>
+<span class="text-[14px] text-[#FAFAFA] font-medium group-hover:text-[#EF4444] transition-colors">Delete</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</body></html>

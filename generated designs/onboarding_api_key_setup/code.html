@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Medha - API Setup</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-tertiary-fixed": "#ffffff",
+                      "tertiary-fixed-dim": "#45464e",
+                      "primary": "#ffffff",
+                      "on-primary-fixed": "#ffffff",
+                      "inverse-on-surface": "#313032",
+                      "on-secondary-container": "#e4e1e5",
+                      "on-background": "#e5e1e4",
+                      "outline": "#919191",
+                      "surface": "#131315",
+                      "surface-container-lowest": "#0e0e10",
+                      "tertiary-container": "#909099",
+                      "secondary-fixed": "#c8c6c9",
+                      "on-primary-fixed-variant": "#e2e2e2",
+                      "error": "#ffb4ab",
+                      "surface-dim": "#131315",
+                      "surface-container": "#201f22",
+                      "outline-variant": "#474747",
+                      "tertiary-fixed": "#5d5e66",
+                      "on-secondary-fixed": "#1b1b1e",
+                      "inverse-primary": "#5d5f5f",
+                      "error-container": "#93000a",
+                      "on-secondary-fixed-variant": "#3b3b3e",
+                      "on-tertiary": "#1a1b22",
+                      "surface-container-high": "#2a2a2c",
+                      "secondary": "#c8c6c9",
+                      "on-tertiary-fixed-variant": "#e2e1eb",
+                      "on-tertiary-container": "#000000",
+                      "secondary-fixed-dim": "#acaaae",
+                      "on-error-container": "#ffdad6",
+                      "primary-fixed-dim": "#454747",
+                      "surface-variant": "#353437",
+                      "primary-container": "#d4d4d4",
+                      "on-secondary": "#1b1b1e",
+                      "on-surface": "#e5e1e4",
+                      "surface-container-low": "#1c1b1d",
+                      "surface-tint": "#c6c6c7",
+                      "tertiary": "#e2e1eb",
+                      "surface-container-highest": "#353437",
+                      "primary-fixed": "#5d5f5f",
+                      "surface-bright": "#39393b",
+                      "on-primary-container": "#000000",
+                      "on-primary": "#1a1c1c",
+                      "inverse-surface": "#e5e1e4",
+                      "on-surface-variant": "#c6c6c6",
+                      "background": "#131315",
+                      "secondary-container": "#47464a",
+                      "on-error": "#690005"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {},
+              "fontFamily": {
+                      "headline": [
+                              "Inter"
+                      ],
+                      "body": [
+                              "Inter"
+                      ],
+                      "label": [
+                              "Inter"
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+      </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background h-screen flex flex-col items-center justify-between py-12 px-6">
+<!-- Top Section -->
+<div class="flex flex-col items-center justify-end w-full h-[309px] pb-8 text-center">
+<span class="material-symbols-outlined text-[48px] text-primary mb-4" style="font-variation-settings: 'FILL' 1;">
+            auto_awesome
+        </span>
+<h1 class="font-headline font-bold text-[28px] text-primary leading-tight tracking-tight">Medha</h1>
+<p class="font-body text-[14px] text-on-surface-variant mt-2">Your private AI assistant</p>
+</div>
+<!-- API Key Card -->
+<div class="w-full max-w-sm flex-1 flex flex-col justify-center">
+<div class="bg-surface-container-low rounded-xl border border-outline-variant/40 p-5">
+<h2 class="font-headline font-semibold text-[16px] text-primary">Connect your AI provider</h2>
+<p class="font-body text-[12px] text-on-surface-variant mt-1">Your key stays on-device. We never see it.</p>
+<!-- Provider Selector -->
+<div class="flex gap-2 mt-6 overflow-x-auto pb-2 scrollbar-hide">
+<button class="bg-primary text-on-primary rounded-full px-4 py-1.5 font-label text-[12px] font-medium whitespace-nowrap shrink-0">
+                    OpenRouter
+                </button>
+<button class="bg-surface-container-high text-on-surface-variant rounded-full px-4 py-1.5 font-label text-[12px] font-medium whitespace-nowrap shrink-0 border border-outline-variant/20">
+                    Gemini
+                </button>
+<button class="bg-surface-container-high text-on-surface-variant rounded-full px-4 py-1.5 font-label text-[12px] font-medium whitespace-nowrap shrink-0 border border-outline-variant/20">
+                    Anthropic
+                </button>
+</div>
+<!-- Input Field -->
+<div class="mt-4 relative">
+<input class="w-full bg-surface-container-high border border-outline-variant/40 rounded-lg py-3 pl-3 pr-10 text-primary font-body text-sm focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 placeholder-on-surface-variant/50 transition-colors" placeholder="sk-or-..." type="text"/>
+<button class="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">
+                        content_paste
+                    </span>
+</button>
+</div>
+<!-- Button -->
+<button class="w-full mt-6 bg-primary text-on-primary font-label font-medium text-sm h-[44px] rounded-lg hover:bg-primary/90 transition-colors active:scale-95 duration-200">
+                Verify &amp; Continue
+            </button>
+</div>
+</div>
+<!-- Bottom Section -->
+<div class="w-full flex justify-center pb-8 pt-4 h-[88px]">
+<a class="font-body text-[12px] text-on-surface-variant underline hover:text-primary transition-colors" href="#">
+            Where do I get a key?
+        </a>
+</div>
+</body></html>

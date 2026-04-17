@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Medha - Chat Error State</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-container-high": "#2a2a2c",
+                        "on-tertiary-fixed-variant": "#e4e1e5",
+                        "surface-container": "#201f22",
+                        "on-primary-fixed-variant": "#e2e2e2",
+                        "on-surface": "#e5e1e4",
+                        "primary-container": "#d4d4d4",
+                        "on-surface-variant": "#c6c6c6",
+                        "secondary-fixed-dim": "#acaaae",
+                        "surface-container-lowest": "#0e0e10",
+                        "surface-bright": "#39393b",
+                        "on-background": "#e5e1e4",
+                        "inverse-on-surface": "#313032",
+                        "background": "#131315",
+                        "on-error-container": "#ffdad6",
+                        "on-tertiary-container": "#000000",
+                        "error": "#ffb4ab",
+                        "surface-dim": "#131315",
+                        "tertiary-fixed": "#5f5e61",
+                        "surface-tint": "#c6c6c7",
+                        "primary-fixed-dim": "#454747",
+                        "on-secondary": "#1b1b1e",
+                        "primary": "#ffffff",
+                        "tertiary-container": "#919094",
+                        "primary-fixed": "#5d5f5f",
+                        "inverse-surface": "#e5e1e4",
+                        "surface-container-low": "#1c1b1d",
+                        "on-secondary-fixed-variant": "#3b3b3e",
+                        "tertiary": "#e4e1e5",
+                        "inverse-primary": "#5d5f5f",
+                        "on-error": "#690005",
+                        "on-tertiary-fixed": "#ffffff",
+                        "surface-variant": "#353437",
+                        "surface-container-highest": "#353437",
+                        "secondary": "#c8c5ca",
+                        "on-secondary-fixed": "#1b1b1e",
+                        "on-primary": "#1a1c1c",
+                        "surface": "#131315",
+                        "on-primary-container": "#000000",
+                        "on-tertiary": "#1b1b1e",
+                        "outline-variant": "#474747",
+                        "secondary-container": "#47464a",
+                        "on-secondary-container": "#e4e1e6",
+                        "tertiary-fixed-dim": "#47464a",
+                        "outline": "#919191",
+                        "secondary-fixed": "#c8c5ca",
+                        "error-container": "#93000a",
+                        "on-primary-fixed": "#ffffff"
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.25rem",
+                        lg: "0.5rem",
+                        xl: "0.75rem",
+                        full: "9999px"
+                    },
+                    fontFamily: {
+                        headline: ["Inter"],
+                        body: ["Inter"],
+                        label: ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #09090B;
+            color: #FAFAFA;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="flex flex-col h-screen overflow-hidden max-w-md mx-auto relative md:hidden border-x border-[#27272A]/20">
+<!-- Top App Bar -->
+<header class="flex justify-between items-center w-full px-6 h-16 bg-[#09090B] border-b border-[#27272A] flex-shrink-0 z-10">
+<button aria-label="Menu" class="text-[#FAFAFA] hover:bg-[#18181B] transition-colors p-2 -ml-2 rounded-full active:scale-95 duration-200">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<div class="flex items-center gap-2">
+<h1 class="font-['Inter'] font-semibold tracking-tight text-lg text-[#FAFAFA]">MONOLITH</h1>
+<div class="bg-surface-container-highest/50 px-2 py-0.5 rounded-full flex items-center gap-1 border border-outline-variant/20">
+<span class="material-symbols-outlined text-[14px] text-primary" data-icon="auto_awesome">auto_awesome</span>
+<span class="text-[10px] font-medium tracking-wide text-primary uppercase">Medha v4</span>
+</div>
+</div>
+<button aria-label="User Profile" class="text-[#FAFAFA] hover:bg-[#18181B] transition-colors p-2 -mr-2 rounded-full active:scale-95 duration-200">
+<span class="material-symbols-outlined" data-icon="account_circle">account_circle</span>
+</button>
+</header>
+<!-- Main Chat Canvas -->
+<main class="flex-1 overflow-y-auto px-4 py-8 flex flex-col gap-10 bg-surface-container-low pb-32 scroll-smooth">
+<!-- Time Marker -->
+<div class="flex justify-center w-full">
+<span class="text-[10px] uppercase tracking-widest text-tertiary-fixed font-medium">Today</span>
+</div>
+<!-- Prior User Message -->
+<div class="flex flex-col items-end w-full">
+<div class="max-w-[85%] pl-4 border-l border-outline-variant/20 text-right">
+<p class="text-[1rem] leading-relaxed text-primary">Could you explain the difference between surface-container-low and surface-container-high in this design system?</p>
+</div>
+</div>
+<!-- Prior Assistant Message -->
+<div class="flex flex-col items-start w-full">
+<div class="max-w-[90%] bg-surface-container-lowest p-5 rounded-tl-[12px] rounded-tr-[12px] rounded-bl-none rounded-br-[12px]">
+<div class="flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-[16px] text-secondary" data-icon="auto_awesome">auto_awesome</span>
+<h3 class="text-[1.125rem] font-semibold text-primary tracking-tight">Tonal Hierarchy</h3>
+</div>
+<p class="text-[1rem] leading-[1.6] text-on-surface mb-4">In the Monolith design system, we don't use shadows to create depth. Instead, we use a rigid monochromatic scale based on material density.</p>
+<p class="text-[1rem] leading-[1.6] text-on-surface"><strong class="font-semibold text-primary">surface_container_low (#1C1B1D)</strong> is used for the foundational canvas, while <strong class="font-semibold text-primary">surface_container_high (#2A2A2C)</strong> represents interactive elements layered above it.</p>
+</div>
+</div>
+<!-- Current User Message -->
+<div class="flex flex-col items-end w-full">
+<div class="max-w-[85%] pl-4 border-l border-outline-variant/20 text-right">
+<p class="text-[1rem] leading-relaxed text-primary">What's the weather today?</p>
+</div>
+</div>
+<!-- ERROR MESSAGE BLOCK -->
+<div class="flex flex-col items-start w-full mt-2">
+<div class="max-w-[90%] bg-[#18181B] p-4 rounded-[8px] border border-[#EF4444]/30 flex flex-col gap-3">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-[18px] text-[#EF4444] mt-0.5" data-icon="warning">warning</span>
+<div class="flex flex-col gap-1">
+<span class="text-[14px] font-medium text-[#FAFAFA] font-['Inter']">Failed to get a response</span>
+<span class="text-[12px] text-[#A1A1AA] font-['Inter']">Rate limited by OpenRouter. Try again in 30 seconds.</span>
+</div>
+</div>
+<div class="flex justify-end mt-2">
+<button class="bg-[#18181B] border border-[#27272A] rounded-[20px] px-4 py-1.5 flex items-center gap-2 hover:bg-[#27272A]/50 transition-colors active:scale-95 duration-200">
+<span class="material-symbols-outlined text-[14px] text-[#A1A1AA]" data-icon="refresh">refresh</span>
+<span class="text-[12px] text-[#A1A1AA] font-medium">Retry</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Spacer for scrolling past input -->
+<div class="h-8"></div>
+</main>
+<!-- Bottom Input Area -->
+<div class="absolute bottom-0 w-full bg-gradient-to-t from-[#09090B] via-[#09090B]/90 to-transparent pt-10 pb-safe px-4 z-20 h-32 flex items-end">
+<div class="w-full bg-surface-container-highest rounded-[20px] mb-4 flex items-center p-2 pr-3 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5)] border border-outline-variant/20 focus-within:border-outline-variant/50 transition-colors">
+<button aria-label="Add attachment" class="p-2 text-secondary hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]" data-icon="add">add</span>
+</button>
+<input class="flex-1 bg-transparent border-none text-primary placeholder:text-tertiary-fixed focus:ring-0 text-[0.875rem] px-2" disabled="" placeholder="Command the Monolith..." type="text"/>
+<button aria-label="Send message" class="bg-primary text-on-primary rounded-[8px] p-2 flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined text-[18px]" data-icon="arrow_upward">arrow_upward</span>
+</button>
+</div>
+</div>
+</body></html>

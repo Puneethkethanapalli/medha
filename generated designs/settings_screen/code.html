@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Medha Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-surface": "#e5e1e4",
+                        "surface-container-highest": "#353437",
+                        "on-tertiary": "#1b1b1e",
+                        "surface-variant": "#353437",
+                        "inverse-on-surface": "#313032",
+                        "surface-container-low": "#1c1b1d",
+                        "tertiary": "#e4e1e5",
+                        "background": "#131315",
+                        "surface-bright": "#39393b",
+                        "on-error-container": "#ffdad6",
+                        "tertiary-fixed-dim": "#47464a",
+                        "surface-container": "#201f22",
+                        "secondary": "#c8c5ca",
+                        "on-primary": "#1a1c1c",
+                        "inverse-primary": "#5d5f5f",
+                        "on-primary-fixed-variant": "#e2e2e2",
+                        "on-background": "#e5e1e4",
+                        "on-error": "#690005",
+                        "outline": "#919191",
+                        "surface-container-high": "#2a2a2c",
+                        "on-primary-fixed": "#ffffff",
+                        "tertiary-container": "#919094",
+                        "on-tertiary-fixed": "#ffffff",
+                        "surface-dim": "#131315",
+                        "on-secondary-fixed-variant": "#3b3b3e",
+                        "surface": "#131315",
+                        "on-secondary-fixed": "#1b1b1e",
+                        "inverse-surface": "#e5e1e4",
+                        "on-tertiary-fixed-variant": "#e4e1e5",
+                        "surface-tint": "#c6c6c7",
+                        "outline-variant": "#474747",
+                        "primary-container": "#d4d4d4",
+                        "on-surface-variant": "#c6c6c6",
+                        "on-primary-container": "#000000",
+                        "on-secondary-container": "#e4e1e6",
+                        "secondary-fixed-dim": "#acaaae",
+                        "on-secondary": "#1b1b1e",
+                        "error-container": "#93000a",
+                        "secondary-container": "#47464a",
+                        "surface-container-lowest": "#0e0e10",
+                        "primary-fixed-dim": "#454747",
+                        "primary": "#ffffff",
+                        "primary-fixed": "#5d5f5f",
+                        "tertiary-fixed": "#5f5e61",
+                        "error": "#ffb4ab",
+                        "on-tertiary-container": "#000000",
+                        "secondary-fixed": "#c8c5ca"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20; }
+        
+        /* Custom toggle styling */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: transparent;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #FAFAFA;
+        }
+        .toggle-checkbox:checked + .toggle-label:after {
+            transform: translateX(100%);
+            background-color: #0A0A0C;
+        }
+        .toggle-label {
+            width: 44px;
+            height: 24px;
+            background-color: transparent;
+            border: 1px solid #27272A;
+            border-radius: 9999px;
+            position: relative;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .toggle-label:after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 18px;
+            height: 18px;
+            background-color: #A1A1AA;
+            border-radius: 50%;
+            transition: transform 0.2s ease-in-out, background-color 0.2s ease-in-out;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background antialiased h-screen flex flex-col overflow-hidden selection:bg-surface-container-high selection:text-primary">
+<!-- Top App Bar -->
+<header class="flex justify-between items-center w-full px-4 h-14 bg-[#09090B] border-b border-[#27272A] flex-shrink-0 z-10">
+<button class="w-10 h-10 flex items-center justify-center hover:bg-[#18181B] rounded-full transition-colors active:opacity-70 text-[#A1A1AA]">
+<span class="material-symbols-outlined text-[20px]">arrow_back</span>
+</button>
+<h1 class="font-['Inter'] font-semibold tracking-tight text-base text-[#FAFAFA]">Settings</h1>
+<div class="w-10 h-10"></div> <!-- Placeholder for balance -->
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 overflow-y-auto px-4 py-8 space-y-6">
+<!-- Setting Group 1: AI Providers -->
+<section class="bg-[#0A0A0C] border border-[#27272A] rounded-xl overflow-hidden flex flex-col">
+<h2 class="px-5 py-4 text-xs font-semibold uppercase tracking-widest text-[#71717A] border-b border-[#27272A]/20">AI Providers</h2>
+<button class="w-full flex items-center justify-between px-5 py-4 hover:bg-[#18181B] transition-colors group text-left border-b border-[#27272A]/20">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[20px] text-[#A1A1AA] group-hover:text-[#FAFAFA] transition-colors">key</span>
+<span class="text-sm font-medium text-[#FAFAFA]">API Keys</span>
+</div>
+<span class="material-symbols-outlined text-[20px] text-[#71717A]">chevron_right</span>
+</button>
+<button class="w-full flex items-center justify-between px-5 py-4 hover:bg-[#18181B] transition-colors group text-left border-b border-[#27272A]/20">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[20px] text-[#A1A1AA] group-hover:text-[#FAFAFA] transition-colors">psychology</span>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-[#FAFAFA]">Default Model</span>
+<span class="text-xs text-[#71717A] mt-0.5">GPT-4o</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-[20px] text-[#71717A]">chevron_right</span>
+</button>
+<button class="w-full flex items-center justify-between px-5 py-4 hover:bg-[#18181B] transition-colors group text-left">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[20px] text-[#A1A1AA] group-hover:text-[#FAFAFA] transition-colors">terminal</span>
+<span class="text-sm font-medium text-[#FAFAFA]">System Prompt</span>
+</div>
+<span class="material-symbols-outlined text-[20px] text-[#71717A]">chevron_right</span>
+</button>
+</section>
+<!-- Setting Group 2: Appearance -->
+<section class="bg-[#0A0A0C] border border-[#27272A] rounded-xl overflow-hidden flex flex-col">
+<h2 class="px-5 py-4 text-xs font-semibold uppercase tracking-widest text-[#71717A] border-b border-[#27272A]/20">Appearance</h2>
+<button class="w-full flex items-center justify-between px-5 py-4 hover:bg-[#18181B] transition-colors group text-left border-b border-[#27272A]/20">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[20px] text-[#A1A1AA] group-hover:text-[#FAFAFA] transition-colors">palette</span>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-[#FAFAFA]">Theme</span>
+<span class="text-xs text-[#71717A] mt-0.5">Dark</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-[20px] text-[#71717A]">chevron_right</span>
+</button>
+<div class="w-full flex items-center justify-between px-5 py-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[20px] text-[#A1A1AA]">contrast</span>
+<span class="text-sm font-medium text-[#FAFAFA]">OLED Black Mode</span>
+</div>
+<div class="relative inline-block w-11 mr-2 align-middle select-none">
+<input class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer opacity-0 z-10" id="oledToggle" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer" for="oledToggle"></label>
+</div>
+</div>
+</section>
+<!-- Setting Group 3: Security -->
+<section class="bg-[#0A0A0C] border border-[#27272A] rounded-xl overflow-hidden flex flex-col">
+<h2 class="px-5 py-4 text-xs font-semibold uppercase tracking-widest text-[#71717A] border-b border-[#27272A]/20">Security</h2>
+<div class="w-full flex items-center justify-between px-5 py-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[20px] text-[#A1A1AA]">fingerprint</span>
+<span class="text-sm font-medium text-[#FAFAFA]">Biometric Lock</span>
+</div>
+<div class="relative inline-block w-11 mr-2 align-middle select-none">
+<input checked="" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer opacity-0 z-10" id="bioToggle" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer" for="bioToggle"></label>
+</div>
+</div>
+</section>
+<!-- Setting Group 4: Data -->
+<section class="bg-[#0A0A0C] border border-[#27272A] rounded-xl overflow-hidden flex flex-col">
+<h2 class="px-5 py-4 text-xs font-semibold uppercase tracking-widest text-[#71717A] border-b border-[#27272A]/20">Data</h2>
+<button class="w-full flex items-center justify-between px-5 py-4 hover:bg-[#18181B] transition-colors group text-left border-b border-[#27272A]/20">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[20px] text-[#A1A1AA] group-hover:text-[#FAFAFA] transition-colors">download</span>
+<span class="text-sm font-medium text-[#FAFAFA]">Export Conversations</span>
+</div>
+<span class="material-symbols-outlined text-[20px] text-[#71717A]">chevron_right</span>
+</button>
+<button class="w-full flex items-center justify-between px-5 py-4 hover:bg-[#2A0000] transition-colors group text-left">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[20px] text-error group-hover:text-error transition-colors">delete</span>
+<span class="text-sm font-medium text-error">Delete All Data</span>
+</div>
+</button>
+</section>
+<!-- Footer -->
+<footer class="pt-8 pb-12 flex flex-col items-center justify-center space-y-1">
+<span class="text-[12px] font-medium text-[#71717A]">Medha v1.0.0</span>
+<span class="text-[12px] text-[#71717A]">Built with ❤️ in India</span>
+</footer>
+</main>
+</body></html>

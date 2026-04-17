@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Medha AI - Toast Notification</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-variant": "#353437",
+                        "secondary-fixed": "#c8c5ca",
+                        "background": "#131315",
+                        "on-tertiary-fixed": "#ffffff",
+                        "on-primary-fixed-variant": "#e2e2e2",
+                        "on-error": "#690005",
+                        "on-secondary-container": "#e4e1e6",
+                        "on-surface-variant": "#c6c6c6",
+                        "on-tertiary-fixed-variant": "#e4e1e5",
+                        "on-secondary-fixed": "#1b1b1e",
+                        "tertiary-fixed": "#5f5e61",
+                        "surface-container-low": "#1c1b1d",
+                        "primary-fixed-dim": "#454747",
+                        "tertiary": "#e4e1e5",
+                        "on-primary-container": "#000000",
+                        "secondary-fixed-dim": "#acaaae",
+                        "inverse-on-surface": "#313032",
+                        "surface-dim": "#131315",
+                        "surface-container-lowest": "#0e0e10",
+                        "secondary-container": "#47464a",
+                        "tertiary-container": "#919094",
+                        "outline-variant": "#474747",
+                        "tertiary-fixed-dim": "#47464a",
+                        "surface-container-highest": "#353437",
+                        "outline": "#919191",
+                        "on-secondary": "#1b1b1e",
+                        "error": "#ffb4ab",
+                        "on-tertiary-container": "#000000",
+                        "surface-tint": "#c6c6c7",
+                        "on-primary-fixed": "#ffffff",
+                        "primary-container": "#d4d4d4",
+                        "on-error-container": "#ffdad6",
+                        "inverse-primary": "#5d5f5f",
+                        "error-container": "#93000a",
+                        "primary-fixed": "#5d5f5f",
+                        "secondary": "#c8c5ca",
+                        "primary": "#ffffff",
+                        "surface": "#131315",
+                        "on-tertiary": "#1b1b1e",
+                        "on-background": "#e5e1e4",
+                        "inverse-surface": "#e5e1e4",
+                        "surface-container": "#201f22",
+                        "surface-bright": "#39393b",
+                        "on-primary": "#1a1c1c",
+                        "on-surface": "#e5e1e4",
+                        "on-secondary-fixed-variant": "#3b3b3e",
+                        "surface-container-high": "#2a2a2c"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen flex items-center justify-center">
+<!-- Mobile Device Mockup Container -->
+<div class="relative w-[393px] h-[852px] bg-background border border-surface-container overflow-hidden flex flex-col font-body">
+<!-- Header -->
+<header class="flex items-center justify-between px-6 h-16 w-full fixed top-0 w-[393px] z-50 bg-[#131315]/80 backdrop-blur-xl">
+<div class="flex items-center space-x-3">
+<span class="material-symbols-outlined text-[#FFFFFF] text-xl" data-icon="menu">menu</span>
+</div>
+<h1 class="font-['Inter'] tracking-tighter font-medium text-xl font-bold text-[#FFFFFF]">Medha AI</h1>
+<div class="w-8 h-8 rounded-full bg-surface-container-low flex items-center justify-center text-xs text-on-surface">U</div>
+</header>
+<!-- Chat Canvas (Scrollable Area) -->
+<main class="flex-1 overflow-y-auto px-4 pt-24 pb-40 space-y-12 flex flex-col">
+<!-- AI Message -->
+<div class="flex flex-col space-y-2 max-w-[90%]">
+<div class="flex items-center space-x-2 text-on-surface-variant text-[0.6875rem]">
+<span class="material-symbols-outlined text-[14px]">smart_toy</span>
+<span>Medha AI</span>
+</div>
+<div class="text-on-surface text-base leading-[1.6]">
+                    The observer effect in quantum mechanics implies that the act of measurement affects the system being observed. How can I elaborate on this further?
+                </div>
+</div>
+<!-- User Message -->
+<div class="flex flex-col items-end space-y-2 self-end max-w-[85%] mt-12">
+<div class="bg-surface-container-high text-on-surface rounded-xl px-4 py-3 text-base leading-[1.6]">
+                    Give me a brief summary of the double-slit experiment to illustrate that.
+                </div>
+</div>
+<!-- AI Message -->
+<div class="flex flex-col space-y-2 max-w-[90%] mt-12">
+<div class="flex items-center space-x-2 text-on-surface-variant text-[0.6875rem]">
+<span class="material-symbols-outlined text-[14px]">smart_toy</span>
+<span>Medha AI</span>
+</div>
+<div class="text-on-surface text-base leading-[1.6]">
+                    In the double-slit experiment, particles like electrons are fired at a screen with two slits. When unobserved, they create an interference pattern, behaving like waves. When measured at the slits, they act like particles, and the interference pattern disappears. This demonstrates wave-particle duality and the observer effect.
+                </div>
+</div>
+<!-- Empty Space for scrolling -->
+<div class="h-20"></div>
+</main>
+<!-- Floating Toast Container (Showcasing Variants) -->
+<div class="absolute bottom-[104px] left-0 w-full flex flex-col items-center justify-end space-y-3 pointer-events-none z-40 pb-[32px]">
+<!-- Toast 3: Bookmark -->
+<div class="bg-primary text-on-primary rounded-[20px] h-[36px] px-4 py-2 flex items-center space-x-1 w-max opacity-80 scale-95 transition-all duration-300">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'wght' 400;">bookmark</span>
+<span class="text-[13px] font-medium leading-none">Preset saved</span>
+</div>
+<!-- Toast 2: Deleted -->
+<div class="bg-primary text-on-primary rounded-[20px] h-[36px] px-4 py-2 flex items-center space-x-1 w-max opacity-90 scale-95 transition-all duration-300">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'wght' 400;">delete</span>
+<span class="text-[13px] font-medium leading-none">Message deleted</span>
+</div>
+<!-- Toast 1: Default (Active) -->
+<div class="bg-primary text-on-primary rounded-[20px] h-[36px] px-4 py-2 flex items-center space-x-1 w-max shadow-lg transition-all duration-300">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'wght' 400;">check</span>
+<span class="text-[13px] font-medium leading-none">Copied to clipboard</span>
+</div>
+</div>
+<!-- Chat Input Area (Glassmorphism) -->
+<div class="absolute bottom-0 w-[393px] p-4 bg-surface-container-lowest/80 backdrop-blur-[20px] border-t border-outline-variant/15 z-50">
+<div class="bg-surface-container-lowest focus-within:bg-surface-container transition-colors duration-300 rounded-lg p-3 flex items-end space-x-3 border border-outline-variant/15">
+<button class="text-on-surface-variant hover:text-on-surface transition-colors p-1">
+<span class="material-symbols-outlined text-xl">add</span>
+</button>
+<textarea class="flex-1 bg-transparent border-none text-on-surface placeholder-on-surface-variant/50 focus:ring-0 resize-none text-base outline-none min-h-[24px] max-h-[120px] py-0 m-0 leading-relaxed" placeholder="Message Medha..." rows="1"></textarea>
+<button class="text-on-surface-variant hover:text-on-surface transition-colors p-1 bg-surface-container-high rounded-full w-8 h-8 flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">arrow_upward</span>
+</button>
+</div>
+</div>
+</div>
+</body></html>

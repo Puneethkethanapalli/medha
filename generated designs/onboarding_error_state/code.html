@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Medha AI - Onboarding Error</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-fixed": "#ffffff",
+                        "tertiary-fixed-dim": "#45464e",
+                        "primary": "#ffffff",
+                        "on-primary-fixed": "#ffffff",
+                        "inverse-on-surface": "#313032",
+                        "on-secondary-container": "#e4e1e5",
+                        "on-background": "#e5e1e4",
+                        "outline": "#919191",
+                        "surface": "#131315",
+                        "surface-container-lowest": "#0e0e10",
+                        "tertiary-container": "#909099",
+                        "secondary-fixed": "#c8c6c9",
+                        "on-primary-fixed-variant": "#e2e2e2",
+                        "error": "#ffb4ab",
+                        "surface-dim": "#131315",
+                        "surface-container": "#201f22",
+                        "outline-variant": "#474747",
+                        "tertiary-fixed": "#5d5e66",
+                        "on-secondary-fixed": "#1b1b1e",
+                        "inverse-primary": "#5d5f5f",
+                        "error-container": "#93000a",
+                        "on-secondary-fixed-variant": "#3b3b3e",
+                        "on-tertiary": "#1a1b22",
+                        "surface-container-high": "#2a2a2c",
+                        "secondary": "#c8c6c9",
+                        "on-tertiary-fixed-variant": "#e2e1eb",
+                        "on-tertiary-container": "#000000",
+                        "secondary-fixed-dim": "#acaaae",
+                        "on-error-container": "#ffdad6",
+                        "primary-fixed-dim": "#454747",
+                        "surface-variant": "#353437",
+                        "primary-container": "#d4d4d4",
+                        "on-secondary": "#1b1b1e",
+                        "on-surface": "#e5e1e4",
+                        "surface-container-low": "#1c1b1d",
+                        "surface-tint": "#c6c6c7",
+                        "tertiary": "#e2e1eb",
+                        "surface-container-highest": "#353437",
+                        "primary-fixed": "#5d5f5f",
+                        "surface-bright": "#39393b",
+                        "on-primary-container": "#000000",
+                        "on-primary": "#1a1c1c",
+                        "inverse-surface": "#e5e1e4",
+                        "on-surface-variant": "#c6c6c6",
+                        "background": "#131315",
+                        "secondary-container": "#47464a",
+                        "on-error": "#690005",
+                        "sys-error": "#EF4444" // Added exact hex from prompt for error state
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px",
+                        "card": "1rem" // 16px as per guidelines
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["Inter", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface min-h-screen flex items-center justify-center p-4 antialiased selection:bg-surface-container-high selection:text-primary">
+<!-- Top Navigation (Suppressed per instructions for Transactional/Onboarding, but keeping a minimal brand anchor if needed, here just raw canvas) -->
+<main class="w-full max-w-md mx-auto">
+<!-- Monolith Card Container -->
+<div class="bg-surface-container-low rounded-card p-8 md:p-10 shadow-none border border-outline-variant/40 flex flex-col gap-8 relative overflow-hidden group">
+<!-- Subtle atmospheric glow (Glass & Soul concept) -->
+<div class="absolute -top-24 -left-24 w-48 h-48 bg-primary/5 rounded-full blur-[60px] pointer-events-none"></div>
+<!-- Header Section -->
+<div class="flex flex-col gap-2 relative z-10">
+<div class="w-12 h-12 bg-surface-container-high rounded-lg flex items-center justify-center mb-4 border border-outline-variant/20">
+<span class="material-symbols-outlined text-primary text-2xl" data-icon="key" style="font-variation-settings: 'FILL' 1;">key</span>
+</div>
+<h1 class="font-headline font-semibold text-3xl md:text-4xl text-primary tracking-tight leading-tight">
+                    Medha Connection
+                </h1>
+<p class="font-body text-base text-on-surface-variant leading-relaxed">
+                    Initialize the neural bridge. Enter your designated API key to commence operations.
+                </p>
+</div>
+<!-- Form Section -->
+<form class="flex flex-col gap-6 relative z-10" onsubmit="event.preventDefault();">
+<div class="flex flex-col gap-2">
+<label class="font-label text-[11px] font-medium text-on-surface-variant uppercase tracking-wider" for="apiKey">
+                        Authentication Token
+                    </label>
+<div class="relative">
+<!-- Error state input field with #EF4444 border -->
+<input autocomplete="off" class="w-full bg-surface-container h-12 px-4 rounded-lg border border-[#EF4444] text-primary font-body text-sm placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-1 focus:ring-[#EF4444] transition-all bg-surface-container-highest/50" id="apiKey" name="apiKey" placeholder="sk-..." spellcheck="false" type="text" value="sk-invalid-token-12345"/>
+<div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+<span class="material-symbols-outlined text-[#EF4444]" data-icon="error">error</span>
+</div>
+</div>
+<!-- Error Message as requested -->
+<p class="font-body text-[12px] text-[#EF4444] mt-1 flex items-center gap-1">
+                        Invalid API key. Check your key and try again.
+                    </p>
+</div>
+<div class="flex flex-col gap-4 mt-2">
+<!-- Primary Button (Retry State) -->
+<button class="w-full h-12 bg-[#FAFAFA] text-[#1A1C1C] rounded-lg font-body font-medium text-sm flex items-center justify-center gap-2 transition-transform hover:scale-[0.98] active:scale-95" type="button">
+<span>Retry Connection</span>
+<span class="material-symbols-outlined text-lg" data-icon="arrow_forward">arrow_forward</span>
+</button>
+<!-- Tertiary Link -->
+<button class="w-full text-center text-on-surface-variant font-body text-sm hover:text-primary transition-colors py-2" type="button">
+                        Where do I find my API key?
+                    </button>
+</div>
+</form>
+<!-- Secure Indicator -->
+<div class="flex items-center justify-center gap-2 mt-4 relative z-10 border-t border-outline-variant/10 pt-6">
+<span class="material-symbols-outlined text-on-surface-variant/50 text-sm" data-icon="lock">lock</span>
+<span class="font-label text-xs text-on-surface-variant/70 tracking-wide uppercase">Encrypted Local Storage</span>
+</div>
+</div>
+</main>
+</body></html>

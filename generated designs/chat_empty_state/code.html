@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Medha AI Chat</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        background: "#09090B",
+                        surface: "#18181B",
+                        border: "#27272A",
+                        foreground: "#FAFAFA",
+                        muted: "#A1A1AA",
+                        mutedDark: "#71717A",
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        headline: ["Inter", "sans-serif"],
+                        body: ["Inter", "sans-serif"],
+                        label: ["Inter", "sans-serif"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #09090B;
+            color: #FAFAFA;
+        }
+        /* Mobile viewport constraints */
+        .mobile-container {
+            width: 393px;
+            height: 852px;
+            margin: 0 auto;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #27272A;
+        }
+        @media (max-width: 400px) {
+            .mobile-container {
+                width: 100vw;
+                height: 100vh;
+                border: none;
+            }
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-zinc-900 flex items-center justify-center min-h-screen">
+<div class="mobile-container bg-background">
+<!-- Status Bar (simulated) -->
+<div class="h-12 w-full flex justify-between items-center px-6 text-xs text-white z-50">
+<span>9:41</span>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">signal_cellular_4_bar</span>
+<span class="material-symbols-outlined text-[16px]">wifi</span>
+<span class="material-symbols-outlined text-[16px]">battery_full</span>
+</div>
+</div>
+<!-- TOP BAR -->
+<header class="flex justify-between items-center px-4 h-14 w-full z-50 shrink-0">
+<button class="w-10 h-10 flex items-center justify-center text-muted">
+<span class="material-symbols-outlined text-[24px]">menu</span>
+</button>
+<button class="bg-surface border border-border rounded-[20px] px-3 py-1.5 flex items-center gap-1 text-muted">
+<span class="text-[12px] font-medium tracking-wide">GPT-4o</span>
+<span class="material-symbols-outlined text-[14px]">expand_more</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center text-muted">
+<span class="material-symbols-outlined text-[20px]">edit_square</span>
+</button>
+</header>
+<!-- CENTER CONTENT -->
+<main class="flex-1 flex flex-col items-center justify-center px-4 overflow-y-auto pb-4 gap-8">
+<div class="flex flex-col items-center gap-4">
+<span class="material-symbols-outlined text-[40px] text-border">auto_awesome</span>
+<h1 class="text-[22px] font-semibold text-foreground">What can I help with?</h1>
+</div>
+<!-- Suggestion Grid -->
+<div class="grid grid-cols-2 gap-2 w-full max-w-sm mt-4">
+<!-- Chip 1 -->
+<button class="bg-surface border border-border rounded-xl p-3 flex flex-col gap-2 text-left active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[18px] text-muted">code</span>
+<span class="text-[13px] text-muted leading-tight">Help me debug a React component</span>
+</button>
+<!-- Chip 2 -->
+<button class="bg-surface border border-border rounded-xl p-3 flex flex-col gap-2 text-left active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[18px] text-muted">description</span>
+<span class="text-[13px] text-muted leading-tight">Summarize a long document</span>
+</button>
+<!-- Chip 3 -->
+<button class="bg-surface border border-border rounded-xl p-3 flex flex-col gap-2 text-left active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[18px] text-muted">lightbulb</span>
+<span class="text-[13px] text-muted leading-tight">Brainstorm startup ideas</span>
+</button>
+<!-- Chip 4 -->
+<button class="bg-surface border border-border rounded-xl p-3 flex flex-col gap-2 text-left active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[18px] text-muted">translate</span>
+<span class="text-[13px] text-muted leading-tight">Translate text to Spanish</span>
+</button>
+</div>
+</main>
+<!-- INPUT BAR -->
+<footer class="px-4 pb-8 pt-2 shrink-0 bg-background">
+<div class="bg-surface border border-border rounded-xl p-2 flex items-end gap-2">
+<textarea class="flex-1 bg-transparent border-none text-[14px] text-foreground placeholder:text-mutedDark resize-none max-h-32 p-2 focus:ring-0" placeholder="Message Medha..." rows="1"></textarea>
+<button class="w-8 h-8 rounded-full bg-border flex items-center justify-center shrink-0 mb-1 cursor-not-allowed">
+<span class="material-symbols-outlined text-[18px] text-mutedDark font-bold">arrow_upward</span>
+</button>
+</div>
+</footer>
+</div>
+</body></html>

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Medha - Select Model</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-high": "#2a2a2c",
+                        "on-tertiary": "#1b1b1e",
+                        "primary": "#ffffff",
+                        "surface-container": "#201f22",
+                        "on-surface": "#e5e1e4",
+                        "on-surface-variant": "#c6c6c6",
+                        "background": "#131315",
+                        "on-primary-fixed": "#ffffff",
+                        "tertiary": "#e4e1e5",
+                        "on-tertiary-fixed-variant": "#e4e1e5",
+                        "secondary-container": "#47464a",
+                        "on-secondary-container": "#e4e1e6",
+                        "on-error": "#690005",
+                        "secondary-fixed": "#c8c5ca",
+                        "surface-tint": "#c6c6c7",
+                        "on-primary": "#1a1c1c",
+                        "on-secondary-fixed": "#1b1b1e",
+                        "error": "#ffb4ab",
+                        "on-secondary-fixed-variant": "#3b3b3e",
+                        "inverse-on-surface": "#313032",
+                        "tertiary-fixed": "#5f5e61",
+                        "outline-variant": "#474747",
+                        "surface-bright": "#39393b",
+                        "on-secondary": "#1b1b1e",
+                        "outline": "#919191",
+                        "on-primary-fixed-variant": "#e2e2e2",
+                        "on-tertiary-fixed": "#ffffff",
+                        "secondary-fixed-dim": "#acaaae",
+                        "surface-dim": "#131315",
+                        "primary-fixed-dim": "#454747",
+                        "on-error-container": "#ffdad6",
+                        "inverse-surface": "#e5e1e4",
+                        "on-tertiary-container": "#000000",
+                        "surface-container-highest": "#353437",
+                        "primary-fixed": "#5d5f5f",
+                        "secondary": "#c8c5ca",
+                        "surface-variant": "#353437",
+                        "primary-container": "#d4d4d4",
+                        "on-background": "#e5e1e4",
+                        "surface": "#131315",
+                        "inverse-primary": "#5d5f5f",
+                        "on-primary-container": "#000000",
+                        "surface-container-lowest": "#0e0e10",
+                        "surface-container-low": "#1c1b1d",
+                        "error-container": "#93000a",
+                        "tertiary-fixed-dim": "#47464a",
+                        "tertiary-container": "#919094"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["Inter", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface h-screen w-full overflow-hidden relative font-body selection:bg-surface-container-highest">
+<!-- Dimmed Background Overlay -->
+<div aria-hidden="true" class="absolute inset-0 bg-[#000000]/50 z-10">
+<!-- Mock Chat Canvas behind the dim -->
+<div class="p-6 pt-24 opacity-30 blur-sm pointer-events-none">
+<div class="flex flex-col space-y-12 max-w-2xl mx-auto">
+<div class="flex justify-end">
+<div class="bg-surface-container-high rounded-[20px] px-6 py-4 text-on-surface max-w-[85%] text-base leading-relaxed">
+                        What's the difference between Sonnet and Haiku?
+                    </div>
+</div>
+<div class="flex justify-start">
+<div class="text-on-surface text-base leading-relaxed space-y-4 w-full">
+<p>Sonnet is Anthropics's balanced model, offering strong intelligence and speed, making it ideal for most general tasks.</p>
+<p>Haiku is their fastest, most compact model, optimized for near-instant responses and lighter workloads.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Sheet Model Picker -->
+<div class="absolute bottom-0 inset-x-0 h-[618px] bg-[#09090b] rounded-t-2xl z-50 flex flex-col shadow-2xl transition-transform duration-300 ease-out translate-y-0" style="border-top: 1px solid #27272a;">
+<!-- Handle -->
+<div class="w-full flex justify-center mt-2 mb-2">
+<div class="w-10 h-1 bg-[#27272a] rounded-full"></div>
+</div>
+<!-- Header -->
+<div class="flex items-center justify-between px-4 py-2">
+<h2 class="text-[#fafafa] font-semibold text-base tracking-tight">Select Model</h2>
+<button class="p-2 text-[#a1a1aa] hover:bg-surface-container-low rounded-full transition-colors active:scale-95">
+<span class="material-symbols-outlined text-[20px]" data-icon="close">close</span>
+</button>
+</div>
+<!-- Search -->
+<div class="px-4 py-2 mb-2">
+<div class="relative flex items-center w-full h-10 bg-[#18181b] rounded-lg">
+<span class="material-symbols-outlined absolute left-3 text-[#71717a] text-[16px]" data-icon="search">search</span>
+<input class="w-full h-full bg-transparent border-none focus:ring-0 text-[#fafafa] placeholder:text-[#71717a] text-[13px] pl-10 pr-4 rounded-lg focus:bg-surface-container-low transition-colors outline-none" placeholder="Search models..." type="text"/>
+</div>
+</div>
+<!-- Model List -->
+<div class="flex-1 overflow-y-auto overscroll-contain pb-safe">
+<div class="flex flex-col">
+<!-- Section: OPENAI -->
+<div class="mt-4 mb-1 px-4">
+<span class="text-[10px] font-medium text-[#71717a] uppercase tracking-wider">OPENAI</span>
+</div>
+<button class="w-full flex items-center justify-between px-4 h-[52px] hover:bg-surface-container-low/50 transition-colors border-b border-[#27272a] ml-4 pr-4 pl-0">
+<span class="text-[14px] text-[#fafafa]">GPT-4o</span>
+<span class="text-[11px] text-[#71717a]">128K</span>
+</button>
+<button class="w-full flex items-center justify-between px-4 h-[52px] bg-surface-container-low/30 hover:bg-surface-container-low/80 transition-colors border-b border-[#27272a] ml-4 pr-4 pl-0">
+<span class="text-[14px] text-[#fafafa] font-medium">GPT-4o Mini</span>
+<div class="flex items-center gap-3">
+<span class="text-[11px] text-[#71717a]">128K</span>
+<span class="material-symbols-outlined text-[16px] text-[#fafafa]" data-icon="check">check</span>
+</div>
+</button>
+<button class="w-full flex items-center justify-between px-4 h-[52px] hover:bg-surface-container-low/50 transition-colors border-b border-[#27272a] ml-4 pr-4 pl-0">
+<span class="text-[14px] text-[#fafafa]">o1</span>
+<span class="text-[11px] text-[#71717a]">200K</span>
+</button>
+<!-- Section: ANTHROPIC -->
+<div class="mt-6 mb-1 px-4">
+<span class="text-[10px] font-medium text-[#71717a] uppercase tracking-wider">ANTHROPIC</span>
+</div>
+<button class="w-full flex items-center justify-between px-4 h-[52px] hover:bg-surface-container-low/50 transition-colors border-b border-[#27272a] ml-4 pr-4 pl-0">
+<span class="text-[14px] text-[#fafafa]">Claude 3.5 Sonnet</span>
+<span class="text-[11px] text-[#71717a]">200K</span>
+</button>
+<button class="w-full flex items-center justify-between px-4 h-[52px] hover:bg-surface-container-low/50 transition-colors border-b border-[#27272a] ml-4 pr-4 pl-0">
+<span class="text-[14px] text-[#fafafa]">Claude 3.5 Haiku</span>
+<span class="text-[11px] text-[#71717a]">200K</span>
+</button>
+<button class="w-full flex items-center justify-between px-4 h-[52px] hover:bg-surface-container-low/50 transition-colors border-b border-[#27272a] ml-4 pr-4 pl-0">
+<span class="text-[14px] text-[#fafafa]">Claude 3 Opus</span>
+<span class="text-[11px] text-[#71717a]">200K</span>
+</button>
+<!-- Section: GOOGLE -->
+<div class="mt-6 mb-1 px-4">
+<span class="text-[10px] font-medium text-[#71717a] uppercase tracking-wider">GOOGLE</span>
+</div>
+<button class="w-full flex items-center justify-between px-4 h-[52px] hover:bg-surface-container-low/50 transition-colors border-b border-[#27272a] ml-4 pr-4 pl-0">
+<span class="text-[14px] text-[#fafafa]">Gemini 2.0 Flash</span>
+<span class="text-[11px] text-[#71717a]">1M</span>
+</button>
+<button class="w-full flex items-center justify-between px-4 h-[52px] hover:bg-surface-container-low/50 transition-colors border-b border-[#27272a] ml-4 pr-4 pl-0">
+<span class="text-[14px] text-[#fafafa]">Gemini 1.5 Pro</span>
+<span class="text-[11px] text-[#71717a]">2M</span>
+</button>
+<!-- Section: META -->
+<div class="mt-6 mb-1 px-4">
+<span class="text-[10px] font-medium text-[#71717a] uppercase tracking-wider">META</span>
+</div>
+<button class="w-full flex items-center justify-between px-4 h-[52px] hover:bg-surface-container-low/50 transition-colors border-b border-[#27272a] ml-4 pr-4 pl-0">
+<span class="text-[14px] text-[#fafafa]">Llama 3.1 405B</span>
+<span class="text-[11px] text-[#71717a]">128K</span>
+</button>
+<button class="w-full flex items-center justify-between px-4 h-[52px] hover:bg-surface-container-low/50 transition-colors border-b border-transparent ml-4 pr-4 pl-0 mb-4">
+<span class="text-[14px] text-[#fafafa]">Llama 3.1 70B</span>
+<span class="text-[11px] text-[#71717a]">128K</span>
+</button>
+</div>
+</div>
+</div>
+</body></html>

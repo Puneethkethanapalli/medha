@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Medha System Prompt Editor</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "secondary-fixed-dim": "#acaaae",
+                        "inverse-surface": "#e5e1e4",
+                        "secondary-fixed": "#c8c5ca",
+                        "primary": "#ffffff",
+                        "on-secondary-container": "#e4e1e6",
+                        "on-secondary": "#1b1b1e",
+                        "on-tertiary-fixed-variant": "#e4e1e5",
+                        "on-primary-fixed-variant": "#e2e2e2",
+                        "surface-variant": "#353437",
+                        "surface-dim": "#131315",
+                        "on-primary-fixed": "#ffffff",
+                        "secondary-container": "#47464a",
+                        "error-container": "#93000a",
+                        "outline-variant": "#474747",
+                        "on-surface": "#e5e1e4",
+                        "surface-container-low": "#1c1b1d",
+                        "on-tertiary-fixed": "#ffffff",
+                        "on-primary": "#1a1c1c",
+                        "inverse-on-surface": "#313032",
+                        "on-secondary-fixed": "#1b1b1e",
+                        "on-error-container": "#ffdad6",
+                        "tertiary-container": "#919094",
+                        "surface": "#131315",
+                        "on-background": "#e5e1e4",
+                        "primary-fixed-dim": "#454747",
+                        "tertiary-fixed-dim": "#47464a",
+                        "tertiary": "#e4e1e5",
+                        "on-surface-variant": "#c6c6c6",
+                        "surface-container-highest": "#353437",
+                        "surface-container": "#201f22",
+                        "surface-tint": "#c6c6c7",
+                        "surface-container-lowest": "#0e0e10",
+                        "outline": "#919191",
+                        "on-tertiary": "#1b1b1e",
+                        "error": "#ffb4ab",
+                        "on-tertiary-container": "#000000",
+                        "inverse-primary": "#5d5f5f",
+                        "secondary": "#c8c5ca",
+                        "primary-fixed": "#5d5f5f",
+                        "background": "#131315",
+                        "primary-container": "#d4d4d4",
+                        "on-secondary-fixed-variant": "#3b3b3e",
+                        "surface-bright": "#39393b",
+                        "on-primary-container": "#000000",
+                        "surface-container-high": "#2a2a2c",
+                        "tertiary-fixed": "#5f5e61",
+                        "on-error": "#690005"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["Inter", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for horizontal scrolling area to match aesthetic */
+        ::-webkit-scrollbar {
+            height: 4px;
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #27272A;
+            border-radius: 10px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-[#09090B] text-primary min-h-screen flex flex-col font-body antialiased">
+<!-- Top Bar -->
+<header class="flex justify-between items-center px-6 h-16 border-b border-[#27272A] bg-[#09090B] shrink-0 sticky top-0 z-10">
+<button aria-label="Go back" class="text-tertiary hover:text-primary transition-colors flex items-center justify-center h-10 w-10 -ml-2">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0, 'wght' 300; font-size: 24px;">arrow_back</span>
+</button>
+<h1 class="text-sm font-semibold tracking-tight uppercase text-primary font-headline">System Prompt</h1>
+<button class="text-sm font-medium text-primary hover:text-tertiary transition-colors h-10 px-2 -mr-2">Save</button>
+</header>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col px-4 py-6 overflow-y-auto">
+<!-- Preset Selector (Horizontal Scroll) -->
+<section class="mb-6 -mx-4 px-4 overflow-x-auto pb-2 shrink-0">
+<div class="flex gap-2 min-w-max">
+<button class="bg-primary text-on-primary px-4 py-1.5 rounded-[20px] text-[13px] font-medium whitespace-nowrap transition-colors">
+                    Default
+                </button>
+<button class="bg-transparent border border-[#27272A] text-secondary hover:text-primary px-4 py-1.5 rounded-[20px] text-[13px] font-medium whitespace-nowrap transition-colors">
+                    Code Helper
+                </button>
+<button class="bg-transparent border border-[#27272A] text-secondary hover:text-primary px-4 py-1.5 rounded-[20px] text-[13px] font-medium whitespace-nowrap transition-colors">
+                    Creative Writer
+                </button>
+<button class="bg-transparent border border-[#27272A] text-secondary hover:text-primary px-4 py-1.5 rounded-[20px] text-[13px] font-medium whitespace-nowrap transition-colors">
+                    Translator
+                </button>
+<button class="bg-transparent border border-[#27272A] text-secondary hover:text-primary px-4 py-1.5 rounded-[20px] text-[13px] font-medium whitespace-nowrap transition-colors flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">add</span> Custom
+                </button>
+</div>
+</section>
+<!-- Text Editor Area -->
+<section class="flex-1 flex flex-col mb-4 min-h-[300px]">
+<div class="bg-[#18181B] border border-[#27272A] rounded-[12px] flex-1 flex flex-col focus-within:border-outline-variant transition-colors overflow-hidden">
+<textarea class="w-full flex-1 bg-transparent border-none text-primary text-[15px] leading-[1.6] p-5 resize-none focus:ring-0 font-body" placeholder="Enter system prompt here...">You are a helpful, concise assistant. Respond clearly and directly. When writing code, include comments. When uncertain, say so.</textarea>
+</div>
+</section>
+<!-- Info Bar -->
+<section class="flex items-center gap-2 mb-8 shrink-0 px-1">
+<span class="material-symbols-outlined text-tertiary text-[18px]">info</span>
+<p class="text-[13px] text-tertiary">Applied to this conversation only</p>
+</section>
+<!-- Action Buttons -->
+<section class="flex flex-col gap-3 mt-auto shrink-0 pb-4">
+<button class="w-full bg-transparent border border-[#27272A] text-primary h-12 rounded-[8px] text-[14px] font-medium hover:bg-surface-container-low transition-colors flex items-center justify-center">
+                Save as Preset
+            </button>
+<button class="w-full bg-transparent text-secondary h-12 rounded-[8px] text-[14px] font-medium hover:text-primary transition-colors flex items-center justify-center">
+                Reset to Default
+            </button>
+</section>
+</main>
+</body></html>
