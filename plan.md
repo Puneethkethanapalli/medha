@@ -233,60 +233,69 @@ CREATE INDEX idx_conversations_updated ON conversations(updated_at DESC);
 > **Duration:** ~2 hours
 
 #### Tasks
-- [] **1.1** Create SQLite schema module (`src/lib/db/schema.ts`)
+- [x] **1.1** Create SQLite schema module (`src/lib/db/schema.ts`)
   - Tables: conversations, messages (as defined above)
   - Migration function that runs on app start
   - Use `expo-sqlite` synchronous API
-- [] **1.2** Create conversation CRUD (`src/lib/db/conversations.ts`)
+- [x] **1.2** Create conversation CRUD (`src/lib/db/conversations.ts`)
   - `createConversation(title, model, systemPrompt) → id`
   - `getConversations() → Conversation[]` (ordered by updated_at DESC)
   - `getConversation(id) → Conversation`
   - `updateConversation(id, fields)`
   - `deleteConversation(id)` (cascade deletes messages)
-- [] **1.3** Create message CRUD (`src/lib/db/messages.ts`)
+- [x] **1.3** Create message CRUD (`src/lib/db/messages.ts`)
   - `addMessage(conversationId, role, content, model) → id`
   - `getMessages(conversationId) → Message[]` (ordered by created_at ASC)
   - `updateMessage(id, fields)` (for streaming completion)
   - `deleteMessage(id)`
-- [] **1.4** Create MMKV storage wrapper (`src/lib/storage/mmkv.ts`)
+- [x] **1.4** Create MMKV storage wrapper (`src/lib/storage/mmkv.ts`)
   - Instance creation with encryption key
   - Typed getters/setters: `getTheme()`, `setTheme()`, `getLastModel()`, etc.
-- [] **1.5** Create SecureStore wrapper (`src/lib/storage/secure.ts`)
+- [x] **1.5** Create SecureStore wrapper (`src/lib/storage/secure.ts`)
   - `saveApiKey(provider, key)`
   - `getApiKey(provider) → string | null`
   - `deleteApiKey(provider)`
   - `hasApiKey(provider) → boolean`
-- [] **1.6** Create TypeScript types (`src/types/`)
+- [x] **1.6** Create TypeScript types (`src/types/`)
   - `Conversation`, `Message`, `Provider`, `Model` interfaces
   - Message roles, statuses as union types
-- [] **1.7** Verify: write a test screen that creates a conversation, adds messages, reads them back
+- [x] **1.7** Verify: write a test screen that creates a conversation, adds messages, reads them back
   - Temporary button on index.tsx that runs CRUD and logs results
   - Confirm data persists across app restarts
 
 #### How to Test Sprint 1
 ```
-✅ App boots, SQLite tables created (check via console.log)
-✅ Tap test button → conversation created, messages added
-✅ Restart app → data still there (persistence works)
-✅ SecureStore: save key → read key → key matches
-✅ MMKV: save theme → read theme → value matches
-✅ No TypeScript errors in any new files
+✅ App boots, SQLite tables created
+✅ CRUD: create → add messages → read → update → delete
+✅ Storage (AsyncStorage): save/load theme, lastModel, onboarding
+✅ SecureStore: save key → read key → delete key
+✅ UUID: conversations and messages get valid UUIDs
+✅ Persistence: data survives app restart
 ```
 
 #### 📗 Things Learned
-- (fill after completing)
+- `expo-sqlite` v55 exports `openDatabaseSync` (not `openDatabase`), returns `SQLiteDatabase` object
+- `SQLiteDatabase` sync methods: `runSync`, `getFirstSync`, `getAllSync` with `SQLiteBindParams` or variadic
+- SecureStore uses `setItemAsync`/`getItemAsync`/`deleteItemAsync` (not `setAsync`)
+- `react-native-mmkv` v4 requires `react-native-nitro-modules` + TurboModules — not compatible with Expo autolinking
+- `react-native-mmkv` v3 requires TurboModules (new arch) — same issue
+- `react-native-mmkv` v2 is the last version compatible with old bridge architecture
+- Even v2 failed to autolink properly with Expo prebuild — fallback to `@react-native-async-storage/async-storage` works
+- `uuid` requires `react-native-get-random-values` polyfill imported BEFORE the first `import { v4 as uuidv4 }`
+- Expo SDK 55 has web-specific issues with `expo-sqlite` (wa-sqlite.wasm) but Android works fine
 
 #### 📕 Mistakes Made
-- (fill after completing)
+- Tried MMKV v4 (needs nitro-modules) → downgraded to v3 → requires TurboModules → downgraded to v2 → autolinking broken
+- Forgot to import `react-native-get-random-values` polyfill — uuid generated sync crypto error at runtime
 
 #### 📘 Things to Remember
 - expo-sqlite in SDK 55 uses the new synchronous API — don't use the legacy async one
 - Never store API keys in MMKV or AsyncStorage — always SecureStore
-
 - Use `uuid` for IDs, not auto-increment — better for future sync
 - Foreign key ON DELETE CASCADE requires `PRAGMA foreign_keys = ON` at connection time
-- `react-native-mmkv` (community package) may not link properly with Expo prebuild autolinking — if MMKV crashes, fall back to AsyncStorage for settings (persistence works fine on native restart)
+- `react-native-mmkv` (community package) does not autolink properly with Expo prebuild — fall back to AsyncStorage for settings
 - expo-sqlite `openDatabaseSync(DB_NAME)` stores DB at a path managed by expo-sqlite — don't hardcode paths
+- Import `react-native-get-random-values` at the top of the entry file before any uuid usage
 
 ---
 

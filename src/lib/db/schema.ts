@@ -1,0 +1,51 @@
+import { openDatabaseSync, type SQLiteDatabase } from 'expo-sqlite';
+
+const DB_NAME = 'medha.db';
+
+let db: SQLiteDatabase | null = null;
+
+export function getDatabase(): SQLiteDatabase {
+  if (db) return db;
+  db = openDatabaseSync(DB_NAME);
+  return db;
+}
+
+export function initializeDatabase(): void {
+  const database = getDatabase();
+
+  // Enable foreign keys
+  database.runSync('PRAGMA foreign_keys = ON');
+
+  // Create conversations table
+  database.runSync(`
+    CREATE TABLE IF NOT EXISTS conversations (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL DEFAULT 'New Chat',
+      model TEXT,
+      provider TEXT DEFAULT 'openrouter',
+      system_prompt TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      pinned INTEGER DEFAULT 0
+    )
+  `);
+
+  // Create messages table
+  database.runSync(`
+    CREATE TABLE IF NOT EXISTS messages (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      status TEXT DEFAULT 'complete',
+      model TEXT,
+      tokens_used INTEGER,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Create indexes
+  database.runSync('CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, created_at)');
+  database.runSync('CREATE INDEX IF NOT EXISTS idx_conversations_updated ON conversations(updated_at DESC)');
+}
