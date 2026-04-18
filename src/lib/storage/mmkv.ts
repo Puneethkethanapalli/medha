@@ -26,8 +26,13 @@ export async function getLastModel(): Promise<string | null> {
   return await AsyncStorage.getItem(KEYS.lastModel);
 }
 
-export async function setLastModel(model: string): Promise<void> {
-  await AsyncStorage.setItem(KEYS.lastModel, model);
+export async function setLastModel(model: string | null): Promise<void> {
+  if (model) {
+    await AsyncStorage.setItem(KEYS.lastModel, model);
+  } else {
+    await AsyncStorage.removeItem(KEYS.lastModel);
+  }
+  _lastModel = model;
 }
 
 // Cached model list (from OpenRouter)
