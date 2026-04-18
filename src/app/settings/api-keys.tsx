@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Plus, Bolt, Trash2, Shield, Key, X, Check } from 'lucide-react-native';
 import { cn } from '@/lib/utils';
@@ -120,7 +120,12 @@ export default function ApiKeysScreen() {
   };
 
   return (
-    <View className="flex-1 bg-background">
+    <KeyboardAvoidingView
+      className="flex-1 bg-background"
+      behavior="padding"
+      keyboardVerticalOffset={0}
+    >
+      <View className="flex-1 bg-background">
       {/* Top Bar */}
       <View className="flex flex-row items-center justify-between px-6 h-16 w-full">
         <Pressable
@@ -136,7 +141,7 @@ export default function ApiKeysScreen() {
       </View>
 
       {/* Main Content */}
-      <ScrollView className="flex-1 px-4 pt-4 pb-8" contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView className="flex-1 px-4 pt-4 pb-8" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
         {/* Provider Cards */}
         {PROVIDERS.map((provider) => {
           const isConnected = connectedProviders.has(provider.id);
@@ -257,6 +262,7 @@ export default function ApiKeysScreen() {
           </Text>
         </View>
       </ScrollView>
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Sparkles, ClipboardPaste, Check, TriangleAlert, Shield, ArrowRight, Key } from 'lucide-react-native';
 import { cn } from '@/lib/utils';
@@ -164,8 +164,17 @@ export default function OnboardingScreen() {
   }
 
   return (
-    <View className="flex-1 bg-background">
-      <ScrollView className="flex-1" contentContainerClassName="flex flex-col items-center justify-between py-12 px-6">
+    <KeyboardAvoidingView
+      className="flex-1 bg-background"
+      behavior="padding"
+      keyboardVerticalOffset={0}
+    >
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="flex flex-col py-12 px-6"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {/* Top Section */}
         <View className="flex flex-col items-center justify-end w-full h-[280px] pb-8 text-center">
           <View className="w-12 h-12 items-center justify-center mb-4">
@@ -267,6 +276,6 @@ export default function OnboardingScreen() {
           </Pressable>
         </View>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }

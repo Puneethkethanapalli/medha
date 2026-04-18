@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Pressable } from 'react-native';
+import { View, Pressable, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Menu, PenSquare } from 'lucide-react-native';
 import { ModelPill } from '@/components/chat/ModelPill';
@@ -224,11 +224,15 @@ export function ChatScreen({ conversationId }: ChatScreenProps) {
   const hasMessages = messages.length > 0;
 
   return (
-    <View className="flex-1 bg-background">
+    <KeyboardAvoidingView
+      className="flex-1 bg-background"
+      behavior="padding"
+      keyboardVerticalOffset={0}
+    >
       {/* Top Bar */}
       <View
         className="flex-row items-center justify-between px-4 h-14"
-        style={{ marginTop: insets.top }}
+        style={{ paddingTop: insets.top }}
       >
         <Pressable onPress={openDrawer} className="w-10 h-10 items-center justify-center">
           <Menu size={24} color="hsl(0, 0%, 63%)" />
@@ -240,14 +244,16 @@ export function ChatScreen({ conversationId }: ChatScreenProps) {
       </View>
 
       {/* Content */}
-      {hasMessages ? (
-        <MessageList messages={messages} />
-      ) : (
-        <EmptyState onSuggestionPress={handleSuggestion} />
-      )}
+      <View className="flex-1">
+        {hasMessages ? (
+          <MessageList messages={messages} />
+        ) : (
+          <EmptyState onSuggestionPress={handleSuggestion} />
+        )}
+      </View>
 
       {/* Input */}
       <InputBar onSend={handleSend} onStop={handleStop} />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
