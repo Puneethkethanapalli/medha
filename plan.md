@@ -440,33 +440,35 @@ CREATE INDEX idx_conversations_updated ON conversations(updated_at DESC);
 > **Design refs:** `generated designs/onboarding_api_key_setup/`, `generated designs/onboarding_success_state/`, `generated designs/onboarding_error_state/`, `generated designs/api_key_management/`
 
 #### Pre-redo: Cleanup
-- [ ] **3.0a** Add additional rn-reusables components needed for new designs
-  - `npx react-native-reusables@latest add avatar badge card dialog switch separator`
-  - Also install `lucide-react-native`: `npm install lucide-react-native`
-- [ ] **3.0b** Verify `global.css` Nova tokens are complete (set in Sprint 0)
+- [x] **3.0a** Add additional rn-reusables components needed for new designs
+  - `pnpm dlx @react-native-reusables/cli@latest add avatar badge card dialog switch`
+  - Also install `lucide-react-native`: `pnpm add lucide-react-native`
+- [x] **3.0b** Verify `global.css` Nova tokens are complete (set in Sprint 0)
   - All semantic tokens must be present: `--background`, `--card`, `--muted`, `--border`, `--foreground`, `--muted-foreground`, `--destructive`
+  - Added Nova surface hierarchy tokens: `--surface`, `--surface-container-*`, `--on-surface`, `--on-surface-variant`, etc.
   - No color accents — success states use `--foreground` (white) with a checkmark icon, not green
   - Reference: `designs/master-design-language.md` → Color System
 
 #### Tasks
-- [ ] **3.1** ~~REDO~~ Rebuild onboarding screen (`src/app/onboarding.tsx`)
+- [x] **3.1** ~~REDO~~ Rebuild onboarding screen (`src/app/onboarding.tsx`)
   - **Visual ref:** `generated designs/onboarding_api_key_setup/screen.png` + `code.html`
   - Keep existing validation logic, SecureStore save, router redirect — only replace JSX/styles
   - Implement per the generated design using rn-reusables components from `src/components/ui/`
   - Icons: `Sparkles`, `ClipboardPaste`, `Check`, `AlertTriangle` from `lucide-react-native`
   - Error state: red border on input + error text below (ref: `generated designs/onboarding_error_state/`)
   - Success state: high-contrast white/foreground — no green (ref: `generated designs/onboarding_success_state/`)
-- [ ] **3.2** ~~KEEP~~ Root layout redirect logic — no changes needed (already working)
-- [ ] **3.3** ~~KEEP~~ Biometric lock — upgrade security check
+- [x] **3.2** ~~KEEP~~ Root layout redirect logic — updated to check for API key and redirect to/from onboarding
+- [x] **3.3** ~~KEEP~~ Biometric lock — upgrade security check
   - Add `getEnrolledLevelAsync()` to enforce Class 3 (Strong) biometrics before allowing access
   - Provide device passcode as fallback if Class 3 not available
   - Logic-only change, no UI update needed
-- [ ] **3.4** ~~KEEP~~ Settings store — no changes needed (already working)
-- [ ] **3.5** ~~REDO~~ Rebuild API key management screen (`src/app/settings/api-keys.tsx`)
+  - Created `src/lib/auth/biometric.ts` with `getBiometricStatus()`, `authenticateWithBiometric()`, `canUseBiometricLock()`
+- [x] **3.4** ~~KEEP~~ Settings store — created `src/stores/settings-store.ts` with Zustand store using dynamic imports to avoid Metro bundling issues
+- [x] **3.5** ~~REDO~~ Rebuild API key management screen (`src/app/settings/api-keys.tsx`)
   - **Visual ref:** `generated designs/api_key_management/screen.png` + `code.html`
-  - New route: move from settings inline to dedicated `settings/api-keys.tsx`
+  - New route: dedicated `settings/api-keys.tsx`
   - Implement per the generated design using rn-reusables components from `src/components/ui/`
-- [ ] **3.6** Verify: fresh install → onboarding → key saved → app loads (same checks as v1)
+- [x] **3.6** Verify: fresh install → onboarding → key saved → app loads (same checks as v1)
 
 #### v1 Learnings (preserved from first attempt)
 - Settings store uses AsyncStorage (via MMKV wrapper)
@@ -476,6 +478,11 @@ CREATE INDEX idx_conversations_updated ON conversations(updated_at DESC);
 - expo-local-authentication needs `expo-dev-client`
 - AppState 'active' event fires on foreground — use for biometric trigger
 - Mask API keys in UI: show first 4 + last 4 chars only
+
+#### Sprint 3 Learnings
+- **Icon naming differs** between web lucide and lucide-react-native: `ArrowForward` → `ArrowRight`, `AlertTriangle` → `TriangleAlert`
+- lucide-react-native icons must be checked against the actual package exports (use `grep "declare const" node_modules/lucide-react-native/dist/lucide-react-native.d.ts` to find valid names)
+- `lucide-react-native` requires `react-native-svg` as peer dependency (already installed via lucide-react-native's deps)
 
 ---
 

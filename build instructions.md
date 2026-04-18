@@ -2,6 +2,37 @@
 
 This document covers building the Medha Expo app as a standalone APK for local testing.
 
+## Expo Commands Overview
+
+| Command | Use Case |
+|---------|----------|
+| `npx expo start` | **Development** - hot reload, fast iteration, works with Metro bundler |
+| `npx expo export` | **Production bundle** - creates bundled JS (`*.hbc` for Android, `*.js` for iOS) without native build |
+| `npx expo run:android` | **Full native build** - builds APK/AAB and deploys to device/emulator |
+
+### When to use each command:
+
+- **`npx expo start`**: During active development. The app loads JS dynamically from Metro bundler, so changes reflect immediately.
+
+- **`npx expo export`**: Test that your JS code bundles correctly for production. Creates static files in `dist/` folder. Faster than full native build - useful in CI/CD pipelines.
+
+- **`npx expo run:android`**: When you need a working APK installed on a device. Does `export` first, then builds the native Android app.
+
+### Example workflow:
+```bash
+# 1. Start development (Terminal 1)
+npx expo start
+
+# 2. In another terminal, run the app on emulator/device
+npx expo run:android
+
+# 3. When ready to test production bundle (no Metro needed)
+npx expo export --platform android
+
+# 4. Build release APK (standalone, no Metro required)
+cd android && ./gradlew assembleRelease
+```
+
 ## Prerequisites
 
 - Node.js 18+ and pnpm

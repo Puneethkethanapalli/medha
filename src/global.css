@@ -4,74 +4,101 @@
 
 @layer base {
   :root {
-    --background: 0 0% 4%;
+    --background: 240 3.7% 7.5%;
     --foreground: 0 0% 98%;
-    --card: 0 0% 4%;
+    --card: 240 3.7% 7.5%;
     --card-foreground: 0 0% 98%;
     --primary: 0 0% 98%;
     --primary-foreground: 0 0% 4%;
-    --secondary: 0 0% 9%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 255 6% 77%;
+    --secondary-foreground: 240 5% 10%;
     --muted: 0 0% 9%;
-    --muted-foreground: 0 0% 65%;
-    --accent: 0 0% 9%;
+    --muted-foreground: 240 4% 65%;
+    --accent: 240 3.7% 11%;
     --accent-foreground: 0 0% 98%;
     --destructive: 0 0% 93%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
+    --border: 240 0% 15%;
+    --input: 240 0% 15%;
     --ring: 0 0% 98%;
     --radius: 0.625rem;
+    /* Nova surface hierarchy */
+    --surface: 240 3.7% 7.5%;
+    --surface-dim: 240 3.7% 7.5%;
+    --surface-container-lowest: 240 0% 5%;
+    --surface-container-low: 240 3.7% 11%;
+    --surface-container: 240 2.4% 13%;
+    --surface-container-high: 240 0% 17%;
+    --surface-container-highest: 240 0% 21%;
+    --surface-bright: 240 0% 22%;
+    --surface-variant: 240 0% 21%;
+    /* Nova semantic colors */
+    --on-surface: 280 6% 90%;
+    --on-surface-variant: 0 0% 78%;
+    --on-secondary: 240 5% 10%;
+    --on-tertiary: 240 40% 10%;
+    --outline: 0 0% 57%;
+    --outline-variant: 240 0% 28%;
+    --error: 10 100% 85%;
+    --on-error: 0 85% 2%;
+    --error-container: 0 100% 36%;
+    --on-error-container: 0 100% 93%;
   }
 
   .light {
     --background: 0 0% 100%;
-    --foreground: 0 0% 4%;
-    --card: 0 0% 98%;
-    --card-foreground: 0 0% 4%;
-    --primary: 0 0% 4%;
+    --foreground: 240 5% 4%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 5% 4%;
+    --primary: 240 5% 4%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 4%;
+    --secondary: 280 6% 77%;
+    --secondary-foreground: 0 0% 100%;
     --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
+    --muted-foreground: 240 4% 45%;
     --accent: 0 0% 96%;
-    --accent-foreground: 0 0% 4%;
+    --accent-foreground: 240 5% 4%;
     --destructive: 0 0% 63%;
     --destructive-foreground: 0 0% 100%;
     --border: 0 0% 90%;
     --input: 0 0% 90%;
-    --ring: 0 0% 4%;
+    --ring: 240 5% 4%;
+    /* Nova surface hierarchy - light */
+    --surface: 0 0% 100%;
+    --surface-dim: 0 0% 98%;
+    --surface-container-lowest: 0 0% 100%;
+    --surface-container-low: 0 0% 98%;
+    --surface-container: 0 0% 96%;
+    --surface-container-high: 0 0% 94%;
+    --surface-container-highest: 0 0% 92%;
+    --surface-bright: 0 0% 100%;
+    --surface-variant: 0 0% 92%;
+    /* Nova semantic colors - light */
+    --on-surface: 240 5% 4%;
+    --on-surface-variant: 240 4% 40%;
+    --on-secondary: 0 0% 100%;
+    --on-tertiary: 0 0% 100%;
+    --outline: 0 0% 65%;
+    --outline-variant: 0 0% 88%;
+    --error: 0 85% 55%;
+    --on-error: 0 0% 100%;
+    --error-container: 0 100% 93%;
+    --on-error-container: 0 85% 15%;
   }
 
   .dark {
-    --background: 0 0% 4%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 4%;
-    --card-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 4%;
-    --secondary: 0 0% 9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 9%;
-    --muted-foreground: 0 0% 65%;
-    --accent: 0 0% 9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 0% 93%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
-    --ring: 0 0% 98%;
+    /* Dark uses :root values (Nova dark-first) */
   }
 
   .oled {
+    /* Pure black OLED theme */
     --background: 0 0% 0%;
     --foreground: 0 0% 100%;
     --card: 0 0% 0%;
     --card-foreground: 0 0% 100%;
     --primary: 0 0% 100%;
     --primary-foreground: 0 0% 0%;
-    --secondary: 0 0% 5%;
+    --secondary: 0 0% 15%;
     --secondary-foreground: 0 0% 100%;
     --muted: 0 0% 5%;
     --muted-foreground: 0 0% 60%;
@@ -79,8 +106,25 @@
     --accent-foreground: 0 0% 100%;
     --destructive: 0 0% 93%;
     --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 10%;
-    --input: 0 0% 10%;
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
     --ring: 0 0% 100%;
+    /* Nova surface hierarchy - oled */
+    --surface: 0 0% 0%;
+    --surface-dim: 0 0% 0%;
+    --surface-container-lowest: 0 0% 0%;
+    --surface-container-low: 0 0% 3%;
+    --surface-container: 0 0% 5%;
+    --surface-container-high: 0 0% 8%;
+    --surface-container-highest: 0 0% 12%;
+    --surface-bright: 0 0% 15%;
+    --surface-variant: 0 0% 12%;
+    /* Nova semantic colors - oled */
+    --on-surface: 0 0% 100%;
+    --on-surface-variant: 0 0% 75%;
+    --on-secondary: 0 0% 100%;
+    --on-tertiary: 0 0% 100%;
+    --outline: 0 0% 50%;
+    --outline-variant: 0 0% 20%;
   }
 }
