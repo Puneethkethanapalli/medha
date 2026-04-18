@@ -1,15 +1,16 @@
 import { create } from 'zustand';
 
 interface ChatState {
-  // Streaming state
   isStreaming: boolean;
   streamingMessageId: string | null;
   streamingContent: string;
+  streamingReasoning: string;
   error: string | null;
 
   // Actions
   startStreaming: (messageId: string) => void;
   appendToken: (token: string) => void;
+  appendReasoningToken: (token: string) => void;
   stopStreaming: () => void;
   cancelStreaming: () => void;
   setError: (error: string | null) => void;
@@ -20,6 +21,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isStreaming: false,
   streamingMessageId: null,
   streamingContent: '',
+  streamingReasoning: '',
   error: null,
 
   startStreaming: (messageId: string) => {
@@ -27,6 +29,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       isStreaming: true,
       streamingMessageId: messageId,
       streamingContent: '',
+      streamingReasoning: '',
       error: null,
     });
   },
@@ -37,11 +40,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
   },
 
+  appendReasoningToken: (token: string) => {
+    set((state) => ({
+      streamingReasoning: state.streamingReasoning + token,
+    }));
+  },
+
   stopStreaming: () => {
     set({
       isStreaming: false,
       streamingMessageId: null,
       streamingContent: '',
+      streamingReasoning: '',
     });
   },
 
@@ -51,6 +61,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       isStreaming: false,
       streamingMessageId: null,
       streamingContent: '',
+      streamingReasoning: '',
     });
     // Return the info so callers can persist
     return { messageId: streamingMessageId, content: streamingContent };
@@ -70,5 +81,12 @@ export function useStreamingContent(messageId: string | null) {
   return useChatStore((state) => {
     if (state.streamingMessageId !== messageId) return '';
     return state.streamingContent;
+  });
+}
+
+export function useStreamingReasoning(messageId: string | null) {
+  return useChatStore((state) => {
+    if (state.streamingMessageId !== messageId) return '';
+    return state.streamingReasoning;
   });
 }

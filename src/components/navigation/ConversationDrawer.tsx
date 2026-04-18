@@ -1,0 +1,225 @@
+import React, { useMemo, useCallback, useState } from 'react';
+import { View, Pressable, TextInput, FlatList, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text } from '@/components/ui/text';
+import { PenSquare, Search, Pin, MessageCircle, Settings } from 'lucide-react-native';
+import { getConversations, deleteConversation } from '@/lib/db/conversations';
+import type { Conversation } from '@/types';
+
+interface ConversationDrawerProps {
+  conversations: Conversation[];
+  activeConversationId: string | null;
+  onSelectConversation: (id: string) => void;
+  onNewChat: () => void;
+  onOpenSettings: () => void;
+  onRefresh: () => void;
+}
+
+interface GroupedConversations {
+  label: string;
+  data: Conversation[];
+}
+
+function groupByDate(conversations: Conversation[]): GroupedConversations[] {
+  const now = Date.now();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStart = today.getTime();
+  const yesterdayStart = todayStart - 86400000;
+  const weekStart = todayStart - 7 * 86400000;
+
+  const pinned: Conversation[] = [];
+  const todayGroup: Conversation[] = [];
+  const yesterday: Conversation[] = [];
+  const lastWeek: Conversation[] = [];
+  const older: Conversation[] = [];
+
+  for (const conv of conversations) {
+    if (conv.pinned) {
+      pinned.push(conv);
+    } else if (conv.updated_at >= todayStart) {
+      todayGroup.push(conv);
+    } else if (conv.updated_at >= yesterdayStart) {
+      yesterday.push(conv);
+    } else if (conv.updated_at >= weekStart) {
+      lastWeek.push(conv);
+    } else {
+      older.push(conv);
+    }
+  }
+
+  const groups: GroupedConversations[] = [];
+  if (pinned.length > 0) groups.push({ label: 'Pinned', data: pinned });
+  if (todayGroup.length > 0) groups.push({ label: 'Today', data: todayGroup });
+  if (yesterday.length > 0) groups.push({ label: 'Yesterday', data: yesterday });
+  if (lastWeek.length > 0) groups.push({ label: 'Previous 7 Days', data: lastWeek });
+  if (older.length > 0) groups.push({ label: 'Older', data: older });
+
+  return groups;
+}
+
+function ConversationItem({
+  conversation,
+  isActive,
+  onPress,
+  onDelete,
+}: {
+  conversation: Conversation;
+  isActive: boolean;
+  onPress: () => void;
+  onDelete: () => void;
+}) {
+  const handleLongPress = () => {
+    Alert.alert(
+      'Delete Conversation',
+      `Delete "${conversation.title}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: onDelete },
+      ]
+    );
+  };
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onLongPress={handleLongPress}
+      className={`flex-row items-center gap-3 px-2 py-2.5 rounded-lg ${
+        isActive ? 'bg-surface-container-low' : ''
+      }`}
+    >
+      {isActive && (
+        <View
+          className="absolute left-0 w-[2px] h-[60%] bg-foreground rounded-r-full"
+          style={{ top: '20%' }}
+        />
+      )}
+      {conversation.pinned ? (
+        <Pin size={18} color="hsl(0, 0%, 44%)" />
+      ) : (
+        <MessageCircle size={18} color={isActive ? 'hsl(0, 0%, 98%)' : 'hsl(0, 0%, 44%)'} />
+      )}
+      <Text
+        className={`text-[14px] font-medium flex-1 ${
+          isActive ? 'text-foreground' : 'text-on-surface-variant'
+        }`}
+        numberOfLines={1}
+      >
+        {conversation.title}
+      </Text>
+    </Pressable>
+  );
+}
+
+export function ConversationDrawer({
+  conversations,
+  activeConversationId,
+  onSelectConversation,
+  onNewChat,
+  onOpenSettings,
+  onRefresh,
+}: ConversationDrawerProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const grouped = useMemo(() => groupByDate(conversations), [conversations]);
+
+  const filteredGroups = useMemo(() => {
+    if (!searchQuery.trim()) return grouped;
+    const q = searchQuery.toLowerCase();
+    return grouped
+      .map((g) => ({
+        ...g,
+        data: g.data.filter((c) => c.title.toLowerCase().includes(q)),
+      }))
+      .filter((g) => g.data.length > 0);
+  }, [grouped, searchQuery]);
+
+  const handleDelete = useCallback(
+    (id: string) => {
+      deleteConversation(id);
+      onRefresh();
+    },
+    [onRefresh]
+  );
+
+  // Flatten for FlatList
+  const flatData = useMemo(() => {
+    const items: Array<{ type: 'header'; label: string } | { type: 'item'; conversation: Conversation }> = [];
+    for (const group of filteredGroups) {
+      items.push({ type: 'header', label: group.label });
+      for (const conv of group.data) {
+        items.push({ type: 'item', conversation: conv });
+      }
+    }
+    return items;
+  }, [filteredGroups]);
+
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View className="flex-1 bg-background p-4" style={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom }}>
+      {/* Header */}
+      <View className="flex-row items-center justify-between pb-4 border-b border-outline-variant/20">
+        <Text className="text-foreground text-[18px] font-semibold">Medha</Text>
+        <Pressable
+          onPress={onNewChat}
+          className="flex-row items-center bg-surface-container-low border border-outline-variant/20 rounded-full px-3 py-1.5 gap-1.5 active:opacity-70"
+        >
+          <PenSquare size={16} color="hsl(0, 0%, 98%)" />
+          <Text className="text-foreground text-[14px] font-medium">New</Text>
+        </Pressable>
+      </View>
+
+      {/* Search */}
+      <View className="py-4 border-b border-outline-variant/20">
+        <View className="flex-row items-center bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2">
+          <Search size={18} color="hsl(0, 0%, 44%)" />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search conversations..."
+            placeholderTextColor="hsl(0, 0%, 44%)"
+            className="flex-1 text-foreground text-[13px] ml-2 p-0"
+          />
+        </View>
+      </View>
+
+      {/* Conversation List */}
+      <FlatList
+        data={flatData}
+        keyExtractor={(item, index) =>
+          item.type === 'header' ? `header-${item.label}` : `item-${item.conversation.id}`
+        }
+        renderItem={({ item }) => {
+          if (item.type === 'header') {
+            return (
+              <Text className="text-on-surface-variant text-[10px] font-semibold uppercase tracking-widest px-2 mt-4 mb-2">
+                {item.label}
+              </Text>
+            );
+          }
+          return (
+            <ConversationItem
+              conversation={item.conversation}
+              isActive={item.conversation.id === activeConversationId}
+              onPress={() => onSelectConversation(item.conversation.id)}
+              onDelete={() => handleDelete(item.conversation.id)}
+            />
+          );
+        }}
+        className="flex-1 -mx-2 px-2 py-2"
+        showsVerticalScrollIndicator={false}
+      />
+
+      {/* Footer — Settings */}
+      <View className="pt-4 border-t border-outline-variant/20">
+        <Pressable
+          onPress={onOpenSettings}
+          className="flex-row items-center gap-3 px-2 py-2.5 rounded-lg active:bg-surface-container-low"
+        >
+          <Settings size={20} color="hsl(0, 0%, 63%)" />
+          <Text className="text-on-surface-variant text-[14px] font-medium">Settings</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}

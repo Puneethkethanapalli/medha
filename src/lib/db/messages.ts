@@ -32,7 +32,7 @@ export function getMessages(conversationId: string): Message[] {
 
 export function updateMessage(
   id: string,
-  fields: Partial<Pick<Message, 'content' | 'status' | 'tokens_used'>>
+  fields: Partial<Pick<Message, 'content' | 'status' | 'tokens_used' | 'reasoning'>>
 ): void {
   const db = getDatabase();
   const sets: string[] = [];
@@ -41,6 +41,10 @@ export function updateMessage(
   if (fields.content !== undefined) {
     sets.push('content = ?');
     values.push(fields.content);
+  }
+  if (fields.reasoning !== undefined) {
+    sets.push('reasoning = ?');
+    values.push(fields.reasoning);
   }
   if (fields.status !== undefined) {
     sets.push('status = ?');

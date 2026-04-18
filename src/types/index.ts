@@ -14,6 +14,7 @@ export interface Message {
   conversation_id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
+  reasoning: string | null;
   status: 'complete' | 'streaming' | 'cancelled' | 'error';
   model: string | null;
   tokens_used: number | null;

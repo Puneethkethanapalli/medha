@@ -1,0 +1,85 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Pressable, Animated, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { Text } from '@/components/ui/text';
+import { ChevronDown, Brain } from 'lucide-react-native';
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+interface ThinkingBlockProps {
+  reasoning: string;
+  isStreaming: boolean;
+}
+
+export function ThinkingBlock({ reasoning, isStreaming }: ThinkingBlockProps) {
+  const [expanded, setExpanded] = useState(isStreaming);
+  const chevronRotation = useRef(new Animated.Value(isStreaming ? 1 : 0)).current;
+
+  // Auto-expand when streaming starts, keep open while streaming
+  useEffect(() => {
+    if (isStreaming) {
+      setExpanded(true);
+      Animated.timing(chevronRotation, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [isStreaming, chevronRotation]);
+
+  const toggleExpanded = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    const next = !expanded;
+    setExpanded(next);
+    Animated.timing(chevronRotation, {
+      toValue: next ? 1 : 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const rotate = chevronRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg'],
+  });
+
+  if (!reasoning) return null;
+
+  const previewText = reasoning.slice(0, 80).replace(/\n/g, ' ');
+
+  return (
+    <View className="mb-3">
+      <Pressable
+        onPress={toggleExpanded}
+        className="flex-row items-center gap-2 py-2 active:opacity-70"
+      >
+        <Brain size={14} color="hsl(0, 0%, 50%)" />
+        <Text className="text-on-surface-variant text-[12px] font-medium flex-1" numberOfLines={1}>
+          {isStreaming ? 'Thinking...' : 'Thought process'}
+        </Text>
+        <Animated.View style={{ transform: [{ rotate }] }}>
+          <ChevronDown size={14} color="hsl(0, 0%, 50%)" />
+        </Animated.View>
+      </Pressable>
+
+      {expanded && (
+        <View className="bg-surface-container-lowest border border-outline-variant/10 rounded-lg px-3 py-2.5 mt-1">
+          <Text className="text-on-surface-variant text-[13px] leading-relaxed">
+            {reasoning}
+            {isStreaming && (
+              <Text className="text-on-surface-variant text-[13px]"> ▍</Text>
+            )}
+          </Text>
+        </View>
+      )}
+
+      {!expanded && (
+        <Text className="text-on-surface-variant/60 text-[11px] ml-6" numberOfLines={1}>
+          {previewText}...
+        </Text>
+      )}
+    </View>
+  );
+}

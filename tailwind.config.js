@@ -37,6 +37,26 @@ module.exports = {
           DEFAULT: 'hsl(var(--destructive))',
           foreground: 'hsl(var(--destructive-foreground))',
         },
+        // Nova surface hierarchy
+        surface: {
+          DEFAULT: 'hsl(var(--surface))',
+          dim: 'hsl(var(--surface-dim))',
+          bright: 'hsl(var(--surface-bright))',
+          variant: 'hsl(var(--surface-variant))',
+          'container-lowest': 'hsl(var(--surface-container-lowest))',
+          'container-low': 'hsl(var(--surface-container-low))',
+          container: 'hsl(var(--surface-container))',
+          'container-high': 'hsl(var(--surface-container-high))',
+          'container-highest': 'hsl(var(--surface-container-highest))',
+        },
+        'on-surface': {
+          DEFAULT: 'hsl(var(--on-surface))',
+          variant: 'hsl(var(--on-surface-variant))',
+        },
+        outline: {
+          DEFAULT: 'hsl(var(--outline))',
+          variant: 'hsl(var(--outline-variant))',
+        },
       },
       borderWidth: {
         hairline: hairlineWidth,

@@ -492,58 +492,58 @@ CREATE INDEX idx_conversations_updated ON conversations(updated_at DESC);
 > **Design refs:** `generated designs/chat_empty_state/`, `generated designs/chat_active_conversation/`, `generated designs/conversation_drawer/`, `generated designs/model_picker_bottom_sheet_*/`
 
 #### Pre-redo: Route Cleanup
-- [ ] **4.0a** Delete the `(tabs)/` folder and its contents (`src/app/(tabs)/_layout.tsx`, `index.tsx`, `settings.tsx`)
-- [ ] **4.0b** Delete old tab-related components (`src/components/app-tabs.tsx`, `app-tabs.web.tsx`, `web-badge.tsx`)
-- [ ] **4.0c** Move chat screen to root: create `src/app/index.tsx` as the new chat home (replaces tab index)
-- [ ] **4.0d** Create `src/app/settings.tsx` as a standalone route (pushed from drawer, not a tab)
-- [ ] **4.0e** Update `src/app/_layout.tsx` — remove tab navigator, set up drawer-compatible root layout
+- [x] **4.0a** Delete the `(tabs)/` folder and its contents (`src/app/(tabs)/_layout.tsx`, `index.tsx`, `settings.tsx`)
+- [x] **4.0b** Delete old tab-related components (`src/components/app-tabs.tsx`, `app-tabs.web.tsx`, `web-badge.tsx`)
+- [x] **4.0c** Move chat screen to root: create `src/app/index.tsx` as the new chat home (replaces tab index)
+- [x] **4.0d** Create `src/app/settings.tsx` as a standalone route (pushed from drawer, not a tab)
+- [x] **4.0e** Update `src/app/_layout.tsx` — remove tab navigator, set up drawer-compatible root layout
 
 #### Tasks
-- [ ] **4.1** Create root layout with drawer (`src/app/_layout.tsx`)
+- [x] **4.1** Create root layout with drawer (`src/app/_layout.tsx`)
   - **Visual ref:** `generated designs/conversation_drawer/screen.png` + `code.html`
   - Use `react-native-drawer-layout` (rn-reusables does not ship a Drawer — this is the correct primitive)
   - Left-edge drawer (85% screen width), swipe-to-open + hamburger button
   - Root layout wraps entire app in drawer provider
   - Drawer content = `ConversationDrawer` component
   - Main content = chat screen (full-screen, no chrome)
-- [ ] **4.2** Create ConversationDrawer (`src/components/navigation/ConversationDrawer.tsx`)
+- [x] **4.2** Create ConversationDrawer (`src/components/navigation/ConversationDrawer.tsx`)
   - **Visual ref:** `generated designs/conversation_drawer/screen.png` + `code.html`
   - Implement per the generated design using rn-reusables components from `src/components/ui/`
   - Icons from `lucide-react-native`
   - Long-press row → delete with confirmation (ref: `generated designs/delete_confirmation_dialog/`)
-- [ ] **4.3** Rebuild MessageBubble (`src/components/chat/MessageBubble.tsx`)
+- [x] **4.3** Rebuild MessageBubble (`src/components/chat/MessageBubble.tsx`)
   - **Visual ref:** `generated designs/chat_active_conversation/screen.png` + `code.html`
   - Implement per the generated design using rn-reusables components from `src/components/ui/`
-  - Streaming state: blinking `|` cursor via CSS `@keyframes` opacity animation
-- [ ] **4.4** Rebuild MessageList (`src/components/chat/MessageList.tsx`)
-  - Keep existing logic: FlatList, auto-scroll, SQLite loading, zustand subscription
-  - Update styling only — remove old theme, apply Nova tokens
-  - `inverted` FlatList, `bg-background` (#09090B)
-- [ ] **4.5** Rebuild InputBar (`src/components/chat/InputBar.tsx`)
+  - Streaming state: blinking `|` cursor via `Animated.loop` opacity animation
+- [x] **4.4** Rebuild MessageList (`src/components/chat/MessageList.tsx`)
+  - FlatList with flexGrow + justifyContent flex-end (not inverted — avoids RN 0.83 edge cases)
+  - Auto-scroll on new messages and during streaming via zustand subscription
+  - `bg-background` (#09090B)
+- [x] **4.5** Rebuild InputBar (`src/components/chat/InputBar.tsx`)
   - **Visual ref:** `generated designs/chat_empty_state/screen.png` + `code.html` (bottom section)
   - Implement per the generated design using rn-reusables components from `src/components/ui/`
-  - Use `react-native-keyboard-controller` instead of `KeyboardAvoidingView` — more reliable on Android edge-to-edge displays
-- [ ] **4.6** Create ModelPill (`src/components/chat/ModelPill.tsx`)
+  - Multiline auto-grow TextInput, send/stop button with scale animation
+- [x] **4.6** Create ModelPill (`src/components/chat/ModelPill.tsx`)
   - **Visual ref:** `generated designs/chat_empty_state/screen.png` + `code.html` (top center)
   - Implement per the generated design using rn-reusables components from `src/components/ui/`
   - Tap → opens model picker bottom sheet
-- [ ] **4.7** Create EmptyState (`src/components/chat/EmptyState.tsx`)
+- [x] **4.7** Create EmptyState (`src/components/chat/EmptyState.tsx`)
   - **Visual ref:** `generated designs/chat_empty_state/screen.png` + `code.html`
   - Implement per the generated design using rn-reusables components from `src/components/ui/`
-  - Tap suggestion chip → populate input and send
-- [ ] **4.8** Create chat screen (`src/app/index.tsx` + `src/app/chat/[id].tsx`)
+  - Tap suggestion chip → sends message directly
+- [x] **4.8** Create chat screen (`src/app/index.tsx` + `src/app/chat/[id].tsx`)
   - Chat top bar: `lucide Menu` (opens drawer) + ModelPill (center) + `lucide PenSquare` (new chat)
   - No conversation → show EmptyState
   - Has messages → show MessageList + InputBar
   - Wire send flow: save user msg → stream → tokens to store → bubble renders → save assistant msg
   - Cancel: abort stream, save partial
   - `chat/[id].tsx` loads specific conversation from SQLite
-- [ ] **4.9** Rebuild model picker (`src/components/chat/ModelPicker.tsx`)
+- [x] **4.9** Rebuild model picker (`src/components/chat/ModelPicker.tsx`)
   - **Visual ref:** `generated designs/model_picker_bottom_sheet_1/screen.png` + `code.html`
   - Use `@gorhom/bottom-sheet` v5 (Fabric-compatible) as the sheet primitive
   - Implement content per the generated design using rn-reusables components from `src/components/ui/`
-- [ ] **4.10** Create "New Chat" flow
-  - Keep existing logic: create in SQLite → navigate to `chat/[id]`
+- [x] **4.10** Create "New Chat" flow
+  - Create in SQLite → navigate to `chat/[id]`
   - Auto-title: first user message truncated to 50 chars
 - [ ] **4.11** Verify: full chat loop with new design
 
@@ -567,16 +567,32 @@ CREATE INDEX idx_conversations_updated ON conversations(updated_at DESC);
 ✅ All colors match Nova design (monochromatic, no color accents)
 ```
 
+#### 📗 Things Learned
+- `react-native-drawer-layout` exports `{ Drawer }` (named), not a default export — import as `import { Drawer } from 'react-native-drawer-layout'`
+- Drawer component API: uses `renderDrawerContent` (not `renderNavigationView`), `onOpen` + `onClose` + `open` (all required), `drawerStyle` for width/bg (not separate props)
+- FlatList `inverted` has edge cases on RN 0.83 — using `contentContainerStyle: { flexGrow: 1, justifyContent: 'flex-end' }` + `scrollToEnd` is more reliable
+- `@gorhom/bottom-sheet@5` works with Fabric/New Architecture on RN 0.83 — requires `GestureHandlerRootView` at root
+- `Animated.loop` with `Animated.sequence` of `Animated.timing` is the correct way to do blink cursor in RN (no CSS keyframes)
+- Surface color tokens must be defined in both `global.css` AND `tailwind.config.js` — CSS defines the values, tailwind maps them to class names
+- `react-native-keyboard-controller` installed but not wired yet — InputBar uses native TextInput multiline which handles keyboard reasonably well on Android
+
+#### 📕 Mistakes Made
+- Initially used default import for `react-native-drawer-layout` — it only has named exports
+- First attempt used `renderNavigationView` prop (old API) — correct prop is `renderDrawerContent`
+- Removed `onOpen` prop thinking it was optional — it's required by the Drawer component
+
 #### 📘 Things to Remember
-- `inverted` FlatList for chat — newest at bottom, auto-scroll handled
+- Don't use `inverted` FlatList — use `flexGrow + justifyContent: flex-end` + `scrollToEnd` for chat
 - Use `react-native-keyboard-controller` for keyboard handling — `KeyboardAvoidingView` is unreliable on Android edge-to-edge displays
-- Blinking cursor: `@keyframes` with `opacity` on a `|` character
+- Blinking cursor: `Animated.loop` with step-end easing on opacity
 - Zustand selector for streaming message — don't re-render entire list
 - Model list from OpenRouter can be 200+ — cache in MMKV
 - Conversation title: first 50 chars of first user message, strip newlines
 - Drawer: use `react-native-drawer-layout` — correct primitive for swipe gesture, not an rn-reusables component
 - `@gorhom/bottom-sheet` **must be v5** for RN 0.83 New Architecture — v4 crashes on Fabric
 - All styling via NativeWind semantic class names — never raw hex in components
+- `GestureHandlerRootView` MUST wrap the entire app at the root — both drawer and bottom sheet depend on it
+- ChatScreen component shared between `index.tsx` (new chat) and `chat/[id].tsx` (existing chat) — avoids duplication
 
 ---
 

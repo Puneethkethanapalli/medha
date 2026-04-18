@@ -48,4 +48,12 @@ export function initializeDatabase(): void {
   // Create indexes
   database.runSync('CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, created_at)');
   database.runSync('CREATE INDEX IF NOT EXISTS idx_conversations_updated ON conversations(updated_at DESC)');
+
+  // Migrations
+  // Add reasoning column (Sprint 4)
+  try {
+    database.runSync('ALTER TABLE messages ADD COLUMN reasoning TEXT');
+  } catch {
+    // Column already exists — ignore
+  }
 }

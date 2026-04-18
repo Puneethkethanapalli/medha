@@ -1,65 +1,144 @@
+import 'react-native-get-random-values';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, ActivityIndicator, Dimensions } from 'react-native';
 import { ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { PortalHost } from '@rn-primitives/portal';
 import { useColorScheme } from 'nativewind';
-import { View, ActivityIndicator } from 'react-native';
-import React, { useEffect, useState } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Drawer as DrawerLayout } from 'react-native-drawer-layout';
 
 import { NAV_THEME } from '@/lib/theme';
 import { useSettingsStore } from '@/stores/settings-store';
+import { useUIStore } from '@/stores/ui-store';
+import { ConversationDrawer } from '@/components/navigation/ConversationDrawer';
+import { ModelPicker } from '@/components/chat/ModelPicker';
+import { getConversations } from '@/lib/db/conversations';
+import { createConversation } from '@/lib/db/conversations';
+import { initializeDatabase } from '@/lib/db/schema';
+import type { Conversation } from '@/types';
 import '@/global.css';
 
-function RootLayoutContent() {
+const DRAWER_WIDTH = Dimensions.get('window').width * 0.85;
+
+function AppContent() {
   const { colorScheme } = useColorScheme();
   const resolvedScheme = colorScheme === 'dark' || colorScheme === 'light' ? colorScheme : 'dark';
-  const { initialize, isInitialized } = useSettingsStore();
-  const [isReady, setIsReady] = useState(false);
+  const router = useRouter();
 
-  useEffect(() => {
-    const init = async () => {
-      await initialize();
-      setIsReady(true);
-    };
-    init();
+  const drawerOpen = useUIStore((s) => s.drawerOpen);
+  const openDrawer = useUIStore((s) => s.openDrawer);
+  const closeDrawer = useUIStore((s) => s.closeDrawer);
+  const activeConversationId = useUIStore((s) => s.activeConversationId);
+  const setActiveConversation = useUIStore((s) => s.setActiveConversation);
+
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+
+  const refreshConversations = useCallback(() => {
+    try {
+      const convs = getConversations();
+      setConversations(convs);
+    } catch {
+      // DB might not be ready yet
+    }
   }, []);
 
-  if (!isReady) {
-    return (
-      <View className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator size="large" className="text-primary" />
-      </View>
-    );
-  }
+  // Refresh conversation list when drawer opens
+  useEffect(() => {
+    if (drawerOpen) {
+      refreshConversations();
+    }
+  }, [drawerOpen, refreshConversations]);
+
+  const handleSelectConversation = useCallback(
+    (id: string) => {
+      setActiveConversation(id);
+      closeDrawer();
+      router.push(`/chat/${id}` as any);
+    },
+    [closeDrawer, router, setActiveConversation]
+  );
+
+  const handleNewChat = useCallback(() => {
+    closeDrawer();
+    setActiveConversation(null);
+    router.replace('/');
+  }, [closeDrawer, router, setActiveConversation]);
+
+  const handleOpenSettings = useCallback(() => {
+    closeDrawer();
+    router.push('/settings' as any);
+  }, [closeDrawer, router]);
+
+  const renderDrawerContent = useCallback(
+    () => (
+      <ConversationDrawer
+        conversations={conversations}
+        activeConversationId={activeConversationId}
+        onSelectConversation={handleSelectConversation}
+        onNewChat={handleNewChat}
+        onOpenSettings={handleOpenSettings}
+        onRefresh={refreshConversations}
+      />
+    ),
+    [
+      conversations,
+      activeConversationId,
+      handleSelectConversation,
+      handleNewChat,
+      handleOpenSettings,
+      refreshConversations,
+    ]
+  );
 
   return (
     <View className={`${resolvedScheme === 'dark' ? 'dark' : ''} flex-1`}>
       <ThemeProvider value={NAV_THEME[resolvedScheme]}>
         <StatusBar style={resolvedScheme === 'dark' ? 'light' : 'dark'} />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-          }}
+        <DrawerLayout
+          open={drawerOpen}
+          onOpen={openDrawer}
+          onClose={closeDrawer}
+          drawerPosition="left"
+          drawerType="front"
+          renderDrawerContent={renderDrawerContent}
+          drawerStyle={{ width: DRAWER_WIDTH, backgroundColor: '#09090B' }}
         >
-          <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
-        </Stack>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              animation: 'fade',
+            }}
+          >
+            <Stack.Screen name="index" />
+            <Stack.Screen name="chat/[id]" />
+            <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
+          </Stack>
+        </DrawerLayout>
+        <ModelPicker />
         <PortalHost />
       </ThemeProvider>
     </View>
   );
 }
 
-// Root layout with auth check
+// Root layout with auth check and initialization
 export default function RootLayout() {
   const segments = useSegments();
   const router = useRouter();
   const { isInitialized, initialize } = useSettingsStore();
-  const [checked, setChecked] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      if (!isInitialized) {
+    const init = async () => {
+      try {
         await initialize();
+        initializeDatabase();
+      } catch (e) {
+        console.error('Init failed:', e);
       }
 
       const { hasProviderKey } = await import('@/stores/settings-store');
@@ -71,19 +150,25 @@ export default function RootLayout() {
       } else if (hasKey && isOnboarding) {
         router.replace('/');
       }
-      setChecked(true);
+      setReady(true);
     };
 
-    checkAuth();
+    init();
   }, [segments, isInitialized]);
 
-  if (!checked) {
+  if (!ready) {
     return (
-      <View className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator size="large" className="text-primary" />
+      <View className="flex-1 bg-background items-center justify-center" style={{ backgroundColor: '#09090B' }}>
+        <ActivityIndicator size="large" color="#FAFAFA" />
       </View>
     );
   }
 
-  return <RootLayoutContent />;
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <AppContent />
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
 }
