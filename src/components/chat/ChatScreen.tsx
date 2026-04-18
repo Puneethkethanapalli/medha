@@ -214,6 +214,9 @@ export function ChatScreen({ conversationId }: ChatScreenProps) {
     setMessages([]);
     setCurrentConvId(null);
     setActiveConversation(null);
+    if (router.canDismiss()) {
+      router.dismissAll();
+    }
     router.replace('/');
   }, [router, setActiveConversation]);
 

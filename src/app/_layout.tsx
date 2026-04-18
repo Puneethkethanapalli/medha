@@ -1,6 +1,6 @@
 import 'react-native-get-random-values';
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, ActivityIndicator, Dimensions } from 'react-native';
+import { View, ActivityIndicator, Dimensions, BackHandler } from 'react-native';
 import { ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -52,11 +52,31 @@ function AppContent() {
     }
   }, [drawerOpen, refreshConversations]);
 
+  const modelPickerOpen = useUIStore((s) => s.modelPickerOpen);
+  const closeModelPicker = useUIStore((s) => s.closeModelPicker);
+
+  // Handle Android back button: close model picker or drawer if open
+  useEffect(() => {
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (modelPickerOpen) {
+        closeModelPicker();
+        return true;
+      }
+      if (drawerOpen) {
+        closeDrawer();
+        return true;
+      }
+      return false;
+    });
+    return () => handler.remove();
+  }, [drawerOpen, closeDrawer, modelPickerOpen, closeModelPicker]);
+
   const handleSelectConversation = useCallback(
     (id: string) => {
       setActiveConversation(id);
       closeDrawer();
-      router.push(`/chat/${id}` as any);
+      // Use navigate instead of push — avoids stacking duplicate chat screens
+      router.navigate(`/chat/${id}` as any);
     },
     [closeDrawer, router, setActiveConversation]
   );
@@ -64,6 +84,10 @@ function AppContent() {
   const handleNewChat = useCallback(() => {
     closeDrawer();
     setActiveConversation(null);
+    // Dismiss all pushed screens and go to home
+    if (router.canDismiss()) {
+      router.dismissAll();
+    }
     router.replace('/');
   }, [closeDrawer, router, setActiveConversation]);
 
@@ -116,6 +140,7 @@ function AppContent() {
             <Stack.Screen name="chat/[id]" />
             <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
             <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="settings/api-keys" options={{ animation: 'slide_from_right' }} />
           </Stack>
         </DrawerLayout>
         <ModelPicker />

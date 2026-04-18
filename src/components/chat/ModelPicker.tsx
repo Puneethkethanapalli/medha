@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
-import { View, Pressable, TextInput, FlatList } from 'react-native';
-import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from '@gorhom/bottom-sheet';
+import { View, Pressable } from 'react-native';
+import BottomSheet, { BottomSheetBackdrop, BottomSheetFlatList, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { Text } from '@/components/ui/text';
 import { Search, X, Check } from 'lucide-react-native';
 import { useUIStore } from '@/stores/ui-store';
@@ -14,6 +14,7 @@ const POPULAR_MODELS: Model[] = [
   { id: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash', provider: 'openrouter' },
   { id: 'google/gemma-3-27b-it:free', name: 'Gemma 3 27B', provider: 'openrouter' },
   { id: 'deepseek/deepseek-chat-v3:free', name: 'DeepSeek Chat V3', provider: 'openrouter' },
+  { id: 'deepseek/deepseek-r1:free', name: 'DeepSeek R1 (Thinking)', provider: 'openrouter' },
   { id: 'qwen/qwen-2.5-72b-instruct:free', name: 'Qwen 2.5 72B', provider: 'openrouter' },
   { id: 'microsoft/phi-4:free', name: 'Phi 4', provider: 'openrouter' },
   { id: 'mistralai/mistral-nemo:free', name: 'Mistral Nemo', provider: 'openrouter' },
@@ -52,7 +53,6 @@ function groupModels(models: Model[]): GroupedModels[] {
     if (!groups.has(provider)) groups.set(provider, []);
     groups.get(provider)!.push(m);
   }
-  // Sort groups: OpenAI, Anthropic, Google first, then alphabetical
   const priority = ['OpenAI', 'Anthropic', 'Google', 'Meta', 'DeepSeek'];
   return Array.from(groups.entries())
     .sort(([a], [b]) => {
@@ -65,6 +65,10 @@ function groupModels(models: Model[]): GroupedModels[] {
     })
     .map(([provider, models]) => ({ provider, models }));
 }
+
+type FlatItem =
+  | { type: 'header'; provider: string }
+  | { type: 'model'; model: Model; isLast: boolean };
 
 export function ModelPicker() {
   const bottomSheetRef = useRef<BottomSheet>(null);
@@ -109,7 +113,10 @@ export function ModelPicker() {
 
   const handleSheetChange = useCallback(
     (index: number) => {
-      if (index === -1) closeModelPicker();
+      if (index === -1) {
+        closeModelPicker();
+        setSearchQuery('');
+      }
     },
     [closeModelPicker]
   );
@@ -118,6 +125,7 @@ export function ModelPicker() {
     (modelId: string) => {
       setLastModel(modelId);
       closeModelPicker();
+      setSearchQuery('');
     },
     [setLastModel, closeModelPicker]
   );
@@ -132,11 +140,8 @@ export function ModelPicker() {
 
   const grouped = useMemo(() => groupModels(filteredModels), [filteredModels]);
 
-  // Flatten for FlatList
   const flatData = useMemo(() => {
-    const items: Array<
-      { type: 'header'; provider: string } | { type: 'model'; model: Model; isLast: boolean }
-    > = [];
+    const items: FlatItem[] = [];
     for (const group of grouped) {
       items.push({ type: 'header', provider: group.provider });
       group.models.forEach((m, i) => {
@@ -153,6 +158,85 @@ export function ModelPicker() {
     []
   );
 
+  const renderItem = useCallback(
+    ({ item }: { item: FlatItem }) => {
+      if (item.type === 'header') {
+        return (
+          <Text className="text-on-surface-variant text-[11px] font-semibold uppercase tracking-widest px-6 mt-4 mb-2">
+            {item.provider}
+          </Text>
+        );
+      }
+      const isSelected = item.model.id === lastModel;
+      return (
+        <Pressable
+          onPress={() => handleSelect(item.model.id)}
+          className={`mx-4 h-[52px] px-4 flex-row items-center justify-between rounded-lg ${
+            isSelected ? 'bg-surface-container-high' : ''
+          } ${!item.isLast ? 'border-b border-outline-variant/10' : ''}`}
+        >
+          {isSelected && (
+            <View className="absolute left-0 top-0 bottom-0 w-[2px] bg-foreground rounded-r-full" />
+          )}
+          <Text
+            className={`text-[14px] flex-1 ${
+              isSelected ? 'text-foreground font-medium' : 'text-on-surface'
+            }`}
+            numberOfLines={1}
+          >
+            {item.model.name}
+          </Text>
+          {isSelected && <Check size={18} color="hsl(0, 0%, 98%)" />}
+        </Pressable>
+      );
+    },
+    [lastModel, handleSelect]
+  );
+
+  const keyExtractor = useCallback(
+    (item: FlatItem) =>
+      item.type === 'header' ? `h-${item.provider}` : `m-${item.model.id}`,
+    []
+  );
+
+  const ListHeader = useMemo(
+    () => (
+      <>
+        {/* Header */}
+        <View className="flex-row items-center justify-between px-4 pb-4">
+          <Text className="text-foreground text-[16px] font-semibold">Select Model</Text>
+          <Pressable
+            onPress={() => { closeModelPicker(); setSearchQuery(''); }}
+            className="p-1 rounded-full active:bg-surface-container"
+          >
+            <X size={20} color="hsl(0, 0%, 63%)" />
+          </Pressable>
+        </View>
+
+        {/* Search */}
+        <View className="px-4 pb-2">
+          <View className="flex-row items-center bg-surface-container rounded-lg h-10 px-3">
+            <Search size={16} color="hsl(0, 0%, 63%)" />
+            <BottomSheetTextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search models..."
+              placeholderTextColor="hsl(0, 0%, 44%)"
+              style={{
+                flex: 1,
+                color: '#FAFAFA',
+                fontSize: 13,
+                marginLeft: 8,
+                padding: 0,
+              }}
+            />
+          </View>
+        </View>
+      </>
+    ),
+    [searchQuery, closeModelPicker]
+  );
+
   if (!isOpen) return null;
 
   return (
@@ -165,80 +249,18 @@ export function ModelPicker() {
       backdropComponent={renderBackdrop}
       handleIndicatorStyle={{ backgroundColor: 'hsl(0, 0%, 17%)', width: 40 }}
       backgroundStyle={{ backgroundColor: 'hsl(240, 0%, 5%)' }}
+      keyboardBehavior="interactive"
+      android_keyboardInputMode="adjustResize"
     >
-      <BottomSheetView style={{ flex: 1 }}>
-        {/* Header */}
-        <View className="flex-row items-center justify-between px-4 pb-4">
-          <Text className="text-foreground text-[16px] font-semibold">Select Model</Text>
-          <Pressable
-            onPress={closeModelPicker}
-            className="p-1 rounded-full active:bg-surface-container"
-          >
-            <X size={20} color="hsl(0, 0%, 63%)" />
-          </Pressable>
-        </View>
-
-        {/* Search */}
-        <View className="px-4 pb-4">
-          <View className="flex-row items-center bg-surface-container rounded-lg h-10 px-3">
-            <Search size={16} color="hsl(0, 0%, 63%)" />
-            <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Search models..."
-              placeholderTextColor="hsl(0, 0%, 44%)"
-              className="flex-1 text-foreground text-[13px] ml-2 p-0"
-            />
-          </View>
-        </View>
-
-        {/* Model List */}
-        <FlatList
-          data={flatData}
-          keyExtractor={(item, i) =>
-            item.type === 'header' ? `h-${item.provider}` : `m-${item.model.id}`
-          }
-          renderItem={({ item }) => {
-            if (item.type === 'header') {
-              return (
-                <Text className="text-on-surface-variant text-[11px] font-semibold uppercase tracking-widest px-6 mt-4 mb-2">
-                  {item.provider}
-                </Text>
-              );
-            }
-            const isSelected = item.model.id === lastModel;
-            return (
-              <Pressable
-                onPress={() => handleSelect(item.model.id)}
-                className={`mx-4 h-[52px] px-4 flex-row items-center justify-between ${
-                  isSelected ? 'bg-surface-container-high' : ''
-                } ${!item.isLast ? 'border-b border-outline-variant/10' : ''}`}
-                style={{
-                  borderTopLeftRadius: item.type === 'model' ? 0 : 12,
-                  borderTopRightRadius: item.type === 'model' ? 0 : 12,
-                }}
-              >
-                {isSelected && (
-                  <View className="absolute left-0 top-0 bottom-0 w-[2px] bg-foreground" />
-                )}
-                <Text
-                  className={`text-[14px] ${
-                    isSelected ? 'text-foreground font-medium' : 'text-on-surface'
-                  }`}
-                  numberOfLines={1}
-                >
-                  {item.model.name}
-                </Text>
-                <View className="flex-row items-center gap-3">
-                  {isSelected && <Check size={18} color="hsl(0, 0%, 98%)" />}
-                </View>
-              </Pressable>
-            );
-          }}
-          contentContainerStyle={{ paddingBottom: 32 }}
-          showsVerticalScrollIndicator={false}
-        />
-      </BottomSheetView>
+      <BottomSheetFlatList
+        data={flatData}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        ListHeaderComponent={ListHeader}
+        contentContainerStyle={{ paddingBottom: 32 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      />
     </BottomSheet>
   );
 }
