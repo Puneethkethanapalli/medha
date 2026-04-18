@@ -1,4 +1,4 @@
-# Medha — AI Chat App Agile Plan
+# Medha (मेधा) — AI Chat App Agile Plan
 
 > **Sanskrit for wisdom/intelligence** — Open-source, BYOK AI chat client
 > Built with: Expo SDK 55 + React Native 0.83 + React 19.2 + react-native-reusables
@@ -11,7 +11,7 @@
 |-----|-------|
 | **Platforms** | Android (native) |
 | **Architecture** | 100% client-side, no backend |
-| **UI Framework** | react-native-reusables (NativeWind v5 + Tailwind v4) |
+| **UI Framework** | react-native-reusables (NativeWind v4 + Tailwind CSS v3) |
 | **State** | Zustand (UI state only) |
 | **Database** | expo-sqlite (messages/conversations) + MMKV (settings/config) |
 | **Streaming** | Native `expo/fetch` + ReadableStream + manual SSE parser |
@@ -21,7 +21,7 @@
 | **Design** | Nova (shadcn b0) — monochromatic, dark-first, chat-first UX |
 | **Design Refs** | `designs/` (Stitch prompts) + `generated designs/` (approved mockups) |
 | **Navigation** | Chat-first, drawer-based (no tab bar) — like ChatGPT/Claude/Gemini 2026 |
-| **Expo SDK** | 55 (React Native 0.83, React 19.2, New Architecture mandatory) |
+| **Expo SDK** | 55 (React Native 0.83, React 19.2, New Architecture mandatory,pnpm) |
 | **Folder Structure** | `src/app/` (SDK 55 default) |
 | **Developer** | Solo, weekend project, portfolio piece |
 | **Testing** | Manual only (CI/CD later) |
@@ -154,24 +154,24 @@ CREATE INDEX idx_conversations_updated ON conversations(updated_at DESC);
 > **Duration:** ~2 hours
 
 #### Tasks
-- [] **0.1** Create Expo SDK 55 project
+- [x] **0.1** Create Expo SDK 55 project
   - `npx create-expo-app@latest --template default@sdk-55 ./`
   - Verify `src/app/` folder structure exists
-- [] **0.2** Initialize react-native-reusables
-  - `npx react-native-reusables@latest init`
-  - Verify `global.css`, `metro.config.js`, `nativewind-env.d.ts`, and `lib/utils.ts` (cn helper) generated
+- [x] **0.2** Initialize react-native-reusables
+  - Manual setup: create `components.json`, install `nativewind@4.2.3` + `tailwindcss@3.4`, create config files
+  - Verify `global.css`, `metro.config.js`, `nativewind-env.d.ts`, and `lib/utils.ts` (cn helper) exist
   - Confirm `tailwind.config.js` is set up for NativeWind v4
-- [] **0.3** Add rn-reusables components needed for Sprint 1
+- [x] **0.3** Add rn-reusables components needed for Sprint 1
   - `npx react-native-reusables@latest add button input text label separator`
   - Components are copy-pasted into `src/components/ui/` — you own the source
-- [] **0.4** Install core dependencies
-  - `npx expo install expo-secure-store expo-local-authentication react-native-mmkv zustand expo-sqlite`
-  - `npm install uuid` (for generating IDs)
-- [] **0.5** Set up dark/light theme in `global.css`
+- [x] **0.4** Install core dependencies
+  - `npx expo install expo-secure-store expo-local-authentication expo-sqlite expo-haptics expo-clipboard expo-sharing react-native-mmkv zustand`
+  - `npm install uuid @types/uuid`
+- [x] **0.5** Set up dark/light theme in `global.css`
   - Define Nova CSS variables — monochromatic only, no color accents
   - Dark (default): `--background: #09090B`, `--card: #0A0A0C`, `--muted: #18181B`, `--border: #27272A`, `--foreground: #FAFAFA`, `--muted-foreground: #A1A1AA`, `--destructive: #EF4444`
-  - Success/primary states use high-contrast white/black, not green — `#10a37f` violates Nova monochromatic rule
-- [] **0.6** Verify: run on Android emulator
+  - Also define `.light` and `.oled` theme classes
+- [x] **0.6** Verify: run on Android emulator
   - `npx expo start` → press `a` for Android
   - Confirm rn-reusables Button renders correctly with Nova theme applied
 
@@ -184,18 +184,47 @@ CREATE INDEX idx_conversations_updated ON conversations(updated_at DESC);
 ```
 
 #### 📗 Things Learned
-- (fill after completing)
+- `create-expo-app` refuses to scaffold in a non-empty directory — create in a temp subdirectory (e.g., `medha-temp`), then copy project files up
+- `react-native-reusables init` creates a NEW project, not initialize in existing dir — manual setup required: create `components.json`, install packages, create config files
+- **NativeWind v5 (5.0.0-preview.3) is INCOMPATIBLE with Expo SDK 55** — `expo-router@55` requires `nativewind/jsx-runtime` which only exists in v4 (nativewind v4 has `jsx-runtime`, v5 does not). Must use `nativewind@4.2.3` + `tailwindcss@3.4`
+- Root layout in Expo Router SDK 55 uses `<Stack>` from `expo-router`, NOT `<SplashScreen>` as a rendered component
+- `components.json` must be created manually for `rn-reusables add` to work — can't init in existing project
+- `@react-native-reusables/cli add` IS interactive — pipe `echo "y"` or create `components.json` first
+- `tailwindcss-animate` is a required dependency — install manually: `npm install tailwindcss-animate`
+- `class-variance-authority` is required by all rn-reusables components — install manually
+- CSS module type declarations need to be added manually (`src/types/css-modules.d.ts`) — TypeScript doesn't resolve `.module.css` by default
+- NativeWind v4 auto-updates `tsconfig.json` to include `nativewind-env.d.ts` on first run
+- `expo-doctor` (local CLI) → use `npx expo-doctor` instead (npm package)
+- `nativewind/metro` (v4) is NOT the same as `nativewind/metro` (v5 preview) — v4 uses different config structure
 
 #### 📕 Mistakes Made
-- (fill after completing)
+- Tried to run `create-expo-app` in existing directory — had to use temp subdirectory workaround
+- Ran `react-native-reusables init` in existing project — CLI detected existing project and refused to continue (interactive prompt)
+- Installed `nativewind@5.0.0-preview.3` — caused `nativewind/jsx-runtime` not found error at bundle time (expo-router@55 depends on it)
+- Forgot `tailwindcss-animate` — it was flagged by `rn-reusables doctor` as missing
+- Forgot `class-variance-authority` — TypeScript error until installed
+- Tried to render `<SplashScreen />` as a component in _layout — should only use `<Stack>` in Expo Router SDK 55
+- Initially used Tailwind CSS v4 with nativewind v4 — v4 requires v3, not v4
 
 #### 📘 Things to Remember
 - Expo SDK 55 uses `src/app/` not `app/` — don't create root-level app folder
 - react-native-reusables uses a **copy-paste model** (like shadcn) — components live in `src/components/ui/`, you own and edit them directly
-- NativeWind v5 uses Tailwind v4 — config in `global.css` CSS variables, not `tailwind.config.js` theme extension
+- **NativeWind version**: Use `nativewind@4.2.3` + `tailwindcss@3.4` (NOT v5 preview) — v5 lacks `jsx-runtime` which expo-router@55 needs
+- NativeWind v4 config: `postcss.config.mjs` with `tailwindcss: {}` + `autoprefixer: {}`; `metro.config.js` with `withNativeWind(config, { input: './src/global.css' })`
+- NativeWind v4 babel: `babel-preset-expo` with `jsxImportSource: 'nativewind'` (required for jsx-runtime resolution)
+- NativeWind v4 CSS: `@tailwind base; @tailwind components; @tailwind utilities;` + `@layer base {}` for CSS variables
 - New Architecture is mandatory in SDK 55 — `newArchEnabled` flag removed
 - Use `expo-dev-client` for testing, not Expo Go (SDK 55 may not be on Play Store Expo Go)
-- `cn()` helper from `lib/utils.ts` (clsx + tailwind-merge) is used for conditional class merging in all rn-reusables components
+- `cn()` helper from `src/lib/utils.ts` (clsx + tailwind-merge) — all rn-reusables components use this
+- `@/` alias in tsconfig maps to `./src/*` — keep path aliases consistent
+- All rn-reusables component files go in `src/components/ui/` — you own them, edit directly
+- `components.json` in root: defines styling library (nativewind), aliases, and Tailwind config path
+- `tailwind.config.js` content globs: `['./src/app/**/*.{ts,tsx}', './src/components/**/*.{ts,tsx}']` (note `src/` prefix for SDK 55)
+- Root layout: `<View className="dark">` + `<ThemeProvider>` + `<Stack>` + `<PortalHost />` — use `nativewind`'s `useColorScheme()`
+- NativeWind dark mode: add `dark` class to root element via `useColorScheme()` from nativewind (not react-native)
+- `darkMode: 'class'` in tailwind.config.js (not 'media') — controlled via CSS class on root
+- `react-native-reusables doctor` (rn-reusables CLI) shows false positive issues with nativewind v4 + SDK 55 — bundle export succeeds regardless. The warnings about CSS variables, babel config, and inlineRem are due to version mismatch between the latest CLI and our setup. Ignore them if `npx expo export` works
+- `expo-doctor` (npx expo-doctor, NOT expo doctor) correctly shows 17/17 checks passing
 
 ---
 
@@ -783,6 +812,8 @@ These are not in scope for the initial build but documented for later:
 
 ## 📦 Full Dependency List
 
+> **Note**: NativeWind v4 + Tailwind CSS v3 (NOT v5/v4) — see "Things to Remember" above.
+
 ```json
 {
   "dependencies": {
@@ -796,19 +827,37 @@ These are not in scope for the initial build but documented for later:
     "expo-clipboard": "~55.0.0",
     "expo-haptics": "~55.0.0",
     "react": "~19.2.0",
-    "react-native": "~0.83.1",
+    "react-native": "~0.83.4",
+    "nativewind": "4.2.3",
+    "react-native-css": "latest",
     "react-native-mmkv": "latest",
     "react-native-keyboard-controller": "latest",
     "zustand": "^5.0.0",
-    "uuid": "^11.0.0",
+    "uuid": "^13.0.0",
     "react-native-marked": "latest",
     "@shopify/flash-list": "latest",
     "@gorhom/bottom-sheet": "^5.0.0",
     "react-native-reanimated": "latest",
     "react-native-gesture-handler": "latest",
+    "react-native-safe-area-context": "latest",
+    "react-native-screens": "latest",
     "react-native-drawer-layout": "latest",
     "lucide-react-native": "latest",
-    "@google/generative-ai": "latest"
+    "@google/generative-ai": "latest",
+    "class-variance-authority": "latest",
+    "clsx": "latest",
+    "tailwind-merge": "latest",
+    "@rn-primitives/portal": "latest",
+    "@rn-primitives/slot": "latest",
+    "@rn-primitives/separator": "latest",
+    "@rn-primitives/label": "latest"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4",
+    "tailwindcss-animate": "latest",
+    "autoprefixer": "latest",
+    "postcss": "latest",
+    "@babel/plugin-transform-react-jsx": "latest"
   }
 }
 ```
