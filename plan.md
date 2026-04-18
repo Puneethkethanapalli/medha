@@ -307,29 +307,57 @@ CREATE INDEX idx_conversations_updated ON conversations(updated_at DESC);
 - [x] **2.1** Create provider interface (`src/lib/providers/types.ts`)
   ```typescript
   interface StreamResponse {
-    reader: ReadableStreamDefaultReader<Uint8Array>;
     abort: () => void;
   }
   interface AIProvider {
     id: string;
     name: string;
-    stream(messages: Message[], config: StreamConfig): Promise<StreamResponse>;
+    stream(
+      messages: Message[],
+      config: StreamConfig,
+      onContent: (token: string) => void,
+      onReasoning: (token: string) => void,
+      onDone: () => void,
+      onError: (error: Error) => void
+    ): ReasoningStreamResponse;
     listModels(apiKey: string): Promise<Model[]>;
     validateKey(apiKey: string): Promise<boolean>;
   }
   ```
-- [] **2.2** Create SSE parser (`src/lib/streaming/sse-parser.ts`)
+- [x] **2.2** Create SSE parser (`src/lib/streaming/sse-parser.ts`)
   - Parse raw text chunks into SSE events
   - Handle partial lines (chunk may split mid-line)
   - Buffer management: accumulate until newline
   - Extract `data:` field, skip comments/empty lines
   - Detect `[DONE]` signal
-- [] **2.3** Create stream wrapper (`src/lib/streaming/stream.ts`)
-  - `streamCompletion(url, headers, body) → AsyncIterable<string>`
+  - Handle `reasoning_details` array for OpenRouter thinking models
+- [x] **2.3** Create stream wrapper (`src/lib/streaming/stream.ts`)
+  - `streamCompletion(url, headers, body, onContent, onReasoning, onDone, onError)`
   - Uses native `fetch` (expo/fetch in SDK 55 supports ReadableStream)
   - AbortController integration
   - Error handling: network, 401, 429, 500
-- [] **2.4** Create OpenRouter provider (`src/lib/providers/openrouter.ts`)
+  - `response.body` null fallback - reads entire body as text and parses SSE
+- [x] **2.4** Create OpenRouter provider (`src/lib/providers/openrouter.ts`)
+  - Implements `AIProvider` interface
+  - `stream()`: calls `/api/v1/chat/completions` with `stream: true`
+  - `listModels()`: calls `GET /api/v1/models` → returns parsed model list
+  - `validateKey()`: calls models endpoint, checks for 200
+  - Headers: Authorization, HTTP-Referer, X-Title
+- [x] **2.5** Create provider registry (`src/lib/providers/registry.ts`)
+  - Map of provider ID → AIProvider instance
+  - `getProvider(id)` → provider
+  - Start with just OpenRouter, extensible for future providers
+- [x] **2.6** Create Zustand chat store (`src/stores/chat-store.ts`)
+  - State: `streamingMessageId`, `streamingContent`, `isStreaming`, `error`
+  - Actions: `startStreaming()`, `appendToken(token)`, `stopStreaming()`, `cancelStreaming()`
+  - Selector: `useStreamingContent(messageId)` — only re-renders the active bubble
+- [x] **2.7** Verify: test screen with hardcoded API key
+  - Text input for API key + "Test Stream" button
+  - Sends "Hello, who are you?" to OpenRouter
+  - Tokens appear in real-time in a Text component
+  - Cancel button works mid-stream
+  - Error states shown (bad key, network error)
+  - Reasoning tokens displayed separately for thinking models
   - Implements `AIProvider` interface
   - `stream()`: calls `/api/v1/chat/completions` with `stream: true`
   - `listModels()`: calls `GET /api/v1/models` → returns parsed model list
@@ -357,12 +385,16 @@ CREATE INDEX idx_conversations_updated ON conversations(updated_at DESC);
 - `response.body` can be null even on 200 status - need fallback to read body as text
 - Models like Gemma send `delta.reasoning` field instead of `delta.content` - handle both
 - AsyncIterator pattern needed for bridging async generators to ReadableStream reader interface
+- OpenRouter thinking models (gemini-2.0-flash-thinking-exp) send reasoning in `reasoning_details` array, separate from content
+- `reasoning_details` contains `reasoning.text` and `reasoning.summary` types with actual thinking content
+- expo-sqlite web build fails due to WASM worker import - mock with `resolveRequest` in metro.config.js
 
 #### 📕 Mistakes Made
 - Initially assumed `response.body` would always be present on 200 response - it wasn't
 - Didn't handle empty content tokens initially - caused infinite loop in reader
 - SSE parser wasn't stripping "data: " prefix properly in fallback path
 - Used `tokenIterator.next()` on AsyncIterable instead of getting async iterator first
+- Model IDs need `:free` suffix for OpenRouter free tier models
 
 #### How to Test Sprint 2
 ```
@@ -373,10 +405,13 @@ CREATE INDEX idx_conversations_updated ON conversations(updated_at DESC);
 ✅ listModels() returns array of model objects with id, name, pricing
 ✅ SSE parser handles chunked/split lines correctly
 ✅ Works on Android
+✅ OpenRouter free models require :free suffix
+✅ Reasoning tokens (from thinking models) displayed separately
 ```
 
-#### 📗 Things Learned
-- (fill after completing)
+---
+
+### Sprint 3 — Onboarding + Key Management (REDO — Nova Design)
 
 #### 📕 Mistakes Made
 - (fill after completing)
