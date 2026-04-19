@@ -81,16 +81,28 @@ export class SSEParser {
 }
 
 /**
- * Tracks whether we're inside a <think> block across streaming chunks.
- * Google AI (Gemini 2.5) sends reasoning wrapped in <think>...</think> tags
+ * Tracks whether we're inside a thinking block across streaming chunks.
+ * Google AI (Gemini 2.5) sends reasoning wrapped in tags like:
+ *   <think>...</think>  or  <thought>...</thought>
  * inside delta.content, potentially split across multiple chunks.
  */
 let _insideThinkTag = false;
 let _thinkBuffer = '';
+let _activeCloseTag = '';  // The closing tag we're looking for
+
+// All tag variants Gemini models may use for thinking
+const THINK_OPEN_TAGS = ['<thought>', '<think>', '<Thought>', '<Think>'];
+const THINK_CLOSE_MAP: Record<string, string> = {
+  '<thought>': '</thought>',
+  '<think>': '</think>',
+  '<Thought>': '</Thought>',
+  '<Think>': '</Think>',
+};
 
 export function resetThinkTagState(): void {
   _insideThinkTag = false;
   _thinkBuffer = '';
+  _activeCloseTag = '';
 }
 
 export function extractContentFromEvent(data: string): TokenContent | null {
@@ -123,7 +135,7 @@ export function extractContentFromEvent(data: string): TokenContent | null {
     // OpenAI format: choices[0].delta.content
     const rawContent = parsed.choices?.[0]?.delta?.content;
     if (rawContent) {
-      // Google AI (Gemini 2.5) wraps thinking in <think>...</think> tags
+      // Google AI (Gemini 2.5) wraps thinking in <thought>/</thought> or <think>/<think> tags
       // We need to separate these into reasoning vs content
       const separated = separateThinkTags(rawContent);
       if (separated.reasoning) {
@@ -156,8 +168,9 @@ export function extractContentFromEvent(data: string): TokenContent | null {
 }
 
 /**
- * Separates <think>...</think> tags from content in a streaming-safe way.
- * Handles tags that may be split across multiple chunks.
+ * Separates thinking tags from content in a streaming-safe way.
+ * Handles <thought>...</thought> and <think>...</think> (any casing variant).
+ * Tags may be split across multiple streaming chunks.
  */
 function separateThinkTags(text: string): { content?: string; reasoning?: string } {
   let reasoning = '';
@@ -166,33 +179,45 @@ function separateThinkTags(text: string): { content?: string; reasoning?: string
 
   while (remaining.length > 0) {
     if (_insideThinkTag) {
-      // Look for closing </think> tag
-      const closeIdx = remaining.indexOf('</think>');
+      // Look for the matching closing tag
+      const closeIdx = remaining.indexOf(_activeCloseTag);
       if (closeIdx !== -1) {
         reasoning += _thinkBuffer + remaining.slice(0, closeIdx);
         _thinkBuffer = '';
         _insideThinkTag = false;
-        remaining = remaining.slice(closeIdx + 8); // skip '</think>'
+        remaining = remaining.slice(closeIdx + _activeCloseTag.length);
+        _activeCloseTag = '';
       } else {
         // Still inside think block, buffer it all
         _thinkBuffer += remaining;
         remaining = '';
       }
     } else {
-      // Look for opening <think> tag
-      const openIdx = remaining.indexOf('<think>');
-      if (openIdx !== -1) {
+      // Find the earliest opening tag
+      let bestIdx = -1;
+      let bestTag = '';
+      for (const openTag of THINK_OPEN_TAGS) {
+        const idx = remaining.indexOf(openTag);
+        if (idx !== -1 && (bestIdx === -1 || idx < bestIdx)) {
+          bestIdx = idx;
+          bestTag = openTag;
+        }
+      }
+
+      if (bestIdx !== -1) {
         // Everything before the tag is content
-        content += remaining.slice(0, openIdx);
+        content += remaining.slice(0, bestIdx);
         _insideThinkTag = true;
         _thinkBuffer = '';
-        remaining = remaining.slice(openIdx + 7); // skip '<think>'
+        _activeCloseTag = THINK_CLOSE_MAP[bestTag];
+        remaining = remaining.slice(bestIdx + bestTag.length);
       } else {
-        // Check for partial tag at end (e.g., "<thi" at chunk boundary)
-        const partialMatch = findPartialTagAtEnd(remaining, '<think>');
-        if (partialMatch > 0) {
-          content += remaining.slice(0, remaining.length - partialMatch);
-          _thinkBuffer = remaining.slice(remaining.length - partialMatch);
+        // Check for partial tag at end of chunk (e.g., "<thou" at boundary)
+        const partialLen = findPartialOpenTagAtEnd(remaining);
+        if (partialLen > 0) {
+          content += remaining.slice(0, remaining.length - partialLen);
+          // Don't commit partial yet — just hold it in buffer for next chunk
+          _thinkBuffer = remaining.slice(remaining.length - partialLen);
           remaining = '';
         } else {
           content += remaining;
@@ -208,12 +233,18 @@ function separateThinkTags(text: string): { content?: string; reasoning?: string
   };
 }
 
-/** Check if the end of text matches a partial prefix of tag */
-function findPartialTagAtEnd(text: string, tag: string): number {
-  for (let len = Math.min(tag.length - 1, text.length); len > 0; len--) {
-    if (text.endsWith(tag.slice(0, len))) {
-      return len;
+/**
+ * Check if the end of text matches a partial prefix of any opening think tag.
+ * Returns the length of the longest partial match, or 0 if none.
+ */
+function findPartialOpenTagAtEnd(text: string): number {
+  let longest = 0;
+  for (const tag of THINK_OPEN_TAGS) {
+    for (let len = Math.min(tag.length - 1, text.length); len > 0; len--) {
+      if (text.endsWith(tag.slice(0, len)) && len > longest) {
+        longest = len;
+      }
     }
   }
-  return 0;
+  return longest;
 }
