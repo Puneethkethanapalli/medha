@@ -1,6 +1,5 @@
 import React from 'react';
-import { Pressable } from 'react-native';
-import { Text } from '@/components/ui/text';
+import { Pressable, Text as RNText } from 'react-native';
 import { ChevronDown } from 'lucide-react-native';
 import { useUIStore } from '@/stores/ui-store';
 import { useSettingsStore } from '@/stores/settings-store';
@@ -38,11 +37,16 @@ export function ModelPill() {
       className="flex-row items-center bg-surface-container-low border border-outline-variant/20 rounded-full px-3 py-1.5 gap-1.5 active:opacity-70"
     >
       {providerBadge && (
-        <Text className="text-on-surface-variant/60 text-[10px] font-bold">{providerBadge}</Text>
+        <RNText style={{ color: 'hsl(0, 0%, 55%)', fontSize: 10, fontWeight: '700' }}>
+          {providerBadge}
+        </RNText>
       )}
-      <Text className="text-on-surface-variant text-[12px] font-medium" numberOfLines={1}>
+      <RNText
+        style={{ color: 'hsl(0, 0%, 63%)', fontSize: 12, fontWeight: '500' }}
+        numberOfLines={1}
+      >
         {displayName}
-      </Text>
+      </RNText>
       <ChevronDown size={14} color="hsl(0, 0%, 63%)" />
     </Pressable>
   );

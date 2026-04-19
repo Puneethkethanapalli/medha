@@ -132,9 +132,9 @@ export function ModelPicker() {
   );
 
   const handleSelect = useCallback(
-    (modelId: string, providerId: string) => {
-      setLastModel(modelId);
-      setLastProvider(providerId);
+    async (modelId: string, providerId: string) => {
+      await setLastModel(modelId);
+      await setLastProvider(providerId);
       closeModelPicker();
       setSearchQuery('');
     },
