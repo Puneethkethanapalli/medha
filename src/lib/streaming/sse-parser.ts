@@ -1,97 +1,143 @@
+/**
+ * SSE Parser — WinterCG / WHATWG EventSource spec-compliant.
+ *
+ * An SSE event is a group of field lines ("event:", "data:", "id:", "retry:")
+ * terminated by one or more blank lines. A single network chunk may contain
+ * zero, one, or many events, and events may be split across chunks.
+ *
+ * This parser correctly buffers across chunk boundaries and dispatches
+ * complete events only when a blank-line delimiter is seen.
+ */
+
+// ─── Public types ───────────────────────────────────────────────────────
+
+export interface SSEEvent {
+  /** The `event:` field value (defaults to 'message' per spec). */
+  event: string;
+  /** The concatenated `data:` field values, joined by '\n'. */
+  data: string;
+  /** The last `id:` field value, if any. */
+  id?: string;
+}
+
 export interface TokenContent {
   content?: string;
   reasoning?: string;
 }
 
-export type SSELine =
-  | { type: 'event'; id?: string; event?: string; data: string }
-  | { type: 'done' }
-  | { type: 'comment'; value: string };
+// ─── SSEParser ──────────────────────────────────────────────────────────
 
 export class SSEParser {
-  private buffer: string = '';
+  private lineBuf = '';
+  private eventType = '';
+  private dataLines: string[] = [];
+  private lastId: string | undefined;
 
   /**
-   * Parse a raw text chunk into SSE events.
-   * Handles partial lines by buffering until newline is found.
+   * Feed a raw text chunk. Returns fully-parsed SSE events.
+   * Buffers incomplete lines internally.
    */
-  parse(chunk: string): SSELine[] {
-    const events: SSELine[] = [];
-    this.buffer += chunk;
+  feed(chunk: string): SSEEvent[] {
+    const events: SSEEvent[] = [];
+    this.lineBuf += chunk;
 
-    // Split by any newline style
-    const lines = this.buffer.split(/\r\n|\r|\n/g);
-    // Keep the last (potentially incomplete) line as buffer
-    this.buffer = lines.pop() ?? '';
+    // Split on any newline variant, keeping partial last line
+    const lines = this.lineBuf.split(/\r\n|\r|\n/);
+    this.lineBuf = lines.pop() ?? '';
 
     for (const line of lines) {
-      const parsed = this.parseLine(line);
-      if (parsed) {
-        events.push(parsed);
-        if (parsed.type === 'done') return events;
+      if (line === '') {
+        // Blank line → dispatch event if we have accumulated data
+        this.dispatch(events);
+      } else {
+        this.processLine(line);
       }
     }
 
     return events;
   }
 
-  private parseLine(line: string): SSELine | null {
-    // Empty line — end of event
-    if (line === '') {
-      return null;
+  /**
+   * Flush any remaining buffered data (call on stream end).
+   */
+  flush(): SSEEvent[] {
+    const events: SSEEvent[] = [];
+    // Process any remaining partial line
+    if (this.lineBuf.trim()) {
+      this.processLine(this.lineBuf);
+      this.lineBuf = '';
     }
-
-    // Comment line (starts with :)
-    if (line.startsWith(':')) {
-      return { type: 'comment', value: line.slice(1).trim() };
-    }
-
-    // Must have a colon to be a field
-    const colonIndex = line.indexOf(':');
-    if (colonIndex === -1) return null;
-
-    const field = line.slice(0, colonIndex);
-    const value = line.slice(colonIndex + 1).trim();
-
-    if (field === 'event') {
-      return { type: 'event', event: value, data: '' };
-    }
-
-    if (field === 'id') {
-      return { type: 'event', id: value, data: '' };
-    }
-
-    if (field === 'data') {
-      return { type: 'event', data: value };
-    }
-
-    // Unknown field — ignore
-    return null;
+    this.dispatch(events);
+    return events;
   }
 
-  flush(): SSELine[] {
-    const events: SSELine[] = [];
-    if (this.buffer.trim()) {
-      const parsed = this.parseLine(this.buffer);
-      if (parsed) events.push(parsed);
+  private processLine(line: string): void {
+    // Comment lines start with ':'
+    if (line.startsWith(':')) return;
+
+    const colonIdx = line.indexOf(':');
+    let field: string;
+    let value: string;
+
+    if (colonIdx === -1) {
+      // Line with no colon — field name with empty value
+      field = line;
+      value = '';
+    } else {
+      field = line.slice(0, colonIdx);
+      // Spec: if the character after the colon is a space, skip it
+      value = line[colonIdx + 1] === ' '
+        ? line.slice(colonIdx + 2)
+        : line.slice(colonIdx + 1);
     }
-    this.buffer = '';
-    return events;
+
+    switch (field) {
+      case 'event':
+        this.eventType = value;
+        break;
+      case 'data':
+        this.dataLines.push(value);
+        break;
+      case 'id':
+        // Spec: ignore ids containing null
+        if (!value.includes('\0')) {
+          this.lastId = value;
+        }
+        break;
+      case 'retry':
+        // We don't implement reconnection, skip
+        break;
+      // Unknown fields are ignored per spec
+    }
+  }
+
+  private dispatch(out: SSEEvent[]): void {
+    if (this.dataLines.length === 0) {
+      // No data fields accumulated → reset and skip
+      this.eventType = '';
+      return;
+    }
+
+    const data = this.dataLines.join('\n');
+    out.push({
+      event: this.eventType || 'message',
+      data,
+      id: this.lastId,
+    });
+
+    // Reset per-event state (id persists across events per spec)
+    this.eventType = '';
+    this.dataLines = [];
   }
 }
 
-/**
- * Tracks whether we're inside a thinking block across streaming chunks.
- * Google AI (Gemini 2.5) sends reasoning wrapped in tags like:
- *   <think>...</think>  or  <thought>...</thought>
- * inside delta.content, potentially split across multiple chunks.
- */
-let _insideThinkTag = false;
-let _thinkBuffer = '';
-let _activeCloseTag = '';  // The closing tag we're looking for
+// ─── ThinkTag separator ─────────────────────────────────────────────────
+//
+// Google AI (Gemini 2.5) wraps reasoning in <think>/<thought> tags inside
+// delta.content. These tags can be split across SSE chunks.
+// State is per-instance so concurrent streams don't corrupt each other.
 
-// All tag variants Gemini models may use for thinking
-const THINK_OPEN_TAGS = ['<thought>', '<think>', '<Thought>', '<Think>'];
+const THINK_OPEN_TAGS = ['<thought>', '<think>', '<Thought>', '<Think>'] as const;
 const THINK_CLOSE_MAP: Record<string, string> = {
   '<thought>': '</thought>',
   '<think>': '</think>',
@@ -99,152 +145,170 @@ const THINK_CLOSE_MAP: Record<string, string> = {
   '<Think>': '</Think>',
 };
 
-export function resetThinkTagState(): void {
-  _insideThinkTag = false;
-  _thinkBuffer = '';
-  _activeCloseTag = '';
-}
+export class ThinkTagSeparator {
+  private inside = false;
+  private buffer = '';
+  private closeTag = '';
 
-export function extractContentFromEvent(data: string): TokenContent | null {
-  try {
-    const parsed = JSON.parse(data);
-    const result: TokenContent = {};
-
-    // OpenRouter/Google reasoning models: reasoning_details array
-    const reasoningDetails = parsed.choices?.[0]?.delta?.reasoning_details;
-    if (reasoningDetails && Array.isArray(reasoningDetails)) {
-      for (const detail of reasoningDetails) {
-        if (detail.type === 'reasoning.text' && detail.text) {
-          result.reasoning = (result.reasoning || '') + detail.text;
-        } else if (detail.type === 'reasoning.summary' && detail.summary) {
-          result.reasoning = (result.reasoning || '') + detail.summary;
-        }
-      }
-    }
-
-    // MiniMax format: choices[0].delta.reasoning_content
-    if (parsed.choices?.[0]?.delta?.reasoning_content) {
-      result.reasoning = (result.reasoning || '') + parsed.choices[0].delta.reasoning_content;
-    }
-
-    // OpenAI format: choices[0].delta.reasoning (for older models)
-    if (parsed.choices?.[0]?.delta?.reasoning) {
-      result.reasoning = (result.reasoning || '') + parsed.choices[0].delta.reasoning;
-    }
-
-    // OpenAI format: choices[0].delta.content
-    const rawContent = parsed.choices?.[0]?.delta?.content;
-    if (rawContent) {
-      // Google AI (Gemini 2.5) wraps thinking in <thought>/</thought> or <think>/<think> tags
-      // We need to separate these into reasoning vs content
-      const separated = separateThinkTags(rawContent);
-      if (separated.reasoning) {
-        result.reasoning = (result.reasoning || '') + separated.reasoning;
-      }
-      if (separated.content) {
-        result.content = (result.content || '') + separated.content;
-      }
-    }
-
-    // Anthropic format: content_block_delta
-    if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
-      result.content = parsed.delta.text;
-    }
-
-    // Anthropic streaming format
-    if (parsed.choices?.[0]?.delta?.type === 'content_block_delta') {
-      result.content = parsed.choices[0].delta.text ?? undefined;
-    }
-
-    // Return null if nothing found
-    if (!result.content && !result.reasoning) {
-      return null;
-    }
-
-    return result;
-  } catch {
-    return null;
+  reset(): void {
+    this.inside = false;
+    this.buffer = '';
+    this.closeTag = '';
   }
-}
 
-/**
- * Separates thinking tags from content in a streaming-safe way.
- * Handles <thought>...</thought> and <think>...</think> (any casing variant).
- * Tags may be split across multiple streaming chunks.
- */
-function separateThinkTags(text: string): { content?: string; reasoning?: string } {
-  let reasoning = '';
-  let content = '';
-  let remaining = text;
+  /**
+   * Splits raw content into reasoning (inside think tags) and content (outside).
+   * Handles tags split across multiple chunks.
+   */
+  separate(text: string): { content?: string; reasoning?: string } {
+    let reasoning = '';
+    let content = '';
+    let remaining = text;
 
-  while (remaining.length > 0) {
-    if (_insideThinkTag) {
-      // Look for the matching closing tag
-      const closeIdx = remaining.indexOf(_activeCloseTag);
-      if (closeIdx !== -1) {
-        reasoning += _thinkBuffer + remaining.slice(0, closeIdx);
-        _thinkBuffer = '';
-        _insideThinkTag = false;
-        remaining = remaining.slice(closeIdx + _activeCloseTag.length);
-        _activeCloseTag = '';
-      } else {
-        // Still inside think block, buffer it all
-        _thinkBuffer += remaining;
-        remaining = '';
-      }
-    } else {
-      // Find the earliest opening tag
-      let bestIdx = -1;
-      let bestTag = '';
-      for (const openTag of THINK_OPEN_TAGS) {
-        const idx = remaining.indexOf(openTag);
-        if (idx !== -1 && (bestIdx === -1 || idx < bestIdx)) {
-          bestIdx = idx;
-          bestTag = openTag;
-        }
-      }
-
-      if (bestIdx !== -1) {
-        // Everything before the tag is content
-        content += remaining.slice(0, bestIdx);
-        _insideThinkTag = true;
-        _thinkBuffer = '';
-        _activeCloseTag = THINK_CLOSE_MAP[bestTag];
-        remaining = remaining.slice(bestIdx + bestTag.length);
-      } else {
-        // Check for partial tag at end of chunk (e.g., "<thou" at boundary)
-        const partialLen = findPartialOpenTagAtEnd(remaining);
-        if (partialLen > 0) {
-          content += remaining.slice(0, remaining.length - partialLen);
-          // Don't commit partial yet — just hold it in buffer for next chunk
-          _thinkBuffer = remaining.slice(remaining.length - partialLen);
-          remaining = '';
+    while (remaining.length > 0) {
+      if (this.inside) {
+        const closeIdx = remaining.indexOf(this.closeTag);
+        if (closeIdx !== -1) {
+          reasoning += this.buffer + remaining.slice(0, closeIdx);
+          this.buffer = '';
+          this.inside = false;
+          remaining = remaining.slice(closeIdx + this.closeTag.length);
+          this.closeTag = '';
         } else {
-          content += remaining;
+          // Still inside, buffer everything
+          this.buffer += remaining;
+          remaining = '';
+        }
+      } else {
+        // Flush any non-tag buffer from a previous partial-tag false alarm
+        if (this.buffer) {
+          content += this.buffer;
+          this.buffer = '';
+        }
+
+        // Find earliest opening tag
+        let bestIdx = -1;
+        let bestTag = '';
+        for (const tag of THINK_OPEN_TAGS) {
+          const idx = remaining.indexOf(tag);
+          if (idx !== -1 && (bestIdx === -1 || idx < bestIdx)) {
+            bestIdx = idx;
+            bestTag = tag;
+          }
+        }
+
+        if (bestIdx !== -1) {
+          content += remaining.slice(0, bestIdx);
+          this.inside = true;
+          this.buffer = '';
+          this.closeTag = THINK_CLOSE_MAP[bestTag];
+          remaining = remaining.slice(bestIdx + bestTag.length);
+        } else {
+          // Check for partial tag at chunk boundary
+          const partialLen = this.findPartialTagAtEnd(remaining);
+          if (partialLen > 0) {
+            content += remaining.slice(0, -partialLen);
+            this.buffer = remaining.slice(-partialLen);
+          } else {
+            content += remaining;
+          }
           remaining = '';
         }
       }
     }
+
+    return {
+      reasoning: reasoning || undefined,
+      content: content || undefined,
+    };
   }
 
-  return {
-    reasoning: reasoning || undefined,
-    content: content || undefined,
-  };
+  private findPartialTagAtEnd(text: string): number {
+    let longest = 0;
+    for (const tag of THINK_OPEN_TAGS) {
+      for (let len = Math.min(tag.length - 1, text.length); len > 0; len--) {
+        if (text.endsWith(tag.slice(0, len)) && len > longest) {
+          longest = len;
+        }
+      }
+    }
+    return longest;
+  }
 }
 
+// ─── Content extraction ─────────────────────────────────────────────────
+
 /**
- * Check if the end of text matches a partial prefix of any opening think tag.
- * Returns the length of the longest partial match, or 0 if none.
+ * Extract content/reasoning tokens from a parsed SSE data payload.
+ * Handles: OpenAI, OpenRouter, Google AI, MiniMax, Anthropic (native format).
+ *
+ * @param data - The raw JSON string from a `data:` SSE field.
+ * @param thinkSep - ThinkTagSeparator instance for this stream.
  */
-function findPartialOpenTagAtEnd(text: string): number {
-  let longest = 0;
-  for (const tag of THINK_OPEN_TAGS) {
-    for (let len = Math.min(tag.length - 1, text.length); len > 0; len--) {
-      if (text.endsWith(tag.slice(0, len)) && len > longest) {
-        longest = len;
+export function extractTokens(
+  data: string,
+  thinkSep: ThinkTagSeparator,
+): TokenContent | null {
+  // Check for [DONE] sentinel before attempting JSON parse
+  if (data === '[DONE]') return null;
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(data);
+  } catch {
+    return null; // Malformed JSON — expected for partial frames
+  }
+
+  const result: TokenContent = {};
+
+  // --- Reasoning extraction (multiple formats) ---
+
+  // OpenRouter / Google: reasoning_details array
+  const delta = (parsed.choices as any)?.[0]?.delta;
+  if (delta?.reasoning_details && Array.isArray(delta.reasoning_details)) {
+    for (const detail of delta.reasoning_details) {
+      if (detail.type === 'reasoning.text' && detail.text) {
+        result.reasoning = (result.reasoning || '') + detail.text;
+      } else if (detail.type === 'reasoning.summary' && detail.summary) {
+        result.reasoning = (result.reasoning || '') + detail.summary;
       }
     }
   }
-  return longest;
+
+  // MiniMax: delta.reasoning_content
+  if (delta?.reasoning_content) {
+    result.reasoning = (result.reasoning || '') + delta.reasoning_content;
+  }
+
+  // OpenAI older: delta.reasoning
+  if (delta?.reasoning) {
+    result.reasoning = (result.reasoning || '') + delta.reasoning;
+  }
+
+  // --- Content extraction ---
+
+  // OpenAI-compatible: delta.content (used by OpenRouter, Google AI, MiniMax)
+  const rawContent = delta?.content;
+  if (rawContent && typeof rawContent === 'string') {
+    const separated = thinkSep.separate(rawContent);
+    if (separated.reasoning) {
+      result.reasoning = (result.reasoning || '') + separated.reasoning;
+    }
+    if (separated.content) {
+      result.content = (result.content || '') + separated.content;
+    }
+  }
+
+  // Anthropic native: content_block_delta
+  if (parsed.type === 'content_block_delta') {
+    const adelta = parsed.delta as Record<string, unknown> | undefined;
+    if (adelta?.type === 'text_delta' && adelta?.text) {
+      result.content = (result.content || '') + (adelta.text as string);
+    }
+    if (adelta?.type === 'thinking_delta' && adelta?.thinking) {
+      result.reasoning = (result.reasoning || '') + (adelta.thinking as string);
+    }
+  }
+
+  return (result.content || result.reasoning) ? result : null;
 }

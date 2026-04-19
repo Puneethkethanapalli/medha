@@ -99,7 +99,7 @@ export const useChatStore = create<ChatState>((set, _get) => ({
   },
 
   cancelStreaming: () => {
-    const { streamingMessageId, streamingContent } = _get();
+    const { streamingMessageId } = _get();
     if (streamingMessageId) {
       const stream = streams.get(streamingMessageId);
       if (stream) {
@@ -113,7 +113,6 @@ export const useChatStore = create<ChatState>((set, _get) => ({
       streamingContent: '',
       streamingReasoning: '',
     });
-    return { messageId: streamingMessageId, content: streamingContent };
   },
 
   setError: (error: string | null) => {

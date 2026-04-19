@@ -1,5 +1,7 @@
 import { fetch } from 'expo/fetch';
-import { SSEParser, extractContentFromEvent, resetThinkTagState, type TokenContent } from './sse-parser';
+import { SSEParser, ThinkTagSeparator, extractTokens } from './sse-parser';
+
+// ─── Public types ───────────────────────────────────────────────────────
 
 export interface StreamOptions {
   url: string;
@@ -13,24 +15,36 @@ export type ReasoningTokenHandler = (token: string) => void;
 export type DoneHandler = () => void;
 export type ErrorHandler = (error: Error) => void;
 
+// ─── Streaming entry point ──────────────────────────────────────────────
+
 /**
- * Wraps a fetch call with SSE streaming, yielding tokens via callbacks.
- * Handles reasoning tokens separately from content tokens for thinking models.
+ * Performs a streaming fetch, parses SSE events, and dispatches tokens.
+ *
+ * Design decisions:
+ * - Uses expo/fetch for WinterCG-compliant ReadableStream on native.
+ * - SSEParser and ThinkTagSeparator are per-call instances — no shared state.
+ * - AbortError is silently swallowed (stop-generating is expected behavior).
+ * - Reader lock is always released in a finally block.
+ * - TextDecoder is flushed on stream end for multi-byte boundary safety.
+ *
+ * @param format - 'openai' for standard SSE (OpenRouter, Google AI, MiniMax),
+ *                 'anthropic' for Anthropic's event-typed SSE format.
  */
 export async function streamCompletion(
   options: StreamOptions,
   onContent: ContentTokenHandler,
   onReasoning: ReasoningTokenHandler,
   onDone: DoneHandler,
-  onError: ErrorHandler
+  onError: ErrorHandler,
+  format: 'openai' | 'anthropic' = 'openai',
 ): Promise<void> {
   const { url, headers, body, signal } = options;
+  const sseParser = new SSEParser();
+  const thinkSep = new ThinkTagSeparator();
 
-  // Reset <think> tag parser state for the new stream
-  resetThinkTagState();
+  // ── 1. Fetch ──────────────────────────────────────────────────────────
 
   let response: Response;
-
   try {
     response = await fetch(url, {
       method: 'POST',
@@ -39,170 +53,143 @@ export async function streamCompletion(
       signal,
     });
   } catch (err) {
-    if (err instanceof Error && err.name === 'AbortError') {
-      onError(new Error('Request cancelled'));
-    } else {
-      onError(new Error(`Network error: ${err instanceof Error ? err.message : 'Unknown'}`));
-    }
+    if (isAbort(err)) return; // User cancelled — expected, not an error
+    onError(toError(err, 'Network error'));
     return;
   }
+
+  // ── 2. HTTP error handling ────────────────────────────────────────────
 
   if (!response.ok) {
-    let errorMessage = `HTTP ${response.status}`;
-    try {
-      const errorBody = await response.text();
-      // Try to parse error from response body
-      try {
-        const parsed = JSON.parse(errorBody);
-        errorMessage = parsed.error?.message || parsed.error || errorMessage;
-      } catch {
-        // Not JSON, use status text
-        errorMessage = response.statusText || errorMessage;
-      }
-    } catch {
-      errorMessage = response.statusText || errorMessage;
-    }
-
-    // Handle rate limiting
-    if (response.status === 429) {
-      const retryAfter = response.headers.get('retry-after');
-      const retryMsg = retryAfter ? ` Retry after ${retryAfter}s.` : '';
-      onError(new Error(`Rate limited.${retryMsg}`));
-      return;
-    }
-
-    onError(new Error(errorMessage));
+    onError(await buildHttpError(response));
     return;
   }
+
+  // ── 3. Stream reading ─────────────────────────────────────────────────
 
   const responseBody = response.body;
   if (!responseBody) {
-    // Fallback: read entire body as text and parse as SSE
-    // This happens when response.body is null but stream is still valid
+    // Fallback: response.body is null (shouldn't happen with expo/fetch
+    // on SDK 52+, but handle gracefully). Read full text and parse.
     try {
       const text = await response.text();
       if (!text.trim()) {
         onError(new Error('Empty response body'));
         return;
       }
-
-      // Parse the SSE text manually
-      const lines = text.split(/\r\n|\r|\n/);
-      let buffer = '';
-
-      for (const line of lines) {
-        if (line.startsWith(':')) {
-          // Comment/keepalive - skip
-          continue;
-        }
-
-        const colonIndex = line.indexOf(':');
-        if (colonIndex === -1) {
-          if (line === '') {
-            // Empty line - flush buffer if any
-            if (buffer.trim()) {
-              const extracted = extractContentFromEvent(buffer);
-              if (extracted) {
-                if (extracted.content) onContent(extracted.content);
-                if (extracted.reasoning) onReasoning(extracted.reasoning);
-              }
-              buffer = '';
-            }
-          }
-          continue;
-        }
-
-        const field = line.slice(0, colonIndex);
-        const value = line.slice(colonIndex + 1).trim();
-
-        if (field === 'data') {
-          if (value === '[DONE]') {
-            onDone();
-            return;
-          }
-          const extracted = extractContentFromEvent(value);
-          if (extracted) {
-            if (extracted.content) onContent(extracted.content);
-            if (extracted.reasoning) onReasoning(extracted.reasoning);
-          }
-        } else if (field === 'event' || field === 'id') {
-          // Event metadata - just track, don't emit
-        } else {
-          // Unknown field - accumulate in buffer for multiline
-          buffer += (buffer ? '\n' : '') + line;
-        }
-      }
-
-      // Process any remaining buffer
-      if (buffer.trim()) {
-        const extracted = extractContentFromEvent(buffer);
-        if (extracted) {
-          if (extracted.content) onContent(extracted.content);
-          if (extracted.reasoning) onReasoning(extracted.reasoning);
-        }
-      }
-
+      processEvents(sseParser.feed(text), thinkSep, onContent, onReasoning, format);
+      processEvents(sseParser.flush(), thinkSep, onContent, onReasoning, format);
       onDone();
-      return;
     } catch (err) {
-      onError(new Error(`Failed to read response: ${err instanceof Error ? err.message : 'Unknown'}`));
-      return;
+      if (!isAbort(err)) {
+        onError(toError(err, 'Failed to read response'));
+      }
     }
+    return;
   }
 
   const reader = responseBody.getReader();
-  const decoder = new TextDecoder();
-  const parser = new SSEParser();
+  const decoder = new TextDecoder('utf-8');
 
   try {
     while (true) {
       const { done, value } = await reader.read();
+      if (done) break;
 
-      if (done) {
-        // Process any remaining buffered data
-        const remaining = parser.flush();
-        for (const event of remaining) {
-          if (event.type === 'event' && event.data) {
-            const extracted = extractContentFromEvent(event.data);
-            if (extracted) {
-              if (extracted.content) onContent(extracted.content);
-              if (extracted.reasoning) onReasoning(extracted.reasoning);
-            }
-          }
-        }
-        break;
-      }
-
+      // { stream: true } keeps multi-byte sequences intact across chunk boundaries
       const chunk = decoder.decode(value, { stream: true });
-      const events = parser.parse(chunk);
+      const events = sseParser.feed(chunk);
 
-      for (const event of events) {
-        if (event.type === 'done') {
-          onDone();
-          return;
-        }
-
-        if (event.type === 'event' && event.data) {
-          // Skip OpenRouter keepalive comments
-          if (event.data.startsWith(' ') || event.data === '') {
-            continue;
-          }
-
-          const extracted = extractContentFromEvent(event.data);
-          if (extracted) {
-            if (extracted.content) onContent(extracted.content);
-            if (extracted.reasoning) onReasoning(extracted.reasoning);
-          }
-        }
+      if (processEvents(events, thinkSep, onContent, onReasoning, format)) {
+        // [DONE] sentinel received
+        onDone();
+        return;
       }
     }
+
+    // Flush decoder for any trailing multi-byte bytes
+    const trailing = decoder.decode();
+    if (trailing) {
+      const events = sseParser.feed(trailing);
+      processEvents(events, thinkSep, onContent, onReasoning, format);
+    }
+
+    // Flush parser for any buffered partial event
+    const remaining = sseParser.flush();
+    processEvents(remaining, thinkSep, onContent, onReasoning, format);
 
     onDone();
   } catch (err) {
-    if (err instanceof Error && err.name === 'AbortError') {
-      onError(new Error('Request cancelled'));
-    } else {
-      onError(new Error(`Stream error: ${err instanceof Error ? err.message : 'Unknown'}`));
+    if (!isAbort(err)) {
+      onError(toError(err, 'Stream error'));
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+// ─── Event processing ───────────────────────────────────────────────────
+
+/**
+ * Routes parsed SSE events through the appropriate content extractor.
+ * Returns true if a [DONE] sentinel was encountered.
+ */
+function processEvents(
+  events: import('./sse-parser').SSEEvent[],
+  thinkSep: ThinkTagSeparator,
+  onContent: ContentTokenHandler,
+  onReasoning: ReasoningTokenHandler,
+  format: 'openai' | 'anthropic',
+): boolean {
+  for (const event of events) {
+    const data = event.data.trim();
+    if (!data) continue;
+
+    // OpenAI [DONE] sentinel
+    if (data === '[DONE]') return true;
+    // Anthropic message_stop event
+    if (format === 'anthropic' && event.event === 'message_stop') return true;
+
+    const tokens = extractTokens(data, thinkSep);
+    if (tokens) {
+      if (tokens.content) onContent(tokens.content);
+      if (tokens.reasoning) onReasoning(tokens.reasoning);
     }
   }
+  return false;
+}
+
+// ─── Error helpers ──────────────────────────────────────────────────────
+
+function isAbort(err: unknown): boolean {
+  return err instanceof Error && err.name === 'AbortError';
+}
+
+function toError(err: unknown, prefix: string): Error {
+  const msg = err instanceof Error ? err.message : 'Unknown';
+  return new Error(`${prefix}: ${msg}`);
+}
+
+async function buildHttpError(response: Response): Promise<Error> {
+  // Rate limiting
+  if (response.status === 429) {
+    const retryAfter = response.headers.get('retry-after');
+    const suffix = retryAfter ? ` Retry after ${retryAfter}s.` : '';
+    return new Error(`Rate limited.${suffix}`);
+  }
+
+  let message = `HTTP ${response.status}`;
+  try {
+    const body = await response.text();
+    try {
+      const parsed = JSON.parse(body);
+      message = parsed.error?.message || parsed.error || message;
+    } catch {
+      if (response.statusText) message = response.statusText;
+    }
+  } catch {
+    if (response.statusText) message = response.statusText;
+  }
+
+  return new Error(message);
 }

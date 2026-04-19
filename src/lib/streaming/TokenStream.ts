@@ -1,11 +1,11 @@
 /**
- * TokenStream - rate-limited character stream renderer
+ * TokenStream — rate-limited character stream renderer.
  *
  * Architecture:
  *   SSE stream → token buffer → RAF batching → presentation queue → React state
  *
- * This separates ingestion (fast, raw) from presentation (controlled cadence),
- * giving you smooth, deterministic UX regardless of upstream timing.
+ * Separates ingestion (fast, raw) from presentation (controlled cadence),
+ * giving smooth, deterministic UX regardless of upstream timing.
  */
 
 export interface TokenStreamConfig {
@@ -17,8 +17,6 @@ export interface TokenStreamConfig {
   maxSpeed?: number;
   /** Backlog size threshold for dynamic speed (default: 20) */
   speedUpThreshold?: number;
-  /** Target framerate for the drain loop (default: 60) */
-  targetFps?: number;
 }
 
 const DEFAULT_CONFIG: Required<TokenStreamConfig> = {
@@ -26,7 +24,6 @@ const DEFAULT_CONFIG: Required<TokenStreamConfig> = {
   minSpeed: 1,
   maxSpeed: 12,
   speedUpThreshold: 20,
-  targetFps: 60,
 };
 
 export interface TokenStreamState {
@@ -34,11 +31,20 @@ export interface TokenStreamState {
   streamingReasoning: string;
 }
 
+// ─── Typed queue item ───────────────────────────────────────────────────
+
+interface QueueItem {
+  kind: 'content' | 'reasoning';
+  text: string;
+}
+
+// ─── TokenStream ────────────────────────────────────────────────────────
+
 export class TokenStream {
-  private queue: string[] = [];
-  private visibleContent: string = '';
-  private visibleReasoning: string = '';
-  private isRunning = false;
+  private queue: QueueItem[] = [];
+  private visibleContent = '';
+  private visibleReasoning = '';
+  private running = false;
   private rafId: number | null = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private setState: (fn: (state: any) => Partial<TokenStreamState>) => void;
@@ -50,25 +56,24 @@ export class TokenStream {
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
-  /** Ingest tokens as they arrive from the SSE stream */
+  /** Enqueue a content token for animated rendering. */
   pushToken(token: string): void {
-    if (token) {
-      this.queue.push(token);
-      this.start();
-    }
+    if (!token) return;
+    this.queue.push({ kind: 'content', text: token });
+    this.start();
   }
 
+  /** Enqueue a reasoning token for animated rendering. */
   pushReasoning(token: string): void {
-    if (token) {
-      this.queue.push(`reasoning:${token}`);
-      this.start();
-    }
+    if (!token) return;
+    this.queue.push({ kind: 'reasoning', text: token });
+    this.start();
   }
 
   private start(): void {
-    if (this.isRunning) return;
-    this.isRunning = true;
-    this.loop();
+    if (this.running) return;
+    this.running = true;
+    this.drain();
   }
 
   private get charsPerFrame(): number {
@@ -80,35 +85,35 @@ export class TokenStream {
     return backlog <= 3 ? minSpeed : baseSpeed;
   }
 
-  private loop = (): void => {
+  private drain = (): void => {
     if (this.queue.length === 0) {
-      this.isRunning = false;
+      this.running = false;
       this.rafId = null;
       return;
     }
 
-    const item = this.queue.shift()!;
-    let charsToReveal: number;
+    const item = this.queue[0];
+    const chars = Math.min(this.charsPerFrame, item.text.length);
+    const revealed = item.text.slice(0, chars);
 
-    if (item.startsWith('reasoning:')) {
-      const token = item.slice(10);
-      charsToReveal = Math.min(this.charsPerFrame, token.length);
-      this.visibleReasoning += token.slice(0, charsToReveal);
-      if (token.length > charsToReveal) {
-        this.queue.unshift(`reasoning:${token.slice(charsToReveal)}`);
-      }
-      this.emit();
+    if (item.kind === 'reasoning') {
+      this.visibleReasoning += revealed;
     } else {
-      charsToReveal = Math.min(this.charsPerFrame, item.length);
-      this.visibleContent += item.slice(0, charsToReveal);
-      if (item.length > charsToReveal) {
-        this.queue.unshift(item.slice(charsToReveal));
-      }
-      this.emit();
+      this.visibleContent += revealed;
     }
 
-    if (this.isRunning) {
-      this.rafId = requestAnimationFrame(this.loop);
+    if (chars >= item.text.length) {
+      // Fully consumed this item
+      this.queue.shift();
+    } else {
+      // Partially consumed — trim in-place
+      item.text = item.text.slice(chars);
+    }
+
+    this.emit();
+
+    if (this.running) {
+      this.rafId = requestAnimationFrame(this.drain);
     }
   };
 
@@ -119,25 +124,27 @@ export class TokenStream {
     }));
   }
 
-  /** Flush all remaining queued tokens immediately (called on stream end) */
+  /** Flush all remaining queued tokens immediately (call on stream end). */
   flushAll(): void {
     if (this.rafId !== null) {
       cancelAnimationFrame(this.rafId);
     }
-    this.queue.forEach((item) => {
-      if (item.startsWith('reasoning:')) {
-        this.visibleReasoning += item.slice(10);
+
+    for (const item of this.queue) {
+      if (item.kind === 'reasoning') {
+        this.visibleReasoning += item.text;
       } else {
-        this.visibleContent += item;
+        this.visibleContent += item.text;
       }
-    });
+    }
+
     this.queue = [];
-    this.isRunning = false;
+    this.running = false;
     this.rafId = null;
     this.emit();
   }
 
-  /** Stop the drain loop and clear state */
+  /** Stop the drain loop and clear all state. */
   reset(): void {
     if (this.rafId !== null) {
       cancelAnimationFrame(this.rafId);
@@ -145,7 +152,7 @@ export class TokenStream {
     this.queue = [];
     this.visibleContent = '';
     this.visibleReasoning = '';
-    this.isRunning = false;
+    this.running = false;
     this.rafId = null;
   }
 

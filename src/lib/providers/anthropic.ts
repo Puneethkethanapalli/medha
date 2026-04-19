@@ -1,5 +1,6 @@
 import { fetch } from 'expo/fetch';
 import type { AIProvider } from './types';
+import { streamCompletion } from '@/lib/streaming/stream';
 import type { Message, Model } from '@/types';
 
 const ANTHROPIC_BASE_URL = 'https://api.anthropic.com/v1';
@@ -56,8 +57,7 @@ export class AnthropicProvider implements AIProvider {
       body.temperature = config.temperature;
     }
 
-    // Anthropic uses a custom SSE format, so we parse it manually
-    this._streamAnthropic(
+    streamCompletion(
       {
         url: `${ANTHROPIC_BASE_URL}/messages`,
         headers: {
@@ -71,146 +71,14 @@ export class AnthropicProvider implements AIProvider {
       onContent,
       onReasoning,
       onDone,
-      onError
+      onError,
+      'anthropic',
     );
 
     return {
       abort: () => abortController.abort(),
       reasoningContent: '',
     };
-  }
-
-  private async _streamAnthropic(
-    options: {
-      url: string;
-      headers: Record<string, string>;
-      body: Record<string, unknown>;
-      signal?: AbortSignal;
-    },
-    onContent: (token: string) => void,
-    onReasoning: (token: string) => void,
-    onDone: () => void,
-    onError: (error: Error) => void
-  ) {
-    let response: Response;
-    try {
-      response = await fetch(options.url, {
-        method: 'POST',
-        headers: options.headers,
-        body: JSON.stringify(options.body),
-        signal: options.signal,
-      });
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') {
-        onError(new Error('Request cancelled'));
-      } else {
-        onError(new Error(`Network error: ${err instanceof Error ? err.message : 'Unknown'}`));
-      }
-      return;
-    }
-
-    if (!response.ok) {
-      let errorMessage = `HTTP ${response.status}`;
-      try {
-        const errorBody = await response.text();
-        try {
-          const parsed = JSON.parse(errorBody);
-          errorMessage = parsed.error?.message || parsed.error || errorMessage;
-        } catch {
-          errorMessage = response.statusText || errorMessage;
-        }
-      } catch {
-        errorMessage = response.statusText || errorMessage;
-      }
-      onError(new Error(errorMessage));
-      return;
-    }
-
-    const body = response.body;
-    if (!body) {
-      // Fallback: parse text
-      try {
-        const text = await response.text();
-        this._parseAnthropicSSE(text, onContent, onReasoning);
-        onDone();
-      } catch (err) {
-        onError(new Error(`Failed to read response: ${err instanceof Error ? err.message : 'Unknown'}`));
-      }
-      return;
-    }
-
-    const reader = body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
-
-        let currentEvent = '';
-        for (const line of lines) {
-          if (line.startsWith('event: ')) {
-            currentEvent = line.slice(7).trim();
-          } else if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            this._handleAnthropicEvent(currentEvent, data, onContent, onReasoning);
-            if (currentEvent === 'message_stop') {
-              onDone();
-              return;
-            }
-          }
-        }
-      }
-      onDone();
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') {
-        onError(new Error('Request cancelled'));
-      } else {
-        onError(new Error(`Stream error: ${err instanceof Error ? err.message : 'Unknown'}`));
-      }
-    }
-  }
-
-  private _parseAnthropicSSE(
-    text: string,
-    onContent: (token: string) => void,
-    onReasoning: (token: string) => void
-  ) {
-    const lines = text.split('\n');
-    let currentEvent = '';
-    for (const line of lines) {
-      if (line.startsWith('event: ')) {
-        currentEvent = line.slice(7).trim();
-      } else if (line.startsWith('data: ')) {
-        const data = line.slice(6);
-        this._handleAnthropicEvent(currentEvent, data, onContent, onReasoning);
-      }
-    }
-  }
-
-  private _handleAnthropicEvent(
-    event: string,
-    data: string,
-    onContent: (token: string) => void,
-    onReasoning: (token: string) => void
-  ) {
-    if (event !== 'content_block_delta') return;
-    try {
-      const parsed = JSON.parse(data);
-      if (parsed.delta?.type === 'text_delta' && parsed.delta?.text) {
-        onContent(parsed.delta.text);
-      }
-      if (parsed.delta?.type === 'thinking_delta' && parsed.delta?.thinking) {
-        onReasoning(parsed.delta.thinking);
-      }
-    } catch {
-      // Ignore parse errors
-    }
   }
 
   async listModels(_apiKey: string): Promise<Model[]> {
