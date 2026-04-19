@@ -1,3 +1,4 @@
+import { fetch } from 'expo/fetch';
 import { SSEParser, extractContentFromEvent, resetThinkTagState, type TokenContent } from './sse-parser';
 
 export interface StreamOptions {

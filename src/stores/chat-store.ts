@@ -17,7 +17,25 @@ interface ChatState {
   clearError: () => void;
 }
 
-export const useChatStore = create<ChatState>((set, get) => ({
+// RAF-based batching for smooth token streaming
+let _pendingContent = '';
+let _pendingReasoning = '';
+let _rafId: number | null = null;
+
+function flushTokens(set: (fn: (state: ChatState) => Partial<ChatState>) => void) {
+  if (_pendingContent === '' && _pendingReasoning === '') return;
+
+  set((state) => ({
+    streamingContent: state.streamingContent + _pendingContent,
+    streamingReasoning: state.streamingReasoning + _pendingReasoning,
+  }));
+
+  _pendingContent = '';
+  _pendingReasoning = '';
+  _rafId = null;
+}
+
+export const useChatStore = create<ChatState>((set, _get) => ({
   isStreaming: false,
   streamingMessageId: null,
   streamingContent: '',
@@ -25,6 +43,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   error: null,
 
   startStreaming: (messageId: string) => {
+    // Cancel any pending RAF flush
+    if (_rafId !== null) {
+      cancelAnimationFrame(_rafId);
+      _rafId = null;
+    }
+    _pendingContent = '';
+    _pendingReasoning = '';
     set({
       isStreaming: true,
       streamingMessageId: messageId,
@@ -35,18 +60,33 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   appendToken: (token: string) => {
-    set((state) => ({
-      streamingContent: state.streamingContent + token,
-    }));
+    _pendingContent += token;
+    if (_rafId === null) {
+      _rafId = requestAnimationFrame(() => flushTokens(set));
+    }
   },
 
   appendReasoningToken: (token: string) => {
-    set((state) => ({
-      streamingReasoning: state.streamingReasoning + token,
-    }));
+    _pendingReasoning += token;
+    if (_rafId === null) {
+      _rafId = requestAnimationFrame(() => flushTokens(set));
+    }
   },
 
   stopStreaming: () => {
+    if (_rafId !== null) {
+      cancelAnimationFrame(_rafId);
+      _rafId = null;
+    }
+    // Final flush
+    if (_pendingContent !== '' || _pendingReasoning !== '') {
+      set((state) => ({
+        streamingContent: state.streamingContent + _pendingContent,
+        streamingReasoning: state.streamingReasoning + _pendingReasoning,
+      }));
+      _pendingContent = '';
+      _pendingReasoning = '';
+    }
     set({
       isStreaming: false,
       streamingMessageId: null,
@@ -56,14 +96,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   cancelStreaming: () => {
-    const { streamingMessageId, streamingContent } = get();
+    if (_rafId !== null) {
+      cancelAnimationFrame(_rafId);
+      _rafId = null;
+    }
+    _pendingContent = '';
+    _pendingReasoning = '';
+    const { streamingMessageId, streamingContent } = _get();
     set({
       isStreaming: false,
       streamingMessageId: null,
       streamingContent: '',
       streamingReasoning: '',
     });
-    // Return the info so callers can persist
     return { messageId: streamingMessageId, content: streamingContent };
   },
 

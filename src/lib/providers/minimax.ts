@@ -1,3 +1,4 @@
+import { fetch } from 'expo/fetch';
 import type { AIProvider } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
 import type { Message, Model } from '@/types';
