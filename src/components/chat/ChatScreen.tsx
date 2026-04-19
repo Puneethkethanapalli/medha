@@ -244,13 +244,15 @@ export function ChatScreen({ conversationId }: ChatScreenProps) {
     >
       {/* Top Bar */}
       <View
-        className="flex-row items-center justify-between px-4 h-14"
+        className="flex-row items-center px-4 h-14"
         style={{ paddingTop: insets.top }}
       >
         <Pressable onPress={openDrawer} className="w-10 h-10 items-center justify-center">
           <Menu size={24} color="hsl(0, 0%, 63%)" />
         </Pressable>
-        <ModelPill />
+        <View className="flex-1 items-center px-2">
+          <ModelPill />
+        </View>
         <Pressable onPress={handleNewChat} className="w-10 h-10 items-center justify-center">
           <PenSquare size={20} color="hsl(0, 0%, 63%)" />
         </Pressable>

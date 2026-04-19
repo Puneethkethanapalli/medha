@@ -7,6 +7,7 @@ import { useUIStore } from '@/stores/ui-store';
 import { useSettingsStore, getConfiguredProviders } from '@/stores/settings-store';
 import { getProvider, registerBuiltInProviders, listProviders } from '@/lib/providers/registry';
 import { getApiKey } from '@/lib/storage/secure';
+import { keepSelectedModelVisible } from '@/lib/models';
 import type { Model } from '@/types';
 
 // Fallback models per provider (shown before API fetch completes)
@@ -144,8 +145,13 @@ export function ModelPicker() {
   // Get models for the active tab
   const currentModels = useMemo(() => {
     if (!activeTab) return [];
-    return models[activeTab] || FALLBACK_MODELS[activeTab] || [];
-  }, [activeTab, models]);
+    const providerModels = models[activeTab] || FALLBACK_MODELS[activeTab] || [];
+    const selectedProvider = lastProvider || activeTab;
+
+    if (selectedProvider !== activeTab) return providerModels;
+
+    return keepSelectedModelVisible(providerModels, lastModel, activeTab);
+  }, [activeTab, models, lastModel, lastProvider]);
 
   const filteredModels = useMemo(() => {
     if (!searchQuery.trim()) return currentModels;
@@ -180,6 +186,8 @@ export function ModelPicker() {
               isSelected ? 'text-foreground font-medium' : 'text-on-surface'
             }`}
             numberOfLines={1}
+            ellipsizeMode="tail"
+            style={{ minWidth: 0 }}
           >
             {item.name}
           </Text>
