@@ -17,16 +17,17 @@ export function ThinkingBlock({ reasoning, isStreaming }: ThinkingBlockProps) {
   const [expanded, setExpanded] = useState(isStreaming);
   const chevronRotation = useRef(new Animated.Value(isStreaming ? 1 : 0)).current;
 
-  // Auto-expand when streaming starts, keep open while streaming
+  // Keep live thinking readable, then collapse it once the answer begins.
   useEffect(() => {
-    if (isStreaming) {
-      setExpanded(true);
-      Animated.timing(chevronRotation, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-    }
+    const nextExpanded = isStreaming;
+
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpanded(nextExpanded);
+    Animated.timing(chevronRotation, {
+      toValue: nextExpanded ? 1 : 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
   }, [isStreaming, chevronRotation]);
 
   const toggleExpanded = () => {
