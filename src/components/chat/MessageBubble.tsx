@@ -1,40 +1,50 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Animated, Easing } from 'react-native';
+import React from 'react';
+import { View } from 'react-native';
+import LottieView from 'lottie-react-native';
 import { Text } from '@/components/ui/text';
 import { useStreamingContent, useStreamingReasoning } from '@/stores/chat-store';
 import { ThinkingBlock } from './ThinkingBlock';
 import type { Message } from '@/types';
 
+const waitingAnimation = require('../../../lottie/glow waiting.json');
+const STATIC_PROGRESS = 0.58;
+
 interface MessageBubbleProps {
   message: Message;
 }
 
-function StreamingCursor() {
-  const opacity = useRef(new Animated.Value(1)).current;
+function getAssistantStatusLabel(status: Message['status']) {
+  switch (status) {
+    case 'streaming':
+      return 'Response pending';
+    case 'cancelled':
+      return 'Response stopped';
+    case 'error':
+      return 'Response failed';
+    default:
+      return 'Response complete';
+  }
+}
 
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: 500,
-          easing: Easing.step0,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 500,
-          easing: Easing.step0,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    animation.start();
-    return () => animation.stop();
-  }, [opacity]);
+function AssistantStatusMark({ status }: { status: Message['status'] }) {
+  const isStreaming = status === 'streaming';
 
   return (
-    <Animated.View style={{ opacity, width: 2, height: 18, backgroundColor: '#FAFAFA', marginLeft: 2 }} />
+    <View
+      className="mr-2 mt-0.5 h-7 w-9 items-center justify-center overflow-hidden"
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={getAssistantStatusLabel(status)}
+    >
+      <LottieView
+        source={waitingAnimation}
+        autoPlay={isStreaming}
+        loop={isStreaming}
+        progress={isStreaming ? undefined : STATIC_PROGRESS}
+        resizeMode="contain"
+        style={{ width: 36, height: 24 }}
+      />
+    </View>
   );
 }
 
@@ -66,42 +76,36 @@ export const MessageBubble = React.memo(function MessageBubble({ message }: Mess
   const isReasoningOnly = isStreaming && hasReasoning && !displayContent;
 
   return (
-    <View className="flex-col items-start w-full mb-6">
-      {/* Label */}
-      <View className="flex-row items-center gap-2 mb-2">
-        <Text className="text-on-surface-variant text-[10px] font-semibold uppercase tracking-widest">
-          Medha
-        </Text>
-      </View>
+    <View className="flex-row items-start w-full mb-6">
+      <AssistantStatusMark status={message.status} />
 
-      {/* Thinking block */}
-      {hasReasoning && (
-        <ThinkingBlock
-          reasoning={displayReasoning!}
-          isStreaming={isStreaming && !displayContent}
-        />
-      )}
+      <View className="flex-1 items-start">
+        {/* Thinking block */}
+        {hasReasoning && (
+          <ThinkingBlock
+            reasoning={displayReasoning!}
+            isStreaming={isStreaming && !displayContent}
+          />
+        )}
 
-      {/* Content */}
-      {(displayContent || !isReasoningOnly) && (
-        <View className="w-full">
-          <View className="flex-row flex-wrap items-end">
+        {/* Content */}
+        {(displayContent || !isReasoningOnly) && (
+          <View className="w-full">
             <Text className="text-foreground text-[15px] leading-relaxed">
               {displayContent}
             </Text>
-            {isStreaming && <StreamingCursor />}
           </View>
-        </View>
-      )}
+        )}
 
-      {/* Error state */}
-      {message.status === 'error' && (
-        <View className="mt-2 px-3 py-2 bg-surface-container-low border border-destructive/30 rounded-lg">
-          <Text className="text-destructive text-[13px]">
-            Failed to generate response
-          </Text>
-        </View>
-      )}
+        {/* Error state */}
+        {message.status === 'error' && (
+          <View className="mt-2 px-3 py-2 bg-surface-container-low border border-destructive/30 rounded-lg">
+            <Text className="text-destructive text-[13px]">
+              Failed to generate response
+            </Text>
+          </View>
+        )}
+      </View>
     </View>
   );
 });
