@@ -35,7 +35,7 @@ function AssistantStatusMark({ status }: { status: Message['status'] }) {
 
   return (
     <View
-      className="mr-2 mt-0.5 h-7 w-9 items-center justify-center overflow-hidden"
+      className="mr-2 mt-0.5 h-6 w-6 items-center justify-center overflow-hidden"
       accessible
       accessibilityRole="image"
       accessibilityLabel={getAssistantStatusLabel(status)}
@@ -46,7 +46,7 @@ function AssistantStatusMark({ status }: { status: Message['status'] }) {
         loop={isStreaming}
         progress={isStreaming ? undefined : STATIC_PROGRESS}
         resizeMode="contain"
-        style={{ width: 36, height: 24 }}
+        style={{ width: 24, height: 18 }}
       />
     </View>
   );
@@ -73,7 +73,7 @@ export const MessageBubble = React.memo(function MessageBubble({ message }: Mess
 
   if (isUser) {
     return (
-      <View className="flex-col items-end w-full mb-6">
+      <View className="flex-col items-end w-full mb-4">
         <Pressable
           onLongPress={copyContent}
           className="bg-surface-container-low border border-outline-variant/20 px-4 py-3 max-w-[85%]"
@@ -92,7 +92,7 @@ export const MessageBubble = React.memo(function MessageBubble({ message }: Mess
   const isReasoningOnly = isStreaming && hasReasoning && !displayContent;
 
   return (
-    <View className="flex-row items-start w-full mb-6">
+    <View className="flex-row items-start w-full mb-4">
       <AssistantStatusMark status={message.status} />
 
       <View className="flex-1 items-start">

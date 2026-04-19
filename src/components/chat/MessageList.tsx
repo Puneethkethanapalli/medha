@@ -213,8 +213,8 @@ export function MessageList({ messages }: MessageListProps) {
         contentContainerStyle={{
           flexGrow: 1,
           justifyContent: 'flex-end',
-          paddingHorizontal: 16,
-          paddingTop: 16,
+          paddingHorizontal: 4,
+          paddingTop: 8,
           paddingBottom: 8,
         }}
         showsVerticalScrollIndicator={false}
