@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { TokenStream, type TokenStreamConfig } from '@/lib/streaming/TokenStream';
 
 interface ChatState {
   isStreaming: boolean;
@@ -17,22 +18,25 @@ interface ChatState {
   clearError: () => void;
 }
 
-// RAF-based batching for smooth token streaming
-let _pendingContent = '';
-let _pendingReasoning = '';
-let _rafId: number | null = null;
+// TokenStream instances keyed by messageId
+const streams = new Map<string, TokenStream>();
 
-function flushTokens(set: (fn: (state: ChatState) => Partial<ChatState>) => void) {
-  if (_pendingContent === '' && _pendingReasoning === '') return;
-
-  set((state) => ({
-    streamingContent: state.streamingContent + _pendingContent,
-    streamingReasoning: state.streamingReasoning + _pendingReasoning,
-  }));
-
-  _pendingContent = '';
-  _pendingReasoning = '';
-  _rafId = null;
+function getOrCreateStream(
+  messageId: string,
+  setState: (fn: (state: ChatState) => Partial<ChatState>) => void
+): TokenStream {
+  let stream = streams.get(messageId);
+  if (!stream) {
+    const config: TokenStreamConfig = {
+      baseSpeed: 3,
+      minSpeed: 1,
+      maxSpeed: 12,
+      speedUpThreshold: 20,
+    };
+    stream = new TokenStream(setState, config);
+    streams.set(messageId, stream);
+  }
+  return stream;
 }
 
 export const useChatStore = create<ChatState>((set, _get) => ({
@@ -43,13 +47,13 @@ export const useChatStore = create<ChatState>((set, _get) => ({
   error: null,
 
   startStreaming: (messageId: string) => {
-    // Cancel any pending RAF flush
-    if (_rafId !== null) {
-      cancelAnimationFrame(_rafId);
-      _rafId = null;
+    // Clean up any existing stream for this messageId
+    const existing = streams.get(messageId);
+    if (existing) {
+      existing.reset();
+      streams.delete(messageId);
     }
-    _pendingContent = '';
-    _pendingReasoning = '';
+
     set({
       isStreaming: true,
       streamingMessageId: messageId,
@@ -60,33 +64,32 @@ export const useChatStore = create<ChatState>((set, _get) => ({
   },
 
   appendToken: (token: string) => {
-    _pendingContent += token;
-    if (_rafId === null) {
-      _rafId = requestAnimationFrame(() => flushTokens(set));
-    }
+    const { streamingMessageId } = _get();
+    if (!streamingMessageId) return;
+
+    const stream = getOrCreateStream(streamingMessageId, set);
+    stream.pushToken(token);
   },
 
   appendReasoningToken: (token: string) => {
-    _pendingReasoning += token;
-    if (_rafId === null) {
-      _rafId = requestAnimationFrame(() => flushTokens(set));
-    }
+    const { streamingMessageId } = _get();
+    if (!streamingMessageId) return;
+
+    const stream = getOrCreateStream(streamingMessageId, set);
+    stream.pushReasoning(token);
   },
 
   stopStreaming: () => {
-    if (_rafId !== null) {
-      cancelAnimationFrame(_rafId);
-      _rafId = null;
+    const { streamingMessageId } = _get();
+    if (streamingMessageId) {
+      const stream = streams.get(streamingMessageId);
+      if (stream) {
+        stream.flushAll();
+        stream.reset();
+        streams.delete(streamingMessageId);
+      }
     }
-    // Final flush
-    if (_pendingContent !== '' || _pendingReasoning !== '') {
-      set((state) => ({
-        streamingContent: state.streamingContent + _pendingContent,
-        streamingReasoning: state.streamingReasoning + _pendingReasoning,
-      }));
-      _pendingContent = '';
-      _pendingReasoning = '';
-    }
+
     set({
       isStreaming: false,
       streamingMessageId: null,
@@ -96,13 +99,14 @@ export const useChatStore = create<ChatState>((set, _get) => ({
   },
 
   cancelStreaming: () => {
-    if (_rafId !== null) {
-      cancelAnimationFrame(_rafId);
-      _rafId = null;
-    }
-    _pendingContent = '';
-    _pendingReasoning = '';
     const { streamingMessageId, streamingContent } = _get();
+    if (streamingMessageId) {
+      const stream = streams.get(streamingMessageId);
+      if (stream) {
+        stream.reset();
+        streams.delete(streamingMessageId);
+      }
+    }
     set({
       isStreaming: false,
       streamingMessageId: null,
