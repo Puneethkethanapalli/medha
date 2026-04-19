@@ -1,6 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  interpolate,
+} from 'react-native-reanimated';
 import { ChevronDown } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
@@ -11,12 +16,35 @@ interface ScrollToBottomButtonProps {
 }
 
 /**
- * Floating scroll-to-bottom button with animated entrance/exit.
- * Shows a chevron-down icon with an optional streaming indicator dot.
- * Matches the universal pattern used by ChatGPT, Claude, and Gemini.
+ * Floating scroll-to-bottom button.
+ *
+ * Always mounted — visibility is driven by animated opacity + pointerEvents
+ * instead of conditional rendering. This avoids the mount/unmount timing
+ * conflicts that reanimated layout animations cause during rapid streaming
+ * re-renders.
  */
-export function ScrollToBottomButton({ visible, isStreaming, onPress }: ScrollToBottomButtonProps) {
-  if (!visible) return null;
+export const ScrollToBottomButton = React.memo(function ScrollToBottomButton({
+  visible,
+  isStreaming,
+  onPress,
+}: ScrollToBottomButtonProps) {
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.value = withSpring(visible ? 1 : 0, {
+      damping: 20,
+      stiffness: 300,
+      mass: 0.8,
+    });
+  }, [visible, progress]);
+
+  const containerStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [
+      { translateY: interpolate(progress.value, [0, 1], [8, 0]) },
+      { scale: interpolate(progress.value, [0, 1], [0.85, 1]) },
+    ],
+  }));
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -25,9 +53,8 @@ export function ScrollToBottomButton({ visible, isStreaming, onPress }: ScrollTo
 
   return (
     <Animated.View
-      entering={FadeInDown.duration(200).springify().damping(18)}
-      exiting={FadeOutDown.duration(150)}
-      style={styles.container}
+      style={[styles.container, containerStyle]}
+      pointerEvents={visible ? 'auto' : 'none'}
     >
       <Pressable
         onPress={handlePress}
@@ -41,7 +68,7 @@ export function ScrollToBottomButton({ visible, isStreaming, onPress }: ScrollTo
       </Pressable>
     </Animated.View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -58,7 +85,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
-    // Depth shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.35,
