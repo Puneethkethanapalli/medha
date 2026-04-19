@@ -8,6 +8,7 @@ import { useStreamingContent, useStreamingReasoning } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store';
 import { ThinkingBlock } from './ThinkingBlock';
 import { MarkdownMessage } from './MarkdownMessage';
+import { StreamingCursor } from './StreamingCursor';
 import type { Message } from '@/types';
 
 const waitingAnimation = require('../../../lottie/glow waiting.json');
@@ -108,6 +109,7 @@ export const MessageBubble = React.memo(function MessageBubble({ message }: Mess
         {(displayContent || !isReasoningOnly) && (
           <View className="w-full">
             <MarkdownMessage content={displayContent} isStreaming={isStreaming} />
+            {isStreaming && !isReasoningOnly && <StreamingCursor />}
           </View>
         )}
 

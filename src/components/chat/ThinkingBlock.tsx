@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Pressable, Animated, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { View, Pressable, Animated, LayoutAnimation, Platform, UIManager, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { ChevronDown, Brain } from 'lucide-react-native';
 
@@ -69,9 +69,7 @@ export function ThinkingBlock({ reasoning, isStreaming }: ThinkingBlockProps) {
         <View className="bg-surface-container-lowest border border-outline-variant/10 rounded-lg px-3 py-2.5 mt-1">
           <Text className="text-on-surface-variant text-[13px] leading-relaxed">
             {reasoning}
-            {isStreaming && (
-              <Text className="text-on-surface-variant text-[13px]"> ▍</Text>
-            )}
+            {isStreaming && <PulsingCursor />}
           </Text>
         </View>
       )}
@@ -84,3 +82,30 @@ export function ThinkingBlock({ reasoning, isStreaming }: ThinkingBlockProps) {
     </View>
   );
 }
+
+/** Pulsing text cursor for the thinking block. */
+function PulsingCursor() {
+  const opacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.15, duration: 400, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [opacity]);
+
+  return (
+    <Animated.Text style={[cursorStyles.cursor, { opacity }]}> ▍</Animated.Text>
+  );
+}
+
+const cursorStyles = StyleSheet.create({
+  cursor: {
+    color: 'hsl(0, 0%, 50%)',
+    fontSize: 13,
+  },
+});

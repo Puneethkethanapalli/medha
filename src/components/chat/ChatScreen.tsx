@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Pressable, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import { Menu, PenSquare } from 'lucide-react-native';
 import { ModelPill } from '@/components/chat/ModelPill';
 import { MessageList } from '@/components/chat/MessageList';
@@ -138,17 +139,27 @@ export function ChatScreen({ conversationId }: ChatScreenProps) {
       // Start streaming
       let accumulated = '';
       let accumulatedReasoning = '';
+      let firstTokenFired = false;
+
+      const fireFirstTokenHaptic = () => {
+        if (!firstTokenFired) {
+          firstTokenFired = true;
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+      };
 
       const response = provider.stream(
         fullMessages,
         { model, apiKey },
         // onContent
         (token) => {
+          fireFirstTokenHaptic();
           accumulated += token;
           appendToken(token);
         },
         // onReasoning
         (reasoningToken) => {
+          fireFirstTokenHaptic();
           accumulatedReasoning += reasoningToken;
           appendReasoningToken(reasoningToken);
         },

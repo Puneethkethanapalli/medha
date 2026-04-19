@@ -2,13 +2,13 @@ import React, { useRef, useEffect, useCallback, useState } from 'react';
 import {
   FlatList,
   View,
-  TouchableOpacity,
   StyleSheet,
   type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
 import { MessageBubble } from './MessageBubble';
+import { ScrollToBottomButton } from './ScrollToBottomButton';
 import { useChatStore } from '@/stores/chat-store';
 import type { Message } from '@/types';
 
@@ -16,8 +16,14 @@ interface MessageListProps {
   messages: Message[];
 }
 
+// ─── Scroll thresholds ──────────────────────────────────────────────────
+// These values control how the auto-scroll "follow" mode engages/disengages.
+
+/** Distance from bottom (px) within which we consider the user "at bottom". */
 const FOLLOW_BOTTOM_THRESHOLD = 24;
+/** Minimum upward drag (px) before we disengage follow mode. */
 const SCROLL_AWAY_THRESHOLD = 8;
+/** Content must exceed viewport by this much before we show the jump button. */
 const JUMP_BUTTON_THRESHOLD = 64;
 
 export function MessageList({ messages }: MessageListProps) {
@@ -38,6 +44,8 @@ export function MessageList({ messages }: MessageListProps) {
   const streamingReasoningLength = useChatStore((s) => s.streamingReasoning.length);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
 
+  // ─── Helpers ────────────────────────────────────────────────────────
+
   const setJumpButtonVisible = useCallback((visible: boolean) => {
     setShowJumpToBottom((current) => (current === visible ? current : visible));
   }, []);
@@ -49,9 +57,7 @@ export function MessageList({ messages }: MessageListProps) {
 
   const isAtBottom = useCallback(() => {
     const { contentHeight, viewportHeight } = metricsRef.current;
-    if (viewportHeight <= 0 || contentHeight <= viewportHeight) {
-      return true;
-    }
+    if (viewportHeight <= 0 || contentHeight <= viewportHeight) return true;
     return getDistanceFromBottom() <= FOLLOW_BOTTOM_THRESHOLD;
   }, [getDistanceFromBottom]);
 
@@ -72,13 +78,13 @@ export function MessageList({ messages }: MessageListProps) {
     if (scrollFrameRef.current !== null) {
       cancelAnimationFrame(scrollFrameRef.current);
     }
-
     scrollFrameRef.current = requestAnimationFrame(() => {
       scrollFrameRef.current = null;
       flatListRef.current?.scrollToEnd({ animated });
     });
   }, []);
 
+  // Clean up pending RAF on unmount
   useEffect(() => {
     return () => {
       if (scrollFrameRef.current !== null) {
@@ -87,7 +93,8 @@ export function MessageList({ messages }: MessageListProps) {
     };
   }, []);
 
-  // A newly opened conversation should start at the latest message.
+  // ─── Conversation switch → reset to bottom ─────────────────────────
+
   useEffect(() => {
     const conversationId = messages[0]?.conversation_id ?? null;
     if (conversationIdRef.current !== conversationId) {
@@ -98,26 +105,28 @@ export function MessageList({ messages }: MessageListProps) {
     }
   }, [messages, scrollToBottom, setFollowBottom]);
 
-  // Only follow appended messages if the user was already reading the bottom.
+  // ─── New message appended → follow if at bottom ────────────────────
+
   useEffect(() => {
     if (messages.length > 0 && shouldFollowBottomRef.current && !isUserScrollingRef.current) {
       scrollToBottom(true);
     }
   }, [messages.length, scrollToBottom]);
 
-  // Streaming changes row height without changing `messages`, so keep the
-  // viewport pinned only while the user has not scrolled away.
+  // ─── Streaming content growth → pin to bottom ─────────────────────
+
   useEffect(() => {
     if (isStreaming && shouldFollowBottomRef.current && !isUserScrollingRef.current) {
       scrollToBottom(false);
     }
   }, [isStreaming, scrollToBottom, streamingContentLength, streamingReasoningLength]);
 
+  // ─── Scroll event handlers ─────────────────────────────────────────
+
   const handleLayout = useCallback(
     (event: LayoutChangeEvent) => {
       metricsRef.current.viewportHeight = event.nativeEvent.layout.height;
       setJumpButtonVisible(!shouldFollowBottomRef.current && hasScrollableContent());
-
       if (shouldFollowBottomRef.current && !isUserScrollingRef.current) {
         scrollToBottom(false);
       }
@@ -129,7 +138,6 @@ export function MessageList({ messages }: MessageListProps) {
     (_width: number, height: number) => {
       metricsRef.current.contentHeight = height;
       setJumpButtonVisible(!shouldFollowBottomRef.current && hasScrollableContent());
-
       if (shouldFollowBottomRef.current && !isUserScrollingRef.current) {
         scrollToBottom(false);
       }
@@ -151,21 +159,15 @@ export function MessageList({ messages }: MessageListProps) {
       if (isUserScrollingRef.current) {
         const hasDraggedUp =
           contentOffset.y < dragStartOffsetYRef.current - SCROLL_AWAY_THRESHOLD;
-
         if (hasDraggedUp) {
           setFollowBottom(false);
           return;
         }
-
-        if (atBottom) {
-          setFollowBottom(true);
-        }
+        if (atBottom) setFollowBottom(true);
         return;
       }
 
-      if (atBottom) {
-        setFollowBottom(true);
-      }
+      if (atBottom) setFollowBottom(true);
     },
     [isAtBottom, setFollowBottom]
   );
@@ -178,10 +180,7 @@ export function MessageList({ messages }: MessageListProps) {
   const handleScrollEndDrag = useCallback(() => {
     const atBottom = isAtBottom();
     setFollowBottom(atBottom);
-
-    if (atBottom) {
-      isUserScrollingRef.current = false;
-    }
+    if (atBottom) isUserScrollingRef.current = false;
   }, [isAtBottom, setFollowBottom]);
 
   const handleMomentumScrollEnd = useCallback(() => {
@@ -190,11 +189,15 @@ export function MessageList({ messages }: MessageListProps) {
     isUserScrollingRef.current = false;
   }, [isAtBottom, setFollowBottom]);
 
+  // ─── Jump-to-bottom action ─────────────────────────────────────────
+
   const jumpToBottom = useCallback(() => {
     isUserScrollingRef.current = false;
     setFollowBottom(true);
     scrollToBottom(true);
   }, [scrollToBottom, setFollowBottom]);
+
+  // ─── Renderers ─────────────────────────────────────────────────────
 
   const renderItem = useCallback(
     ({ item }: { item: Message }) => <MessageBubble message={item} />,
@@ -210,21 +213,13 @@ export function MessageList({ messages }: MessageListProps) {
         data={messages}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
-        contentContainerStyle={{
-          flexGrow: 1,
-          justifyContent: 'flex-end',
-          paddingHorizontal: 4,
-          paddingTop: 8,
-          paddingBottom: 8,
-        }}
+        contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
         onLayout={handleLayout}
         onContentSizeChange={handleContentSizeChange}
-        maintainVisibleContentPosition={{
-          minIndexForVisible: 0,
-        }}
+        maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
         onScroll={handleScroll}
         onScrollBeginDrag={handleScrollBeginDrag}
         onScrollEndDrag={handleScrollEndDrag}
@@ -232,13 +227,11 @@ export function MessageList({ messages }: MessageListProps) {
         scrollEventThrottle={16}
       />
 
-      {showJumpToBottom && (
-        <TouchableOpacity style={styles.jumpButton} onPress={jumpToBottom}>
-          <View style={styles.jumpButtonInner}>
-            <View style={[styles.indicatorDot, isStreaming && styles.indicatorDotActive]} />
-          </View>
-        </TouchableOpacity>
-      )}
+      <ScrollToBottomButton
+        visible={showJumpToBottom}
+        isStreaming={isStreaming}
+        onPress={jumpToBottom}
+      />
     </View>
   );
 }
@@ -247,35 +240,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  jumpButton: {
-    position: 'absolute',
-    bottom: 16,
-    right: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#1C1C1E',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  jumpButtonInner: {
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  indicatorDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#8E8E93',
-  },
-  indicatorDotActive: {
-    backgroundColor: '#34C759',
+  contentContainer: {
+    flexGrow: 1,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 4,
+    paddingTop: 8,
+    paddingBottom: 8,
   },
 });
