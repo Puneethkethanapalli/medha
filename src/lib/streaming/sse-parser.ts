@@ -81,9 +81,18 @@ export class SSEParser {
 }
 
 /**
- * Extract content and reasoning from an SSE data event.
- * Handles OpenAI, OpenRouter reasoning models, and Anthropic formats.
+ * Tracks whether we're inside a <think> block across streaming chunks.
+ * Google AI (Gemini 2.5) sends reasoning wrapped in <think>...</think> tags
+ * inside delta.content, potentially split across multiple chunks.
  */
+let _insideThinkTag = false;
+let _thinkBuffer = '';
+
+export function resetThinkTagState(): void {
+  _insideThinkTag = false;
+  _thinkBuffer = '';
+}
+
 export function extractContentFromEvent(data: string): TokenContent | null {
   try {
     const parsed = JSON.parse(data);
@@ -96,21 +105,33 @@ export function extractContentFromEvent(data: string): TokenContent | null {
         if (detail.type === 'reasoning.text' && detail.text) {
           result.reasoning = (result.reasoning || '') + detail.text;
         } else if (detail.type === 'reasoning.summary' && detail.summary) {
-          // Summary - could append or replace
           result.reasoning = (result.reasoning || '') + detail.summary;
         }
-        // Encrypted reasoning - skip for now
       }
     }
 
-    // OpenAI format: choices[0].delta.content
-    if (parsed.choices?.[0]?.delta?.content) {
-      result.content = parsed.choices[0].delta.content;
+    // MiniMax format: choices[0].delta.reasoning_content
+    if (parsed.choices?.[0]?.delta?.reasoning_content) {
+      result.reasoning = (result.reasoning || '') + parsed.choices[0].delta.reasoning_content;
     }
 
     // OpenAI format: choices[0].delta.reasoning (for older models)
     if (parsed.choices?.[0]?.delta?.reasoning) {
-      result.reasoning = parsed.choices[0].delta.reasoning;
+      result.reasoning = (result.reasoning || '') + parsed.choices[0].delta.reasoning;
+    }
+
+    // OpenAI format: choices[0].delta.content
+    const rawContent = parsed.choices?.[0]?.delta?.content;
+    if (rawContent) {
+      // Google AI (Gemini 2.5) wraps thinking in <think>...</think> tags
+      // We need to separate these into reasoning vs content
+      const separated = separateThinkTags(rawContent);
+      if (separated.reasoning) {
+        result.reasoning = (result.reasoning || '') + separated.reasoning;
+      }
+      if (separated.content) {
+        result.content = (result.content || '') + separated.content;
+      }
     }
 
     // Anthropic format: content_block_delta
@@ -132,4 +153,67 @@ export function extractContentFromEvent(data: string): TokenContent | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Separates <think>...</think> tags from content in a streaming-safe way.
+ * Handles tags that may be split across multiple chunks.
+ */
+function separateThinkTags(text: string): { content?: string; reasoning?: string } {
+  let reasoning = '';
+  let content = '';
+  let remaining = text;
+
+  while (remaining.length > 0) {
+    if (_insideThinkTag) {
+      // Look for closing </think> tag
+      const closeIdx = remaining.indexOf('</think>');
+      if (closeIdx !== -1) {
+        reasoning += _thinkBuffer + remaining.slice(0, closeIdx);
+        _thinkBuffer = '';
+        _insideThinkTag = false;
+        remaining = remaining.slice(closeIdx + 8); // skip '</think>'
+      } else {
+        // Still inside think block, buffer it all
+        _thinkBuffer += remaining;
+        remaining = '';
+      }
+    } else {
+      // Look for opening <think> tag
+      const openIdx = remaining.indexOf('<think>');
+      if (openIdx !== -1) {
+        // Everything before the tag is content
+        content += remaining.slice(0, openIdx);
+        _insideThinkTag = true;
+        _thinkBuffer = '';
+        remaining = remaining.slice(openIdx + 7); // skip '<think>'
+      } else {
+        // Check for partial tag at end (e.g., "<thi" at chunk boundary)
+        const partialMatch = findPartialTagAtEnd(remaining, '<think>');
+        if (partialMatch > 0) {
+          content += remaining.slice(0, remaining.length - partialMatch);
+          _thinkBuffer = remaining.slice(remaining.length - partialMatch);
+          remaining = '';
+        } else {
+          content += remaining;
+          remaining = '';
+        }
+      }
+    }
+  }
+
+  return {
+    reasoning: reasoning || undefined,
+    content: content || undefined,
+  };
+}
+
+/** Check if the end of text matches a partial prefix of tag */
+function findPartialTagAtEnd(text: string, tag: string): number {
+  for (let len = Math.min(tag.length - 1, text.length); len > 0; len--) {
+    if (text.endsWith(tag.slice(0, len))) {
+      return len;
+    }
+  }
+  return 0;
 }

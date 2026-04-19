@@ -1,4 +1,4 @@
-import { SSEParser, extractContentFromEvent, type TokenContent } from './sse-parser';
+import { SSEParser, extractContentFromEvent, resetThinkTagState, type TokenContent } from './sse-parser';
 
 export interface StreamOptions {
   url: string;
@@ -24,6 +24,9 @@ export async function streamCompletion(
   onError: ErrorHandler
 ): Promise<void> {
   const { url, headers, body, signal } = options;
+
+  // Reset <think> tag parser state for the new stream
+  resetThinkTagState();
 
   let response: Response;
 

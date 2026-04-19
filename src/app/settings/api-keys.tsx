@@ -1,41 +1,43 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Plus, Bolt, Trash2, Shield, Key, X, Check } from 'lucide-react-native';
+import { ArrowLeft, Plus, Bolt, Trash2, Shield, X, Check } from 'lucide-react-native';
 import { cn } from '@/lib/utils';
 import { useSettingsStore, hasProviderKey, deleteProviderKey, maskKey } from '@/stores/settings-store';
 
-type Provider = 'openrouter' | 'gemini' | 'anthropic';
+type ProviderId = 'openrouter' | 'google-ai' | 'anthropic' | 'minimax';
 
 interface ProviderConfig {
-  id: Provider;
+  id: ProviderId;
   name: string;
   description: string;
 }
 
 const PROVIDERS: ProviderConfig[] = [
   { id: 'openrouter', name: 'OpenRouter', description: 'Access to 200+ AI models' },
-  { id: 'gemini', name: 'Gemini', description: 'Google\'s Gemini models' },
+  { id: 'google-ai', name: 'Google AI', description: 'Gemini models via Google AI Studio' },
   { id: 'anthropic', name: 'Anthropic', description: 'Claude models via Anthropic API' },
+  { id: 'minimax', name: 'MiniMax', description: 'MiniMax M2.7 and M1 models' },
 ];
 
 export default function ApiKeysScreen() {
   const router = useRouter();
   const { validateApiKey } = useSettingsStore();
 
-  const [connectedProviders, setConnectedProviders] = useState<Set<Provider>>(new Set());
-  const [keys, setKeys] = useState<Record<Provider, string>>({
+  const [connectedProviders, setConnectedProviders] = useState<Set<ProviderId>>(new Set());
+  const [keys, setKeys] = useState<Record<ProviderId, string>>({
     openrouter: '',
-    gemini: '',
+    'google-ai': '',
     anthropic: '',
+    minimax: '',
   });
-  const [testingProvider, setTestingProvider] = useState<Provider | null>(null);
-  const [isAddingKey, setIsAddingKey] = useState<Provider | null>(null);
+  const [testingProvider, setTestingProvider] = useState<ProviderId | null>(null);
+  const [isAddingKey, setIsAddingKey] = useState<ProviderId | null>(null);
   const [isValidating, setIsValidating] = useState(false);
 
   useEffect(() => {
     const checkConnectedProviders = async () => {
-      const connected = new Set<Provider>();
+      const connected = new Set<ProviderId>();
       for (const provider of PROVIDERS) {
         if (await hasProviderKey(provider.id)) {
           connected.add(provider.id);
@@ -46,13 +48,13 @@ export default function ApiKeysScreen() {
     checkConnectedProviders();
   }, []);
 
-  const handleTestKey = async (provider: Provider) => {
-    const key = keys[provider];
+  const handleTestKey = async (provider: ProviderConfig) => {
+    const key = keys[provider.id];
     if (!key) return;
 
-    setTestingProvider(provider);
+    setTestingProvider(provider.id);
     try {
-      const isValid = await validateApiKey(provider, key);
+      const isValid = await validateApiKey(provider.id, key);
       if (isValid) {
         Alert.alert('Success', `${provider.name} API key is valid!`);
       } else {
@@ -65,7 +67,7 @@ export default function ApiKeysScreen() {
     }
   };
 
-  const handleDeleteKey = (provider: Provider) => {
+  const handleDeleteKey = (provider: ProviderConfig) => {
     Alert.alert(
       'Delete API Key',
       `Are you sure you want to delete your ${provider.name} API key?`,
@@ -81,15 +83,15 @@ export default function ApiKeysScreen() {
               next.delete(provider.id);
               return next;
             });
-            setKeys(prev => ({ ...prev, [provider]: '' }));
+            setKeys(prev => ({ ...prev, [provider.id]: '' }));
           },
         },
       ]
     );
   };
 
-  const handleAddKey = async (provider: Provider) => {
-    const key = keys[provider];
+  const handleAddKey = async (provider: ProviderConfig) => {
+    const key = keys[provider.id];
     if (!key.trim()) {
       Alert.alert('Error', 'Please enter an API key');
       return;
@@ -97,13 +99,13 @@ export default function ApiKeysScreen() {
 
     setIsValidating(true);
     try {
-      const isValid = await validateApiKey(provider, key.trim());
+      const isValid = await validateApiKey(provider.id, key.trim());
       if (isValid) {
         const { saveProviderKey } = await import('@/stores/settings-store');
         await saveProviderKey(provider.id, key.trim());
-        setConnectedProviders(prev => new Set([...prev, provider]));
+        setConnectedProviders(prev => new Set([...prev, provider.id]));
         setIsAddingKey(null);
-        setKeys(prev => ({ ...prev, [provider]: '' }));
+        setKeys(prev => ({ ...prev, [provider.id]: '' }));
         Alert.alert('Success', `${provider.name} API key saved successfully!`);
       } else {
         Alert.alert('Invalid Key', 'The API key appears to be invalid. Please check and try again.');
@@ -176,7 +178,7 @@ export default function ApiKeysScreen() {
               {isConnected && (
                 <View className="mt-3 z-10 relative">
                   <Text className="font-mono text-[13px] text-on-surface-variant bg-surface-container-low px-3 py-2 rounded-md border border-outline-variant/10">
-                    {maskKey('sk-or-v1-xxxxxxxxxxxxxxxxxxxx')}
+                    {maskKey('xxxx-xxxxxxxxxxxxxxxxxxxx')}
                   </Text>
                 </View>
               )}
@@ -185,19 +187,7 @@ export default function ApiKeysScreen() {
                 <View className="flex flex-row items-center gap-2 pt-3 z-10 relative">
                   <Pressable
                     className="bg-surface-container px-3 py-1.5 rounded-full flex flex-row items-center gap-1.5 active:bg-surface-container-high"
-                    onPress={() => handleTestKey(provider.id)}
-                    disabled={testingProvider === provider.id}
-                  >
-                    {testingProvider === provider.id ? (
-                      <ActivityIndicator size="small" className="text-on-surface-variant" />
-                    ) : (
-                      <Bolt size={14} className="text-on-surface-variant" color="#c6c6c6" />
-                    )}
-                    <Text className="text-xs font-medium text-on-surface-variant">Test</Text>
-                  </Pressable>
-                  <Pressable
-                    className="bg-surface-container px-3 py-1.5 rounded-full flex flex-row items-center gap-1.5 active:bg-surface-container-high"
-                    onPress={() => handleDeleteKey(provider.id)}
+                    onPress={() => handleDeleteKey(provider)}
                   >
                     <Trash2 size={14} className="text-destructive" color="#EF4444" />
                     <Text className="text-xs font-medium text-destructive">Delete</Text>
@@ -227,7 +217,7 @@ export default function ApiKeysScreen() {
                     </Pressable>
                     <Pressable
                       className="flex-1 bg-primary px-3 py-2 rounded-lg flex flex-row items-center justify-center gap-1.5 active:bg-primary/90"
-                      onPress={() => handleAddKey(provider.id)}
+                      onPress={() => handleAddKey(provider)}
                       disabled={isValidating}
                     >
                       {isValidating ? (

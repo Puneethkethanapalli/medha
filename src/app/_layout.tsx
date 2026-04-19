@@ -166,8 +166,8 @@ export default function RootLayout() {
         console.error('Init failed:', e);
       }
 
-      const { hasProviderKey } = await import('@/stores/settings-store');
-      const hasKey = await hasProviderKey('openrouter');
+      const { hasAnyProviderKey } = await import('@/stores/settings-store');
+      const hasKey = await hasAnyProviderKey();
       const isOnboarding = (segments[0] || '') === 'onboarding';
 
       if (!hasKey && !isOnboarding) {

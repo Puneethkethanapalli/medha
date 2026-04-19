@@ -4,6 +4,7 @@ import type { Theme } from '@/lib/storage/mmkv';
 interface SettingsState {
   theme: Theme;
   lastModel: string | null;
+  lastProvider: string | null;
   onboardingComplete: boolean;
   biometricLockEnabled: boolean;
   isInitialized: boolean;
@@ -12,6 +13,7 @@ interface SettingsState {
 interface SettingsActions {
   setTheme: (theme: Theme) => Promise<void>;
   setLastModel: (model: string | null) => Promise<void>;
+  setLastProvider: (provider: string | null) => Promise<void>;
   setOnboardingComplete: (complete: boolean) => Promise<void>;
   setBiometricLockEnabled: (enabled: boolean) => Promise<void>;
   validateApiKey: (provider: string, key: string) => Promise<boolean>;
@@ -21,18 +23,26 @@ interface SettingsActions {
 // Lazy-loaded module references
 let mmkv: typeof import('@/lib/storage/mmkv') | null = null;
 let secure: typeof import('@/lib/storage/secure') | null = null;
-let openrouterProvider: typeof import('@/lib/providers/openrouter') | null = null;
 
 const loadModules = async () => {
   if (!mmkv) mmkv = await import('@/lib/storage/mmkv');
   if (!secure) secure = await import('@/lib/storage/secure');
-  if (!openrouterProvider) openrouterProvider = await import('@/lib/providers/openrouter');
 };
+
+function getProviderInstance(providerId: string) {
+  const { getProvider, registerBuiltInProviders, listProviders } = require('@/lib/providers/registry');
+  // Ensure providers are registered
+  if (listProviders().length === 0) {
+    registerBuiltInProviders();
+  }
+  return getProvider(providerId);
+}
 
 export const useSettingsStore = create<SettingsState & SettingsActions>((set, get) => ({
   // State
   theme: 'dark' as Theme,
   lastModel: null,
+  lastProvider: null,
   onboardingComplete: false,
   biometricLockEnabled: false,
   isInitialized: false,
@@ -50,6 +60,12 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
     set({ lastModel: model });
   },
 
+  setLastProvider: async (provider) => {
+    await loadModules();
+    await mmkv!.setLastProvider(provider);
+    set({ lastProvider: provider });
+  },
+
   setOnboardingComplete: async (complete) => {
     await loadModules();
     await mmkv!.setOnboardingComplete(complete);
@@ -62,13 +78,10 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
     set({ biometricLockEnabled: enabled });
   },
 
-  validateApiKey: async (provider, key) => {
-    await loadModules();
-    if (provider === 'openrouter') {
-      const provider = new openrouterProvider!.OpenRouterProvider();
-      return await provider.validateKey(key);
-    }
-    return false;
+  validateApiKey: async (providerId, key) => {
+    const provider = getProviderInstance(providerId);
+    if (!provider) return false;
+    return await provider.validateKey(key);
   },
 
   initialize: async () => {
@@ -77,6 +90,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
     set({
       theme: mmkv!.getThemeSync(),
       lastModel: mmkv!.getLastModelSync(),
+      lastProvider: mmkv!.getLastProviderSync(),
       onboardingComplete: mmkv!.isOnboardingCompleteSync(),
       biometricLockEnabled: mmkv!.isBiometricLockEnabledSync(),
       isInitialized: true,
@@ -88,6 +102,23 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
 export async function hasProviderKey(provider: string): Promise<boolean> {
   const secureModule = await import('@/lib/storage/secure');
   return await secureModule.hasApiKey(provider);
+}
+
+export async function hasAnyProviderKey(): Promise<boolean> {
+  const providers = ['openrouter', 'google-ai', 'anthropic', 'minimax'];
+  for (const p of providers) {
+    if (await hasProviderKey(p)) return true;
+  }
+  return false;
+}
+
+export async function getConfiguredProviders(): Promise<string[]> {
+  const allProviders = ['openrouter', 'google-ai', 'anthropic', 'minimax'];
+  const configured: string[] = [];
+  for (const p of allProviders) {
+    if (await hasProviderKey(p)) configured.push(p);
+  }
+  return configured;
 }
 
 export async function saveProviderKey(provider: string, key: string): Promise<void> {

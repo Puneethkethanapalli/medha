@@ -5,6 +5,7 @@ export type Theme = 'dark' | 'light' | 'oled';
 const KEYS = {
   theme: 'medha:theme',
   lastModel: 'medha:lastModel',
+  lastProvider: 'medha:lastProvider',
   cachedModels: 'medha:cachedModels',
   onboardingComplete: 'medha:onboardingComplete',
   biometricLockEnabled: 'medha:biometricLockEnabled',
@@ -33,6 +34,20 @@ export async function setLastModel(model: string | null): Promise<void> {
     await AsyncStorage.removeItem(KEYS.lastModel);
   }
   _lastModel = model;
+}
+
+// Last selected provider
+export async function getLastProvider(): Promise<string | null> {
+  return await AsyncStorage.getItem(KEYS.lastProvider);
+}
+
+export async function setLastProvider(provider: string | null): Promise<void> {
+  if (provider) {
+    await AsyncStorage.setItem(KEYS.lastProvider, provider);
+  } else {
+    await AsyncStorage.removeItem(KEYS.lastProvider);
+  }
+  _lastProvider = provider;
 }
 
 // Cached model list (from OpenRouter)
@@ -67,6 +82,7 @@ export async function setBiometricLockEnabled(enabled: boolean): Promise<void> {
 // Synchronous wrappers for compatibility (read from in-memory cache)
 let _theme: Theme = 'dark';
 let _lastModel: string | null = null;
+let _lastProvider: string | null = null;
 let _onboardingComplete = false;
 let _biometricLockEnabled = false;
 let _initialized = false;
@@ -77,6 +93,10 @@ export function getThemeSync(): Theme {
 
 export function getLastModelSync(): string | null {
   return _lastModel;
+}
+
+export function getLastProviderSync(): string | null {
+  return _lastProvider;
 }
 
 export function isOnboardingCompleteSync(): boolean {
@@ -91,10 +111,12 @@ export async function initStorage(): Promise<void> {
   if (_initialized) return;
   const theme = await getTheme();
   const lastModel = await getLastModel();
+  const lastProvider = await getLastProvider();
   const onboarding = await isOnboardingComplete();
   const biometric = await isBiometricLockEnabled();
   _theme = theme;
   _lastModel = lastModel;
+  _lastProvider = lastProvider;
   _onboardingComplete = onboarding;
   _biometricLockEnabled = biometric;
   _initialized = true;

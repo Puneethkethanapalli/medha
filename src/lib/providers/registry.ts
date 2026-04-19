@@ -17,5 +17,11 @@ export function listProviders(): AIProvider[] {
 export function registerBuiltInProviders(): void {
   // Lazy import to avoid circular dependencies
   const { OpenRouterProvider } = require('./openrouter');
+  const { GoogleAIProvider } = require('./google-ai');
+  const { AnthropicProvider } = require('./anthropic');
+  const { MiniMaxProvider } = require('./minimax');
   registerProvider(new OpenRouterProvider());
+  registerProvider(new GoogleAIProvider());
+  registerProvider(new AnthropicProvider());
+  registerProvider(new MiniMaxProvider());
 }

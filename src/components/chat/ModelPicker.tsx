@@ -1,107 +1,117 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
-import { View, Pressable } from 'react-native';
+import { View, Pressable, ScrollView } from 'react-native';
 import BottomSheet, { BottomSheetBackdrop, BottomSheetFlatList, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { Text } from '@/components/ui/text';
 import { Search, X, Check } from 'lucide-react-native';
 import { useUIStore } from '@/stores/ui-store';
-import { useSettingsStore } from '@/stores/settings-store';
-import { OpenRouterProvider } from '@/lib/providers/openrouter';
+import { useSettingsStore, getConfiguredProviders } from '@/stores/settings-store';
+import { getProvider, registerBuiltInProviders, listProviders } from '@/lib/providers/registry';
 import { getApiKey } from '@/lib/storage/secure';
 import type { Model } from '@/types';
 
-// Popular free models to show when we can't fetch the full list
-const POPULAR_MODELS: Model[] = [
-  { id: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash', provider: 'openrouter' },
-  { id: 'google/gemma-3-27b-it:free', name: 'Gemma 3 27B', provider: 'openrouter' },
-  { id: 'deepseek/deepseek-chat-v3:free', name: 'DeepSeek Chat V3', provider: 'openrouter' },
-  { id: 'deepseek/deepseek-r1:free', name: 'DeepSeek R1 (Thinking)', provider: 'openrouter' },
-  { id: 'qwen/qwen-2.5-72b-instruct:free', name: 'Qwen 2.5 72B', provider: 'openrouter' },
-  { id: 'microsoft/phi-4:free', name: 'Phi 4', provider: 'openrouter' },
-  { id: 'mistralai/mistral-nemo:free', name: 'Mistral Nemo', provider: 'openrouter' },
-  { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', provider: 'openrouter' },
-  { id: 'openai/gpt-4o', name: 'GPT-4o', provider: 'openrouter' },
-  { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'openrouter' },
-  { id: 'anthropic/claude-3-haiku', name: 'Claude 3 Haiku', provider: 'openrouter' },
-  { id: 'google/gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'openrouter' },
-  { id: 'meta-llama/llama-3.1-70b-instruct', name: 'Llama 3.1 70B', provider: 'openrouter' },
-];
+// Fallback models per provider (shown before API fetch completes)
+const FALLBACK_MODELS: Record<string, Model[]> = {
+  openrouter: [
+    { id: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash', provider: 'openrouter' },
+    { id: 'deepseek/deepseek-chat-v3:free', name: 'DeepSeek Chat V3', provider: 'openrouter' },
+    { id: 'deepseek/deepseek-r1:free', name: 'DeepSeek R1 (Thinking)', provider: 'openrouter' },
+    { id: 'qwen/qwen-2.5-72b-instruct:free', name: 'Qwen 2.5 72B', provider: 'openrouter' },
+    { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', provider: 'openrouter' },
+    { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'openrouter' },
+  ],
+  'google-ai': [
+    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'google-ai' },
+    { id: 'gemini-2.5-flash-preview-04-17', name: 'Gemini 2.5 Flash Preview', provider: 'google-ai' },
+    { id: 'gemini-2.5-pro-preview-03-25', name: 'Gemini 2.5 Pro Preview', provider: 'google-ai' },
+    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'google-ai' },
+  ],
+  anthropic: [
+    { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', provider: 'anthropic' },
+    { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet', provider: 'anthropic' },
+    { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku', provider: 'anthropic' },
+    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet v2', provider: 'anthropic' },
+  ],
+  minimax: [
+    { id: 'MiniMax-M2.7', name: 'MiniMax M2.7', provider: 'minimax' },
+    { id: 'MiniMax-M2.7-highspeed', name: 'MiniMax M2.7 Highspeed', provider: 'minimax' },
+    { id: 'MiniMax-M1-80k', name: 'MiniMax M1 80K', provider: 'minimax' },
+    { id: 'MiniMax-M1-40k', name: 'MiniMax M1 40K', provider: 'minimax' },
+  ],
+};
 
-function getProviderGroup(modelId: string): string {
-  const prefix = modelId.split('/')[0];
-  const map: Record<string, string> = {
-    openai: 'OpenAI',
-    anthropic: 'Anthropic',
-    google: 'Google',
-    'meta-llama': 'Meta',
-    mistralai: 'Mistral',
-    deepseek: 'DeepSeek',
-    qwen: 'Qwen',
-    microsoft: 'Microsoft',
-  };
-  return map[prefix] || prefix.charAt(0).toUpperCase() + prefix.slice(1);
-}
-
-interface GroupedModels {
-  provider: string;
-  models: Model[];
-}
-
-function groupModels(models: Model[]): GroupedModels[] {
-  const groups = new Map<string, Model[]>();
-  for (const m of models) {
-    const provider = getProviderGroup(m.id);
-    if (!groups.has(provider)) groups.set(provider, []);
-    groups.get(provider)!.push(m);
-  }
-  const priority = ['OpenAI', 'Anthropic', 'Google', 'Meta', 'DeepSeek'];
-  return Array.from(groups.entries())
-    .sort(([a], [b]) => {
-      const ai = priority.indexOf(a);
-      const bi = priority.indexOf(b);
-      if (ai !== -1 && bi !== -1) return ai - bi;
-      if (ai !== -1) return -1;
-      if (bi !== -1) return 1;
-      return a.localeCompare(b);
-    })
-    .map(([provider, models]) => ({ provider, models }));
-}
-
-type FlatItem =
-  | { type: 'header'; provider: string }
-  | { type: 'model'; model: Model; isLast: boolean };
+const PROVIDER_DISPLAY: Record<string, string> = {
+  openrouter: 'OpenRouter',
+  'google-ai': 'Google AI',
+  anthropic: 'Anthropic',
+  minimax: 'MiniMax',
+};
 
 export function ModelPicker() {
   const bottomSheetRef = useRef<BottomSheet>(null);
   const isOpen = useUIStore((s) => s.modelPickerOpen);
   const closeModelPicker = useUIStore((s) => s.closeModelPicker);
   const lastModel = useSettingsStore((s) => s.lastModel);
+  const lastProvider = useSettingsStore((s) => s.lastProvider);
   const setLastModel = useSettingsStore((s) => s.setLastModel);
+  const setLastProvider = useSettingsStore((s) => s.setLastProvider);
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [models, setModels] = useState<Model[]>(POPULAR_MODELS);
-  const [loaded, setLoaded] = useState(false);
+  const [activeTab, setActiveTab] = useState<string | null>(null);
+  const [configuredProviderIds, setConfiguredProviderIds] = useState<string[]>([]);
+  const [models, setModels] = useState<Record<string, Model[]>>({});
+  const [loadedProviders, setLoadedProviders] = useState<Set<string>>(new Set());
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
 
-  const snapPoints = useMemo(() => ['70%'], []);
+  const snapPoints = useMemo(() => ['75%'], []);
 
-  // Fetch full model list when sheet opens
+  // Ensure providers are registered
   useEffect(() => {
-    if (isOpen && !loaded) {
+    if (listProviders().length === 0) {
+      registerBuiltInProviders();
+    }
+  }, []);
+
+  // On open: detect which providers have keys
+  useEffect(() => {
+    if (isOpen) {
       (async () => {
-        try {
-          const apiKey = await getApiKey('openrouter');
-          if (apiKey) {
-            const provider = new OpenRouterProvider();
-            const fetched = await provider.listModels(apiKey);
-            if (fetched.length > 0) {
-              setModels(fetched);
-              setLoaded(true);
-            }
-          }
-        } catch {
-          // Keep popular models as fallback
+        const configured = await getConfiguredProviders();
+        setConfiguredProviderIds(configured);
+        // Set initial tab: prefer lastProvider, or first configured
+        if (configured.length > 0) {
+          const initial = lastProvider && configured.includes(lastProvider) ? lastProvider : configured[0];
+          setActiveTab(initial);
         }
       })();
     }
-  }, [isOpen, loaded]);
+  }, [isOpen, lastProvider]);
+
+  // Fetch models when tab changes
+  useEffect(() => {
+    if (!isOpen || !activeTab) return;
+    if (loadedProviders.has(activeTab)) return;
+
+    (async () => {
+      setIsLoadingModels(true);
+      try {
+        const apiKey = await getApiKey(activeTab);
+        if (!apiKey) return;
+
+        const provider = getProvider(activeTab);
+        if (!provider) return;
+
+        const fetched = await provider.listModels(apiKey);
+        if (fetched.length > 0) {
+          setModels((prev) => ({ ...prev, [activeTab]: fetched }));
+          setLoadedProviders((prev) => new Set([...prev, activeTab]));
+        }
+      } catch {
+        // Use fallback models
+      } finally {
+        setIsLoadingModels(false);
+      }
+    })();
+  }, [isOpen, activeTab, loadedProviders]);
 
   useEffect(() => {
     if (isOpen) {
@@ -122,34 +132,28 @@ export function ModelPicker() {
   );
 
   const handleSelect = useCallback(
-    (modelId: string) => {
+    (modelId: string, providerId: string) => {
       setLastModel(modelId);
+      setLastProvider(providerId);
       closeModelPicker();
       setSearchQuery('');
     },
-    [setLastModel, closeModelPicker]
+    [setLastModel, setLastProvider, closeModelPicker]
   );
 
+  // Get models for the active tab
+  const currentModels = useMemo(() => {
+    if (!activeTab) return [];
+    return models[activeTab] || FALLBACK_MODELS[activeTab] || [];
+  }, [activeTab, models]);
+
   const filteredModels = useMemo(() => {
-    if (!searchQuery.trim()) return models;
+    if (!searchQuery.trim()) return currentModels;
     const q = searchQuery.toLowerCase();
-    return models.filter(
+    return currentModels.filter(
       (m) => m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q)
     );
-  }, [models, searchQuery]);
-
-  const grouped = useMemo(() => groupModels(filteredModels), [filteredModels]);
-
-  const flatData = useMemo(() => {
-    const items: FlatItem[] = [];
-    for (const group of grouped) {
-      items.push({ type: 'header', provider: group.provider });
-      group.models.forEach((m, i) => {
-        items.push({ type: 'model', model: m, isLast: i === group.models.length - 1 });
-      });
-    }
-    return items;
-  }, [grouped]);
+  }, [currentModels, searchQuery]);
 
   const renderBackdrop = useCallback(
     (props: any) => (
@@ -159,21 +163,14 @@ export function ModelPicker() {
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: FlatItem }) => {
-      if (item.type === 'header') {
-        return (
-          <Text className="text-on-surface-variant text-[11px] font-semibold uppercase tracking-widest px-6 mt-4 mb-2">
-            {item.provider}
-          </Text>
-        );
-      }
-      const isSelected = item.model.id === lastModel;
+    ({ item, index }: { item: Model; index: number }) => {
+      const isSelected = item.id === lastModel && item.provider === (lastProvider || activeTab);
       return (
         <Pressable
-          onPress={() => handleSelect(item.model.id)}
+          onPress={() => handleSelect(item.id, item.provider)}
           className={`mx-4 h-[52px] px-4 flex-row items-center justify-between rounded-lg ${
             isSelected ? 'bg-surface-container-high' : ''
-          } ${!item.isLast ? 'border-b border-outline-variant/10' : ''}`}
+          } ${index < filteredModels.length - 1 ? 'border-b border-outline-variant/10' : ''}`}
         >
           {isSelected && (
             <View className="absolute left-0 top-0 bottom-0 w-[2px] bg-foreground rounded-r-full" />
@@ -184,26 +181,22 @@ export function ModelPicker() {
             }`}
             numberOfLines={1}
           >
-            {item.model.name}
+            {item.name}
           </Text>
           {isSelected && <Check size={18} color="hsl(0, 0%, 98%)" />}
         </Pressable>
       );
     },
-    [lastModel, handleSelect]
+    [lastModel, lastProvider, activeTab, handleSelect, filteredModels.length]
   );
 
-  const keyExtractor = useCallback(
-    (item: FlatItem) =>
-      item.type === 'header' ? `h-${item.provider}` : `m-${item.model.id}`,
-    []
-  );
+  const keyExtractor = useCallback((item: Model) => `${item.provider}-${item.id}`, []);
 
   const ListHeader = useMemo(
     () => (
       <>
         {/* Header */}
-        <View className="flex-row items-center justify-between px-4 pb-4">
+        <View className="flex-row items-center justify-between px-4 pb-3">
           <Text className="text-foreground text-[16px] font-semibold">Select Model</Text>
           <Pressable
             onPress={() => { closeModelPicker(); setSearchQuery(''); }}
@@ -212,6 +205,42 @@ export function ModelPicker() {
             <X size={20} color="hsl(0, 0%, 63%)" />
           </Pressable>
         </View>
+
+        {/* Provider Pill Tabs */}
+        {configuredProviderIds.length > 1 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            className="px-4 pb-3"
+            contentContainerStyle={{ gap: 8 }}
+          >
+            {configuredProviderIds.map((pid) => {
+              const isActive = pid === activeTab;
+              return (
+                <Pressable
+                  key={pid}
+                  onPress={() => {
+                    setActiveTab(pid);
+                    setSearchQuery('');
+                  }}
+                  className={`rounded-full px-4 py-1.5 ${
+                    isActive
+                      ? 'bg-foreground'
+                      : 'bg-surface-container border border-outline-variant/20'
+                  }`}
+                >
+                  <Text
+                    className={`text-[12px] font-medium ${
+                      isActive ? 'text-background' : 'text-on-surface-variant'
+                    }`}
+                  >
+                    {PROVIDER_DISPLAY[pid] || pid}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
 
         {/* Search */}
         <View className="px-4 pb-2">
@@ -232,9 +261,25 @@ export function ModelPicker() {
             />
           </View>
         </View>
+
+        {/* Loading indicator */}
+        {isLoadingModels && (
+          <View className="py-3 items-center">
+            <Text className="text-on-surface-variant text-[12px]">Loading models...</Text>
+          </View>
+        )}
+
+        {/* Empty state */}
+        {configuredProviderIds.length === 0 && (
+          <View className="py-8 items-center px-6">
+            <Text className="text-on-surface-variant text-[13px] text-center">
+              No API keys configured. Add a key in Settings → API Keys.
+            </Text>
+          </View>
+        )}
       </>
     ),
-    [searchQuery, closeModelPicker]
+    [searchQuery, closeModelPicker, configuredProviderIds, activeTab, isLoadingModels]
   );
 
   if (!isOpen) return null;
@@ -253,7 +298,7 @@ export function ModelPicker() {
       android_keyboardInputMode="adjustResize"
     >
       <BottomSheetFlatList
-        data={flatData}
+        data={filteredModels}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         ListHeaderComponent={ListHeader}

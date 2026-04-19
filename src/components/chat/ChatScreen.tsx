@@ -17,7 +17,7 @@ import {
   touchConversation,
 } from '@/lib/db/conversations';
 import { getApiKey } from '@/lib/storage/secure';
-import { OpenRouterProvider } from '@/lib/providers/openrouter';
+import { getProvider, registerBuiltInProviders, listProviders } from '@/lib/providers/registry';
 import { useRouter } from 'expo-router';
 import type { Message } from '@/types';
 
@@ -34,6 +34,7 @@ export function ChatScreen({ conversationId }: ChatScreenProps) {
   const openDrawer = useUIStore((s) => s.openDrawer);
   const setActiveConversation = useUIStore((s) => s.setActiveConversation);
   const lastModel = useSettingsStore((s) => s.lastModel);
+  const lastProvider = useSettingsStore((s) => s.lastProvider);
 
   const {
     isStreaming,
@@ -43,6 +44,13 @@ export function ChatScreen({ conversationId }: ChatScreenProps) {
     stopStreaming,
     setError,
   } = useChatStore();
+
+  // Ensure providers are registered
+  useEffect(() => {
+    if (listProviders().length === 0) {
+      registerBuiltInProviders();
+    }
+  }, []);
 
   // Sync internal state when prop changes (e.g. navigating to a different conversation)
   useEffect(() => {
@@ -63,10 +71,16 @@ export function ChatScreen({ conversationId }: ChatScreenProps) {
 
   const handleSend = useCallback(
     async (text: string) => {
-      const apiKey = await getApiKey('openrouter');
+      // Resolve provider: use lastProvider or fall back to 'openrouter'
+      const providerId = lastProvider || 'openrouter';
+      const apiKey = await getApiKey(providerId);
       if (!apiKey) return;
 
-      const model = lastModel || 'google/gemini-2.0-flash-exp:free';
+      const provider = getProvider(providerId);
+      if (!provider) return;
+
+      // Resolve model: use lastModel or provider-specific default
+      const model = lastModel || getDefaultModel(providerId);
       let convId = currentConvId;
 
       // Create new conversation if needed — NO navigation, just update state
@@ -123,7 +137,6 @@ export function ChatScreen({ conversationId }: ChatScreenProps) {
       );
 
       // Start streaming
-      const provider = new OpenRouterProvider();
       let accumulated = '';
       let accumulatedReasoning = '';
 
@@ -178,7 +191,7 @@ export function ChatScreen({ conversationId }: ChatScreenProps) {
 
       abortRef.current = response;
     },
-    [currentConvId, lastModel, startStreaming, appendToken, appendReasoningToken, stopStreaming, setError, setActiveConversation]
+    [currentConvId, lastModel, lastProvider, startStreaming, appendToken, appendReasoningToken, stopStreaming, setError, setActiveConversation]
   );
 
   const handleStop = useCallback(() => {
@@ -256,4 +269,19 @@ export function ChatScreen({ conversationId }: ChatScreenProps) {
       <InputBar onSend={handleSend} onStop={handleStop} />
     </KeyboardAvoidingView>
   );
+}
+
+function getDefaultModel(providerId: string): string {
+  switch (providerId) {
+    case 'openrouter':
+      return 'google/gemini-2.0-flash-exp:free';
+    case 'google-ai':
+      return 'gemini-2.0-flash';
+    case 'anthropic':
+      return 'claude-3-5-haiku-20241022';
+    case 'minimax':
+      return 'MiniMax-M1-40k';
+    default:
+      return 'google/gemini-2.0-flash-exp:free';
+  }
 }
