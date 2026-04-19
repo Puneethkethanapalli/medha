@@ -92,7 +92,7 @@ export class OpenRouterProvider implements AIProvider {
       id: m.id as string,
       name: (m.name as string) || (m.id as string),
       provider: 'openrouter',
-      pricing: m.pricing ? { prompt: m.pricing[0], completion: m.pricing[1] } : undefined,
+      pricing: parsePricing(m.pricing),
     }));
   }
 
@@ -110,4 +110,27 @@ export class OpenRouterProvider implements AIProvider {
       return false;
     }
   }
+}
+
+function parsePricing(pricing: unknown) {
+  if (!pricing) {
+    return undefined;
+  }
+
+  if (Array.isArray(pricing)) {
+    return {
+      prompt: Number(pricing[0] ?? 0),
+      completion: Number(pricing[1] ?? 0),
+    };
+  }
+
+  if (typeof pricing === 'object') {
+    const value = pricing as { prompt?: unknown; completion?: unknown };
+    return {
+      prompt: Number(value.prompt ?? 0),
+      completion: Number(value.completion ?? 0),
+    };
+  }
+
+  return undefined;
 }

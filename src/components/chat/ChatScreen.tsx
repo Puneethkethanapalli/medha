@@ -6,11 +6,11 @@ import { ModelPill } from '@/components/chat/ModelPill';
 import { MessageList } from '@/components/chat/MessageList';
 import { InputBar } from '@/components/chat/InputBar';
 import { EmptyState } from '@/components/chat/EmptyState';
+import { Toast } from '@/components/common/Toast';
 import { useChatStore } from '@/stores/chat-store';
 import { useUIStore } from '@/stores/ui-store';
 import { useSettingsStore } from '@/stores/settings-store';
-import { getMessages } from '@/lib/db/messages';
-import { addMessage, updateMessage } from '@/lib/db/messages';
+import { addMessage, getMessages, updateMessage } from '@/lib/db/messages';
 import {
   createConversation,
   updateConversation,
@@ -37,7 +37,6 @@ export function ChatScreen({ conversationId }: ChatScreenProps) {
   const lastProvider = useSettingsStore((s) => s.lastProvider);
 
   const {
-    isStreaming,
     startStreaming,
     appendToken,
     appendReasoningToken,
@@ -161,7 +160,6 @@ export function ChatScreen({ conversationId }: ChatScreenProps) {
             status: 'complete',
           });
           touchConversation(convId!);
-          stopStreaming();
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantMsgId
@@ -169,6 +167,7 @@ export function ChatScreen({ conversationId }: ChatScreenProps) {
                 : m
             )
           );
+          stopStreaming();
         },
         // onError
         (error) => {
@@ -269,6 +268,7 @@ export function ChatScreen({ conversationId }: ChatScreenProps) {
 
       {/* Input */}
       <InputBar onSend={handleSend} onStop={handleStop} />
+      <Toast bottomOffset={Math.max(insets.bottom, 12) + 84} />
     </KeyboardAvoidingView>
   );
 }

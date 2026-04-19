@@ -26,10 +26,11 @@ export async function getBiometricStatus(): Promise<BiometricStatus> {
 
   let level: BiometricLevel;
   switch (supportedLevel) {
-    case LocalAuthentication.EnrolledLevel.BIOMETRIC_STRONG:
+    case LocalAuthentication.SecurityLevel.BIOMETRIC_STRONG:
       level = 'strong';
       break;
-    case LocalAuthentication.EnrolledLevel.BIOMETRIC_WEAK:
+    case LocalAuthentication.SecurityLevel.BIOMETRIC_WEAK:
+    case LocalAuthentication.SecurityLevel.BIOMETRIC:
       level = 'some';
       break;
     default:
@@ -70,6 +71,7 @@ export async function authenticateWithBiometric(
       fallbackLabel: 'Use Device Passcode',
       cancelLabel: 'Cancel',
       disableDeviceFallback: false,
+      biometricsSecurityLevel: 'strong',
     });
 
     if (result.success) {
@@ -85,8 +87,6 @@ export async function authenticateWithBiometric(
         return { success: false, error: 'System cancelled authentication' };
       case 'lockout':
         return { success: false, error: 'Too many attempts. Please try again later.' };
-      case 'lockout_permanent':
-        return { success: false, error: 'Biometric authentication is permanently locked. Use device passcode.' };
       default:
         return { success: false, error: 'Authentication failed' };
     }

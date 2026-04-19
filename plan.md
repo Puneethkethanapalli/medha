@@ -602,25 +602,25 @@ CREATE INDEX idx_conversations_updated ON conversations(updated_at DESC);
 > **Design refs:** `generated designs/markdown_rendering_showcase/`
 
 #### Tasks
-- [ ] **5.1** Install markdown renderer
+- [x] **5.1** Install markdown renderer
   - `npm install react-native-marked`
   - `react-native-markdown-display` is unmaintained and legacy-arch — do not use
   - `react-native-marked` is Fabric-native and renders without blocking the JS thread
   - Must support: headings, bold, italic, code (inline + block), lists, tables, links, blockquotes
-- [ ] **5.2** Add syntax highlighting for code blocks
+- [x] **5.2** Add syntax highlighting for code blocks
   - `npm install react-native-syntax-highlighter`
   - Dark theme code blocks (monokai/dracula style)
   - Language label at top of code block
   - Copy button on code blocks
-- [ ] **5.3** Style markdown to match generated design
+- [x] **5.3** Style markdown to match generated design
   - **Visual ref:** `generated designs/markdown_rendering_showcase/screen.png` + `code.html`
   - Implement per the generated design using rn-reusables components from `src/components/ui/` where applicable
   - Syntax colors: keywords (#C084FC), strings (#86EFAC), comments (#71717A), functions (#93C5FD)
-- [ ] **5.4** Handle streaming + markdown
+- [x] **5.4** Handle streaming + markdown
   - Markdown renders progressively as tokens arrive
   - Incomplete markdown (unclosed code block) handled gracefully
   - No flicker during re-renders
-- [ ] **5.5** Copy message button
+- [x] **5.5** Copy message button
   - Long-press or tap copy icon → copy raw markdown to clipboard
   - Toast notification "Copied to clipboard" (ref: `generated designs/toast_notifications_showcase/`)
   - Toast: white pill floating above input bar, `lucide Check` + text, 2s auto-dismiss
@@ -638,10 +638,13 @@ CREATE INDEX idx_conversations_updated ON conversations(updated_at DESC);
 ```
 
 #### 📗 Things Learned
-- (fill after completing)
+- `react-native-marked` exports `useMarkdown`, which is a better fit inside chat `FlatList` rows than nesting the package's own `Markdown` FlatList component.
+- `react-native-marked` theme spacing keys are only `xs`, `s`, `m`, and `l`.
+- `react-native-syntax-highlighter` does not ship TypeScript declarations, so the app needs a small local module declaration.
+- Streaming fenced code blocks render more gracefully when the displayed markdown temporarily appends the missing closing fence. The raw stored/copied message remains unchanged.
 
 #### 📕 Mistakes Made
-- (fill after completing)
+- `expo lint` auto-installed ESLint on first run, then needed to be run again after the package install completed before it could resolve `eslint`.
 
 #### 📘 Things to Remember
 - Streaming markdown will have incomplete syntax mid-stream — renderer must handle gracefully

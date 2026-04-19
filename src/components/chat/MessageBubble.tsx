@@ -1,9 +1,13 @@
 import React from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import LottieView from 'lottie-react-native';
+import { Copy } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useStreamingContent, useStreamingReasoning } from '@/stores/chat-store';
+import { useUIStore } from '@/stores/ui-store';
 import { ThinkingBlock } from './ThinkingBlock';
+import { MarkdownMessage } from './MarkdownMessage';
 import type { Message } from '@/types';
 
 const waitingAnimation = require('../../../lottie/glow waiting.json');
@@ -51,22 +55,34 @@ function AssistantStatusMark({ status }: { status: Message['status'] }) {
 export const MessageBubble = React.memo(function MessageBubble({ message }: MessageBubbleProps) {
   const streamingContent = useStreamingContent(message.id);
   const streamingReasoning = useStreamingReasoning(message.id);
+  const showToast = useUIStore((s) => s.showToast);
   const isStreaming = message.status === 'streaming';
   const displayContent = isStreaming ? streamingContent : message.content;
   const displayReasoning = isStreaming ? streamingReasoning : message.reasoning;
   const isUser = message.role === 'user';
 
+  const copyContent = React.useCallback(async () => {
+    const content = isUser ? message.content : displayContent;
+    if (!content) {
+      return;
+    }
+
+    await Clipboard.setStringAsync(content);
+    showToast('Copied to clipboard');
+  }, [displayContent, isUser, message.content, showToast]);
+
   if (isUser) {
     return (
       <View className="flex-col items-end w-full mb-6">
-        <View
+        <Pressable
+          onLongPress={copyContent}
           className="bg-surface-container-low border border-outline-variant/20 px-4 py-3 max-w-[85%]"
           style={{ borderRadius: 16, borderBottomRightRadius: 4 }}
         >
           <Text className="text-foreground text-[14px] leading-relaxed">
             {message.content}
           </Text>
-        </View>
+        </Pressable>
       </View>
     );
   }
@@ -91,9 +107,7 @@ export const MessageBubble = React.memo(function MessageBubble({ message }: Mess
         {/* Content */}
         {(displayContent || !isReasoningOnly) && (
           <View className="w-full">
-            <Text className="text-foreground text-[15px] leading-relaxed">
-              {displayContent}
-            </Text>
+            <MarkdownMessage content={displayContent} isStreaming={isStreaming} />
           </View>
         )}
 
@@ -103,6 +117,20 @@ export const MessageBubble = React.memo(function MessageBubble({ message }: Mess
             <Text className="text-destructive text-[13px]">
               Failed to generate response
             </Text>
+          </View>
+        )}
+
+        {!!displayContent && (
+          <View className="mt-1 flex-row items-center gap-2 pt-1">
+            <Pressable
+              accessibilityLabel="Copy message"
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={copyContent}
+              className="h-7 w-7 items-center justify-center rounded-md"
+            >
+              <Copy size={15} color="hsl(0, 0%, 44%)" strokeWidth={2} />
+            </Pressable>
           </View>
         )}
       </View>
