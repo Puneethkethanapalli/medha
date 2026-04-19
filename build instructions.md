@@ -30,6 +30,7 @@ npx expo run:android
 npx expo export --platform android
 
 # 4. Build release APK (standalone, no Metro required)
+npx expo prebuild --platform android
 cd android && ./gradlew assembleRelease
 ```
 
