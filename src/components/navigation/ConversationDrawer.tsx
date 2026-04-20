@@ -3,6 +3,7 @@ import { View, Pressable, TextInput, FlatList, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
 import { PenSquare, Search, Pin, MessageCircle, Settings } from 'lucide-react-native';
+import { MedhaLogo } from '@/components/branding/MedhaLogo';
 import { getConversations, deleteConversation } from '@/lib/db/conversations';
 import type { Conversation } from '@/types';
 
@@ -159,7 +160,12 @@ export function ConversationDrawer({
     <View className="flex-1 bg-background p-4" style={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom }}>
       {/* Header */}
       <View className="flex-row items-center justify-between pb-4 border-b border-outline-variant/20">
-        <Text className="text-foreground text-[18px] font-semibold">Medha</Text>
+        <View className="flex-row items-center gap-3">
+          <View className="h-10 w-10 items-center justify-center rounded-xl border border-outline-variant/20 bg-[#09090B]">
+            <MedhaLogo size={20} />
+          </View>
+          <Text className="text-foreground text-[18px] font-semibold">Medha</Text>
+        </View>
         <Pressable
           onPress={onNewChat}
           className="flex-row items-center bg-surface-container-low border border-outline-variant/20 rounded-full px-3 py-1.5 gap-1.5 active:opacity-70"

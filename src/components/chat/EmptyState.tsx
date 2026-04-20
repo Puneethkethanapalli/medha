@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Pressable } from 'react-native';
 import { Text } from '@/components/ui/text';
-import { Sparkles, Code, FileText, Lightbulb, Languages } from 'lucide-react-native';
+import { Code, FileText, Lightbulb, Languages } from 'lucide-react-native';
+import { MedhaLogo } from '@/components/branding/MedhaLogo';
 
 const SUGGESTIONS = [
   {
@@ -31,9 +32,11 @@ export function EmptyState({ onSuggestionPress }: EmptyStateProps) {
     <View className="flex-1 items-center justify-center px-6 pb-4">
       {/* Hero */}
       <View className="items-center gap-4 mb-10">
-        <Sparkles size={40} color="hsl(240, 0%, 15%)" />
+        <View className="h-14 w-14 items-center justify-center rounded-2xl border border-outline-variant/20 bg-[#09090B]">
+          <MedhaLogo size={28} />
+        </View>
         <Text className="text-foreground text-[22px] font-semibold">
-          What can I help with?
+          What can Medha help with?
         </Text>
       </View>
 

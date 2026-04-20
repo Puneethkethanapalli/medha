@@ -19,6 +19,7 @@ import { getConversations } from '@/lib/db/conversations';
 import { createConversation } from '@/lib/db/conversations';
 import { initializeDatabase } from '@/lib/db/schema';
 import type { Conversation } from '@/types';
+import { MedhaLogo } from '@/components/branding/MedhaLogo';
 import '@/global.css';
 
 const DRAWER_WIDTH = Dimensions.get('window').width * 0.85;
@@ -184,7 +185,12 @@ export default function RootLayout() {
   if (!ready) {
     return (
       <View className="flex-1 bg-background items-center justify-center" style={{ backgroundColor: '#09090B' }}>
-        <ActivityIndicator size="large" color="#FAFAFA" />
+        <View className="items-center gap-4">
+          <View className="h-16 w-16 items-center justify-center rounded-2xl border border-[#27272A] bg-[#09090B]">
+            <MedhaLogo size={28} />
+          </View>
+          <ActivityIndicator size="large" color="#FAFAFA" />
+        </View>
       </View>
     );
   }

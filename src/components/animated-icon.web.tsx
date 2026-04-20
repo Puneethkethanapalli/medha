@@ -1,8 +1,7 @@
 import { Image } from 'expo-image';
 import { StyleSheet, View } from 'react-native';
 import Animated, { Keyframe, Easing } from 'react-native-reanimated';
-
-import classes from './animated-icon.module.css';
+import { MedhaLogo } from '@/components/branding/MedhaLogo';
 const DURATION = 300;
 
 export function AnimatedSplashOverlay() {
@@ -61,12 +60,10 @@ export function AnimatedIcon() {
         <Image style={styles.glow} source={require('@/assets/images/logo-glow.png')} />
       </Animated.View>
 
-      <Animated.View style={styles.background} entering={keyframe.duration(DURATION)}>
-        <div className={classes.expoLogoBackground} />
-      </Animated.View>
+      <Animated.View style={styles.background} entering={keyframe.duration(DURATION)} />
 
       <Animated.View style={styles.imageContainer} entering={logoKeyframe.duration(DURATION)}>
-        <Image style={styles.image} source={require('@/assets/images/expo-logo.png')} />
+        <MedhaLogo size={76} />
       </Animated.View>
     </View>
   );
@@ -95,14 +92,14 @@ const styles = StyleSheet.create({
     width: 128,
     height: 128,
   },
-  image: {
-    position: 'absolute',
-    width: 76,
-    height: 71,
-  },
   background: {
     width: 128,
     height: 128,
     position: 'absolute',
+    borderRadius: 40,
+    backgroundColor: '#09090B',
+    experimental_backgroundImage: `linear-gradient(180deg, #18181B, #09090B)`,
+    borderWidth: 1,
+    borderColor: '#27272A',
   },
 });

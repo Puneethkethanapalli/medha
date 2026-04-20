@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, ActivityIndicator, KeyboardAvoidingView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Sparkles, ClipboardPaste, Check, TriangleAlert, ArrowRight, Key } from 'lucide-react-native';
+import { ClipboardPaste, Check, TriangleAlert, ArrowRight } from 'lucide-react-native';
 import { cn } from '@/lib/utils';
 import { useSettingsStore, saveProviderKey, hasAnyProviderKey } from '@/stores/settings-store';
+import { MedhaLogo } from '@/components/branding/MedhaLogo';
 import * as Clipboard from 'expo-clipboard';
 
 type ProviderId = 'openrouter' | 'google-ai' | 'anthropic' | 'minimax';
@@ -110,8 +111,8 @@ export default function OnboardingScreen() {
       <View className="flex-1 bg-surface-dim items-center justify-center p-4">
         <View className="w-full max-w-md flex flex-col gap-8 items-center">
           <View className="flex flex-col items-center justify-center gap-4 text-center">
-            <View className="w-16 h-16 rounded-2xl bg-surface-container-high items-center justify-center border border-outline-variant/20">
-              <Key size={32} className="text-primary" color="#ffffff" />
+            <View className="w-16 h-16 rounded-2xl bg-[#09090B] items-center justify-center border border-outline-variant/20">
+              <MedhaLogo size={30} />
             </View>
             <View className="space-y-2">
               <Text className="font-headline font-bold text-3xl tracking-tight text-primary">Medha AI</Text>
@@ -151,8 +152,8 @@ export default function OnboardingScreen() {
       >
         {/* Top Section */}
         <View className="flex flex-col items-center justify-end w-full h-[240px] pb-8 text-center">
-          <View className="w-12 h-12 items-center justify-center mb-4">
-            <Sparkles size={48} className="text-primary" color="#ffffff" />
+          <View className="w-20 h-20 items-center justify-center rounded-[28px] border border-outline-variant/20 bg-[#09090B] mb-4">
+            <MedhaLogo size={38} />
           </View>
           <Text className="font-headline font-bold text-[28px] text-primary leading-tight tracking-tight">Medha</Text>
           <Text className="font-body text-[14px] text-on-surface-variant mt-2">Your private AI assistant</Text>

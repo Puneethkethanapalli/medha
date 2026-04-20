@@ -4,37 +4,35 @@
     "slug": "medha",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/new-icon.jpg",
+    "icon": "./assets/images/medha-app-icon.png",
     "scheme": "medhatemp",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/medha-app-icon.png",
       "bundleIdentifier": "com.puneethkth.medha"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/new-icon.jpg",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#09090B",
+        "foregroundImage": "./assets/images/medha-mark.png",
+        "monochromeImage": "./assets/images/medha-mark.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.puneethkth.medha"
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/medha-app-icon.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
-          "android": {
-            "image": "./assets/images/splash-icon.png",
-            "imageWidth": 76
-          }
+          "backgroundColor": "#09090B",
+          "image": "./assets/images/medha-mark.png",
+          "imageWidth": 104,
+          "resizeMode": "contain"
         }
       ],
       "expo-secure-store",
