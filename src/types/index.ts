@@ -35,3 +35,22 @@ export interface Provider {
   id: string;
   name: string;
 }
+
+export interface PromptPreset {
+  id: string;
+  name: string;
+  prompt: string;
+  builtin: boolean;
+}
+
+export interface MessageSearchResult {
+  conversation_id: string;
+  conversation_title: string;
+  conversation_updated_at: number;
+  message_id: string;
+  message_content: string;
+  message_created_at: number;
+  preview: string;
+  match_start: number;
+  match_end: number;
+}

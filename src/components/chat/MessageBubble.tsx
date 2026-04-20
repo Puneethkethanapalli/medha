@@ -16,6 +16,7 @@ const STATIC_PROGRESS = 0.58;
 
 interface MessageBubbleProps {
   message: Message;
+  highlighted?: boolean;
 }
 
 function getAssistantStatusLabel(status: Message['status']) {
@@ -53,7 +54,10 @@ function AssistantStatusMark({ status }: { status: Message['status'] }) {
   );
 }
 
-export const MessageBubble = React.memo(function MessageBubble({ message }: MessageBubbleProps) {
+export const MessageBubble = React.memo(function MessageBubble({
+  message,
+  highlighted = false,
+}: MessageBubbleProps) {
   const streamingContent = useStreamingContent(message.id);
   const streamingReasoning = useStreamingReasoning(message.id);
   const showToast = useUIStore((s) => s.showToast);
@@ -77,7 +81,11 @@ export const MessageBubble = React.memo(function MessageBubble({ message }: Mess
       <View className="flex-col items-end w-full mb-4">
         <Pressable
           onLongPress={copyContent}
-          className="bg-surface-container-low border border-outline-variant/20 px-4 py-3 max-w-[85%]"
+          className={`border px-4 py-3 max-w-[85%] ${
+            highlighted
+              ? 'bg-[#202024] border-foreground/30'
+              : 'bg-surface-container-low border-outline-variant/20'
+          }`}
           style={{ borderRadius: 16, borderBottomRightRadius: 4 }}
         >
           <Text className="text-foreground text-[14px] leading-relaxed">
@@ -107,7 +115,11 @@ export const MessageBubble = React.memo(function MessageBubble({ message }: Mess
 
         {/* Content */}
         {(displayContent || !isReasoningOnly) && (
-          <View className="w-full">
+          <View
+            className={`w-full rounded-2xl ${
+              highlighted ? 'bg-surface-container-low border border-outline-variant/30 px-3 py-2' : ''
+            }`}
+          >
             <MarkdownMessage content={displayContent} isStreaming={isStreaming} />
             {isStreaming && !isReasoningOnly && <StreamingCursor />}
           </View>

@@ -16,7 +16,6 @@ import { useUIStore } from '@/stores/ui-store';
 import { ConversationDrawer } from '@/components/navigation/ConversationDrawer';
 import { ModelPicker } from '@/components/chat/ModelPicker';
 import { getConversations } from '@/lib/db/conversations';
-import { createConversation } from '@/lib/db/conversations';
 import { initializeDatabase } from '@/lib/db/schema';
 import type { Conversation } from '@/types';
 import { MedhaLogo } from '@/components/branding/MedhaLogo';
@@ -97,6 +96,11 @@ function AppContent() {
     router.push('/settings' as any);
   }, [closeDrawer, router]);
 
+  const handleOpenSearch = useCallback(() => {
+    closeDrawer();
+    router.push('/search' as any);
+  }, [closeDrawer, router]);
+
   const renderDrawerContent = useCallback(
     () => (
       <ConversationDrawer
@@ -104,6 +108,7 @@ function AppContent() {
         activeConversationId={activeConversationId}
         onSelectConversation={handleSelectConversation}
         onNewChat={handleNewChat}
+        onOpenSearch={handleOpenSearch}
         onOpenSettings={handleOpenSettings}
         onRefresh={refreshConversations}
       />
@@ -113,6 +118,7 @@ function AppContent() {
       activeConversationId,
       handleSelectConversation,
       handleNewChat,
+      handleOpenSearch,
       handleOpenSettings,
       refreshConversations,
     ]
@@ -140,8 +146,10 @@ function AppContent() {
             <Stack.Screen name="index" />
             <Stack.Screen name="chat/[id]" />
             <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="search" options={{ animation: 'fade' }} />
             <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="settings/api-keys" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="settings/system-prompts" options={{ animation: 'slide_from_right' }} />
           </Stack>
         </DrawerLayout>
         <ModelPicker />
@@ -180,7 +188,7 @@ export default function RootLayout() {
     };
 
     init();
-  }, [segments, isInitialized]);
+  }, [initialize, isInitialized, router, segments]);
 
   if (!ready) {
     return (

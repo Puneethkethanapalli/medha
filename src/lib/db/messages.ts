@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from './schema';
-import type { Message } from '../../types';
+import type { Message, MessageSearchResult } from '../../types';
 
 export function addMessage(
   conversationId: string,
@@ -73,4 +73,114 @@ export function deleteMessagesAfter(conversationId: string, createdAt: number): 
     'DELETE FROM messages WHERE conversation_id = ? AND created_at > ?',
     [conversationId, createdAt]
   );
+}
+
+interface SearchMessageRow {
+  conversation_id: string;
+  conversation_title: string;
+  conversation_updated_at: number;
+  message_id: string;
+  message_content: string;
+  message_created_at: number;
+}
+
+export function searchConversationMessages(query: string, limit: number = 50): MessageSearchResult[] {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) {
+    return [];
+  }
+
+  const db = getDatabase();
+  const escapedQuery = escapeLikePattern(trimmedQuery);
+  const rows = db.getAllSync<SearchMessageRow>(
+    `SELECT
+       m.conversation_id AS conversation_id,
+       c.title AS conversation_title,
+       c.updated_at AS conversation_updated_at,
+       m.id AS message_id,
+       m.content AS message_content,
+       m.created_at AS message_created_at
+     FROM messages m
+     INNER JOIN conversations c ON c.id = m.conversation_id
+     WHERE m.role != 'system'
+       AND LENGTH(TRIM(m.content)) > 0
+       AND LOWER(m.content) LIKE '%' || LOWER(?) || '%' ESCAPE '\\'
+     ORDER BY c.updated_at DESC, m.created_at DESC
+     LIMIT ?`,
+    [escapedQuery, limit * 4]
+  );
+
+  const results: MessageSearchResult[] = [];
+  const seenConversationIds = new Set<string>();
+
+  for (const row of rows) {
+    if (seenConversationIds.has(row.conversation_id)) {
+      continue;
+    }
+
+    const preview = buildSearchPreview(row.message_content, trimmedQuery);
+    if (!preview) {
+      continue;
+    }
+
+    seenConversationIds.add(row.conversation_id);
+    results.push({
+      conversation_id: row.conversation_id,
+      conversation_title: row.conversation_title,
+      conversation_updated_at: row.conversation_updated_at,
+      message_id: row.message_id,
+      message_content: row.message_content,
+      message_created_at: row.message_created_at,
+      preview: preview.text,
+      match_start: preview.matchStart,
+      match_end: preview.matchEnd,
+    });
+
+    if (results.length >= limit) {
+      break;
+    }
+  }
+
+  return results;
+}
+
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, '\\$&');
+}
+
+function buildSearchPreview(content: string, query: string) {
+  const normalizedContent = content.replace(/\s+/g, ' ').trim();
+  const normalizedQuery = query.replace(/\s+/g, ' ').trim();
+
+  if (!normalizedContent || !normalizedQuery) {
+    return null;
+  }
+
+  const lowerContent = normalizedContent.toLowerCase();
+  const lowerQuery = normalizedQuery.toLowerCase();
+  const matchIndex = lowerContent.indexOf(lowerQuery);
+
+  if (matchIndex === -1) {
+    return null;
+  }
+
+  const contextBefore = 36;
+  const contextAfter = 56;
+  const start = Math.max(0, matchIndex - contextBefore);
+  const end = Math.min(
+    normalizedContent.length,
+    matchIndex + normalizedQuery.length + contextAfter
+  );
+
+  let preview = normalizedContent.slice(start, end).trim();
+  const prefix = start > 0 ? '...' : '';
+  const suffix = end < normalizedContent.length ? '...' : '';
+
+  preview = `${prefix}${preview}${suffix}`;
+
+  return {
+    text: preview,
+    matchStart: prefix.length + (matchIndex - start),
+    matchEnd: prefix.length + (matchIndex - start) + normalizedQuery.length,
+  };
 }

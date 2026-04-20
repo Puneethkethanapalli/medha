@@ -1,10 +1,10 @@
-import React, { useMemo, useCallback, useState } from 'react';
-import { View, Pressable, TextInput, FlatList, Alert } from 'react-native';
+import React, { useMemo, useCallback } from 'react';
+import { View, Pressable, FlatList, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
 import { PenSquare, Search, Pin, MessageCircle, Settings } from 'lucide-react-native';
 import { MedhaLogo } from '@/components/branding/MedhaLogo';
-import { getConversations, deleteConversation } from '@/lib/db/conversations';
+import { deleteConversation } from '@/lib/db/conversations';
 import type { Conversation } from '@/types';
 
 interface ConversationDrawerProps {
@@ -12,6 +12,7 @@ interface ConversationDrawerProps {
   activeConversationId: string | null;
   onSelectConversation: (id: string) => void;
   onNewChat: () => void;
+  onOpenSearch: () => void;
   onOpenSettings: () => void;
   onRefresh: () => void;
 }
@@ -22,7 +23,6 @@ interface GroupedConversations {
 }
 
 function groupByDate(conversations: Conversation[]): GroupedConversations[] {
-  const now = Date.now();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayStart = today.getTime();
@@ -117,22 +117,11 @@ export function ConversationDrawer({
   activeConversationId,
   onSelectConversation,
   onNewChat,
+  onOpenSearch,
   onOpenSettings,
   onRefresh,
 }: ConversationDrawerProps) {
-  const [searchQuery, setSearchQuery] = useState('');
   const grouped = useMemo(() => groupByDate(conversations), [conversations]);
-
-  const filteredGroups = useMemo(() => {
-    if (!searchQuery.trim()) return grouped;
-    const q = searchQuery.toLowerCase();
-    return grouped
-      .map((g) => ({
-        ...g,
-        data: g.data.filter((c) => c.title.toLowerCase().includes(q)),
-      }))
-      .filter((g) => g.data.length > 0);
-  }, [grouped, searchQuery]);
 
   const handleDelete = useCallback(
     (id: string) => {
@@ -144,15 +133,18 @@ export function ConversationDrawer({
 
   // Flatten for FlatList
   const flatData = useMemo(() => {
-    const items: Array<{ type: 'header'; label: string } | { type: 'item'; conversation: Conversation }> = [];
-    for (const group of filteredGroups) {
+    const items: (
+      | { type: 'header'; label: string }
+      | { type: 'item'; conversation: Conversation }
+    )[] = [];
+    for (const group of grouped) {
       items.push({ type: 'header', label: group.label });
       for (const conv of group.data) {
         items.push({ type: 'item', conversation: conv });
       }
     }
     return items;
-  }, [filteredGroups]);
+  }, [grouped]);
 
   const insets = useSafeAreaInsets();
 
@@ -177,16 +169,15 @@ export function ConversationDrawer({
 
       {/* Search */}
       <View className="py-4 border-b border-outline-variant/20">
-        <View className="flex-row items-center bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2">
+        <Pressable
+          onPress={onOpenSearch}
+          className="flex-row items-center bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 active:opacity-80"
+        >
           <Search size={18} color="hsl(0, 0%, 44%)" />
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search conversations..."
-            placeholderTextColor="hsl(0, 0%, 44%)"
-            className="flex-1 text-foreground text-[13px] ml-2 p-0"
-          />
-        </View>
+          <Text className="flex-1 text-on-surface-variant text-[13px] ml-2">
+            Search messages...
+          </Text>
+        </Pressable>
       </View>
 
       {/* Conversation List */}

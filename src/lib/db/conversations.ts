@@ -43,7 +43,7 @@ export function updateConversation(
 ): void {
   const db = getDatabase();
   const sets: string[] = [];
-  const values: (string | number)[] = [];
+  const values: (string | number | null)[] = [];
 
   if (fields.title !== undefined) {
     sets.push('title = ?');
@@ -51,11 +51,11 @@ export function updateConversation(
   }
   if (fields.model !== undefined) {
     sets.push('model = ?');
-    values.push(fields.model ?? '');
+    values.push(fields.model ?? null);
   }
   if (fields.system_prompt !== undefined) {
     sets.push('system_prompt = ?');
-    values.push(fields.system_prompt ?? '');
+    values.push(fields.system_prompt ?? null);
   }
   if (fields.pinned !== undefined) {
     sets.push('pinned = ?');

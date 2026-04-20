@@ -14,6 +14,9 @@ import type { Message } from '@/types';
 
 interface MessageListProps {
   messages: Message[];
+  targetMessageId?: string | null;
+  targetRequestKey?: string | null;
+  highlightedMessageId?: string | null;
 }
 
 // ─── Scroll thresholds ──────────────────────────────────────────────────
@@ -26,9 +29,16 @@ const SCROLL_AWAY_THRESHOLD = 8;
 /** Content must exceed viewport by this much before we show the jump button. */
 const JUMP_BUTTON_THRESHOLD = 64;
 
-export function MessageList({ messages }: MessageListProps) {
+export function MessageList({
+  messages,
+  targetMessageId = null,
+  targetRequestKey = null,
+  highlightedMessageId = null,
+}: MessageListProps) {
   const flatListRef = useRef<FlatList<Message>>(null);
   const scrollFrameRef = useRef<number | null>(null);
+  const pendingScrollTargetRef = useRef<string | null>(null);
+  const lastAppliedTargetKeyRef = useRef<string | null>(null);
   const shouldFollowBottomRef = useRef(true);
   const isUserScrollingRef = useRef(false);
   const dragStartOffsetYRef = useRef(0);
@@ -84,6 +94,29 @@ export function MessageList({ messages }: MessageListProps) {
     });
   }, []);
 
+  const scrollToMessage = useCallback(
+    (messageId: string, animated: boolean) => {
+      const index = messages.findIndex((message) => message.id === messageId);
+      if (index === -1) {
+        return false;
+      }
+
+      pendingScrollTargetRef.current = messageId;
+      isUserScrollingRef.current = false;
+      shouldFollowBottomRef.current = false;
+      setJumpButtonVisible(hasScrollableContent());
+
+      flatListRef.current?.scrollToIndex({
+        index,
+        animated,
+        viewPosition: 0.28,
+      });
+
+      return true;
+    },
+    [hasScrollableContent, messages, setJumpButtonVisible]
+  );
+
   // Clean up pending RAF on unmount
   useEffect(() => {
     return () => {
@@ -104,6 +137,30 @@ export function MessageList({ messages }: MessageListProps) {
       scrollToBottom(false);
     }
   }, [messages, scrollToBottom, setFollowBottom]);
+
+  useEffect(() => {
+    const targetKey = targetMessageId
+      ? `${targetMessageId}:${targetRequestKey ?? ''}`
+      : null;
+
+    if (!targetMessageId || !targetKey) {
+      lastAppliedTargetKeyRef.current = null;
+      return;
+    }
+
+    if (lastAppliedTargetKeyRef.current === targetKey) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      const didScroll = scrollToMessage(targetMessageId, true);
+      if (didScroll) {
+        lastAppliedTargetKeyRef.current = targetKey;
+      }
+    }, 90);
+
+    return () => clearTimeout(timeout);
+  }, [messages, scrollToMessage, targetMessageId, targetRequestKey]);
 
   // ─── New message appended → follow if at bottom ────────────────────
 
@@ -200,8 +257,13 @@ export function MessageList({ messages }: MessageListProps) {
   // ─── Renderers ─────────────────────────────────────────────────────
 
   const renderItem = useCallback(
-    ({ item }: { item: Message }) => <MessageBubble message={item} />,
-    []
+    ({ item }: { item: Message }) => (
+      <MessageBubble
+        message={item}
+        highlighted={item.id === highlightedMessageId}
+      />
+    ),
+    [highlightedMessageId]
   );
 
   const keyExtractor = useCallback((item: Message) => item.id, []);
@@ -224,6 +286,15 @@ export function MessageList({ messages }: MessageListProps) {
         onScrollBeginDrag={handleScrollBeginDrag}
         onScrollEndDrag={handleScrollEndDrag}
         onMomentumScrollEnd={handleMomentumScrollEnd}
+        onScrollToIndexFailed={({ index }) => {
+          setTimeout(() => {
+            flatListRef.current?.scrollToIndex({
+              index,
+              animated: true,
+              viewPosition: 0.28,
+            });
+          }, 120);
+        }}
         scrollEventThrottle={16}
       />
 

@@ -14,6 +14,7 @@ import { useSettingsStore } from '@/stores/settings-store';
 import { addMessage, getMessages, updateMessage } from '@/lib/db/messages';
 import {
   createConversation,
+  getConversation,
   updateConversation,
   touchConversation,
 } from '@/lib/db/conversations';
@@ -24,12 +25,19 @@ import type { Message } from '@/types';
 
 interface ChatScreenProps {
   conversationId: string | null;
+  focusMessageId?: string | null;
+  focusRequestKey?: string | null;
 }
 
-export function ChatScreen({ conversationId }: ChatScreenProps) {
+export function ChatScreen({
+  conversationId,
+  focusMessageId = null,
+  focusRequestKey = null,
+}: ChatScreenProps) {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentConvId, setCurrentConvId] = useState<string | null>(conversationId);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const abortRef = useRef<{ abort: () => void } | null>(null);
 
   const openDrawer = useUIStore((s) => s.openDrawer);
@@ -69,6 +77,22 @@ export function ChatScreen({ conversationId }: ChatScreenProps) {
     }
   }, [currentConvId, setActiveConversation]);
 
+  useEffect(() => {
+    if (!focusMessageId) {
+      setHighlightedMessageId(null);
+      return;
+    }
+
+    setHighlightedMessageId(focusMessageId);
+    const timeout = setTimeout(() => {
+      setHighlightedMessageId((current) =>
+        current === focusMessageId ? null : current
+      );
+    }, 2600);
+
+    return () => clearTimeout(timeout);
+  }, [focusMessageId, focusRequestKey]);
+
   const handleSend = useCallback(
     async (text: string) => {
       // Resolve provider: use lastProvider or fall back to 'openrouter'
@@ -90,6 +114,9 @@ export function ChatScreen({ conversationId }: ChatScreenProps) {
         setCurrentConvId(convId);
         setActiveConversation(convId);
       }
+
+      const conversation = getConversation(convId);
+      const systemPrompt = conversation?.system_prompt?.trim() || undefined;
 
       // Save user message to SQLite
       const userMsgId = addMessage(convId, 'user', text, model);
@@ -150,7 +177,7 @@ export function ChatScreen({ conversationId }: ChatScreenProps) {
 
       const response = provider.stream(
         fullMessages,
-        { model, apiKey },
+        { model, apiKey, systemPrompt },
         // onContent
         (token) => {
           fireFirstTokenHaptic();
@@ -271,7 +298,12 @@ export function ChatScreen({ conversationId }: ChatScreenProps) {
       {/* Content */}
       <View className="flex-1">
         {hasMessages ? (
-          <MessageList messages={messages} />
+          <MessageList
+            messages={messages}
+            targetMessageId={focusMessageId}
+            targetRequestKey={focusRequestKey}
+            highlightedMessageId={highlightedMessageId}
+          />
         ) : (
           <EmptyState onSuggestionPress={handleSuggestion} />
         )}

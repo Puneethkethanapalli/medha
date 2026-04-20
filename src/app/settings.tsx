@@ -4,9 +4,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
 import { ArrowLeft, Key, MessageSquare, Palette } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { useUIStore } from '@/stores/ui-store';
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const activeConversationId = useUIStore((s) => s.activeConversationId);
 
   const settingsItems = [
     {
@@ -19,7 +21,12 @@ export default function SettingsScreen() {
       icon: MessageSquare,
       label: 'System Prompts',
       description: 'Manage system prompt presets',
-      onPress: () => {}, // Sprint 6
+      onPress: () =>
+        router.push(
+          activeConversationId
+            ? ({ pathname: '/settings/system-prompts', params: { conversationId: activeConversationId } } as any)
+            : ('/settings/system-prompts' as any)
+        ),
     },
     {
       icon: Palette,
