@@ -5,6 +5,7 @@ import { ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { PortalHost } from '@rn-primitives/portal';
+import { useColorScheme } from 'nativewind';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Drawer as DrawerLayout } from 'react-native-drawer-layout';
@@ -25,10 +26,16 @@ const DRAWER_WIDTH = Dimensions.get('window').width * 0.85;
 
 function AppContent() {
   const currentTheme = useSettingsStore((s) => s.theme);
-  // Map our theme to NativeWind's expected scheme for nav theme
+  const { setColorScheme } = useColorScheme();
+
+  // Sync NativeWind color scheme with our theme
   const resolvedScheme = currentTheme === 'light' ? 'light' : 'dark';
-  // CSS class: 'dark' for dark/oled, 'light' for light, 'oled' for oled
-  const themeClass = currentTheme === 'light' ? '' : currentTheme === 'oled' ? 'oled' : 'dark';
+  useEffect(() => {
+    setColorScheme(resolvedScheme);
+  }, [resolvedScheme, setColorScheme]);
+
+  // CSS class: '' for light (:root), 'dark' for dark, 'dark oled' for OLED
+  const themeClass = currentTheme === 'light' ? '' : currentTheme === 'oled' ? 'dark oled' : 'dark';
   const router = useRouter();
 
   const drawerOpen = useUIStore((s) => s.drawerOpen);

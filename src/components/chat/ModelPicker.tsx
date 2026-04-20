@@ -53,8 +53,20 @@ export function ModelPicker() {
   const closeModelPicker = useUIStore((s) => s.closeModelPicker);
   const lastModel = useSettingsStore((s) => s.lastModel);
   const lastProvider = useSettingsStore((s) => s.lastProvider);
+  const currentTheme = useSettingsStore((s) => s.theme);
   const setLastModel = useSettingsStore((s) => s.setLastModel);
   const setLastProvider = useSettingsStore((s) => s.setLastProvider);
+
+  // Theme-aware colors
+  const isLight = currentTheme === 'light';
+  const colors = {
+    bg: isLight ? '#FFFFFF' : currentTheme === 'oled' ? '#000000' : '#0D0D0F',
+    handle: isLight ? '#D4D4D8' : '#27272A',
+    icon: isLight ? 'hsl(240, 4%, 46%)' : 'hsl(0, 0%, 63%)',
+    text: isLight ? '#09090B' : '#FAFAFA',
+    placeholder: isLight ? 'hsl(240, 4%, 60%)' : 'hsl(0, 0%, 44%)',
+    searchBg: isLight ? '#F4F4F5' : undefined, // undefined = uses className
+  };
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<string | null>(null);
@@ -191,7 +203,7 @@ export function ModelPicker() {
           >
             {item.name}
           </Text>
-          {isSelected && <Check size={18} color="hsl(0, 0%, 98%)" />}
+          {isSelected && <Check size={18} color={colors.text} />}
         </Pressable>
       );
     },
@@ -210,7 +222,7 @@ export function ModelPicker() {
             onPress={() => { closeModelPicker(); setSearchQuery(''); }}
             className="p-1 rounded-full active:bg-surface-container"
           >
-            <X size={20} color="hsl(0, 0%, 63%)" />
+            <X size={20} color={colors.icon} />
           </Pressable>
         </View>
 
@@ -253,15 +265,15 @@ export function ModelPicker() {
         {/* Search */}
         <View className="px-4 pb-2">
           <View className="flex-row items-center bg-surface-container rounded-lg h-10 px-3">
-            <Search size={16} color="hsl(0, 0%, 63%)" />
+            <Search size={16} color={colors.icon} />
             <BottomSheetTextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholder="Search models..."
-              placeholderTextColor="hsl(0, 0%, 44%)"
+              placeholderTextColor={colors.placeholder}
               style={{
                 flex: 1,
-                color: '#FAFAFA',
+                color: colors.text,
                 fontSize: 13,
                 marginLeft: 8,
                 padding: 0,
@@ -300,8 +312,8 @@ export function ModelPicker() {
       onChange={handleSheetChange}
       enablePanDownToClose
       backdropComponent={renderBackdrop}
-      handleIndicatorStyle={{ backgroundColor: 'hsl(0, 0%, 17%)', width: 40 }}
-      backgroundStyle={{ backgroundColor: 'hsl(240, 0%, 5%)' }}
+      handleIndicatorStyle={{ backgroundColor: colors.handle, width: 40 }}
+      backgroundStyle={{ backgroundColor: colors.bg }}
       keyboardBehavior="interactive"
       android_keyboardInputMode="adjustResize"
     >

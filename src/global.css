@@ -4,48 +4,7 @@
 
 @layer base {
   :root {
-    --background: 240 3.7% 7.5%;
-    --foreground: 0 0% 98%;
-    --card: 240 3.7% 7.5%;
-    --card-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 4%;
-    --secondary: 255 6% 77%;
-    --secondary-foreground: 240 5% 10%;
-    --muted: 0 0% 9%;
-    --muted-foreground: 240 4% 65%;
-    --accent: 240 3.7% 11%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 0% 93%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 0% 15%;
-    --input: 240 0% 15%;
-    --ring: 0 0% 98%;
-    --radius: 0.625rem;
-    /* Nova surface hierarchy */
-    --surface: 240 3.7% 7.5%;
-    --surface-dim: 240 3.7% 7.5%;
-    --surface-container-lowest: 240 0% 5%;
-    --surface-container-low: 240 3.7% 11%;
-    --surface-container: 240 2.4% 13%;
-    --surface-container-high: 240 0% 17%;
-    --surface-container-highest: 240 0% 21%;
-    --surface-bright: 240 0% 22%;
-    --surface-variant: 240 0% 21%;
-    /* Nova semantic colors */
-    --on-surface: 280 6% 90%;
-    --on-surface-variant: 0 0% 78%;
-    --on-secondary: 240 5% 10%;
-    --on-tertiary: 240 40% 10%;
-    --outline: 0 0% 57%;
-    --outline-variant: 240 0% 28%;
-    --error: 10 100% 85%;
-    --on-error: 0 85% 2%;
-    --error-container: 0 100% 36%;
-    --on-error-container: 0 100% 93%;
-  }
-
-  .light {
+    /* Light theme (Tailwind default / base) */
     --background: 0 0% 100%;
     --foreground: 240 5% 4%;
     --card: 0 0% 100%;
@@ -63,6 +22,7 @@
     --border: 0 0% 90%;
     --input: 0 0% 90%;
     --ring: 240 5% 4%;
+    --radius: 0.625rem;
     /* Nova surface hierarchy - light */
     --surface: 0 0% 100%;
     --surface-dim: 0 0% 98%;
@@ -87,11 +47,49 @@
   }
 
   .dark {
-    /* Dark uses :root values (Nova dark-first) */
+    /* Nova dark-first theme */
+    --background: 240 3.7% 7.5%;
+    --foreground: 0 0% 98%;
+    --card: 240 3.7% 7.5%;
+    --card-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 4%;
+    --secondary: 255 6% 77%;
+    --secondary-foreground: 240 5% 10%;
+    --muted: 0 0% 9%;
+    --muted-foreground: 240 4% 65%;
+    --accent: 240 3.7% 11%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 0% 93%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 0% 15%;
+    --input: 240 0% 15%;
+    --ring: 0 0% 98%;
+    /* Nova surface hierarchy */
+    --surface: 240 3.7% 7.5%;
+    --surface-dim: 240 3.7% 7.5%;
+    --surface-container-lowest: 240 0% 5%;
+    --surface-container-low: 240 3.7% 11%;
+    --surface-container: 240 2.4% 13%;
+    --surface-container-high: 240 0% 17%;
+    --surface-container-highest: 240 0% 21%;
+    --surface-bright: 240 0% 22%;
+    --surface-variant: 240 0% 21%;
+    /* Nova semantic colors */
+    --on-surface: 280 6% 90%;
+    --on-surface-variant: 0 0% 78%;
+    --on-secondary: 240 5% 10%;
+    --on-tertiary: 240 40% 10%;
+    --outline: 0 0% 57%;
+    --outline-variant: 240 0% 28%;
+    --error: 10 100% 85%;
+    --on-error: 0 85% 2%;
+    --error-container: 0 100% 36%;
+    --on-error-container: 0 100% 93%;
   }
 
-  .oled {
-    /* Pure black OLED theme */
+  .dark.oled {
+    /* Pure black OLED override (applied on top of .dark) */
     --background: 0 0% 0%;
     --foreground: 0 0% 100%;
     --card: 0 0% 0%;

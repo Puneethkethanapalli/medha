@@ -382,7 +382,7 @@ export function ChatScreen({
       {/* Top Bar */}
       <View
         className="flex-row items-center px-4 h-14"
-        style={{ paddingTop: insets.top }}
+        style={{ marginTop: insets.top }}
       >
         <Pressable onPress={openDrawer} className="w-10 h-10 items-center justify-center">
           <Menu size={24} color="hsl(0, 0%, 63%)" />

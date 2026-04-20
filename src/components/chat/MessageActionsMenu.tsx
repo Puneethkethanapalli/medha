@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics';
 import { Copy, Pencil, RefreshCw, Trash2 } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useUIStore } from '@/stores/ui-store';
+import { useSettingsStore } from '@/stores/settings-store';
 
 interface MessageActionsMenuProps {
   onEditAndResend: (messageId: string) => void;
@@ -20,9 +21,17 @@ export function MessageActionsMenu({
   const message = useUIStore((s) => s.actionsMenuMessage);
   const hideMenu = useUIStore((s) => s.hideActionsMenu);
   const showToast = useUIStore((s) => s.showToast);
+  const currentTheme = useSettingsStore((s) => s.theme);
 
   const isVisible = message !== null;
   const isUser = message?.role === 'user';
+
+  // Theme-aware colors
+  const isLight = currentTheme === 'light';
+  const cardBg = isLight ? '#FFFFFF' : currentTheme === 'oled' ? '#0A0A0A' : '#0A0A0C';
+  const border = isLight ? '#E4E4E7' : '#27272A';
+  const activeBg = isLight ? '#F4F4F5' : '#18181B';
+  const iconColor = isLight ? 'hsl(240, 4%, 46%)' : 'hsl(0, 0%, 63%)';
 
   const handleCopy = useCallback(async () => {
     if (!message) return;
@@ -35,7 +44,6 @@ export function MessageActionsMenu({
   const handleEditAndResend = useCallback(() => {
     if (!message) return;
     hideMenu();
-    // Small delay so modal dismisses before entering edit mode
     setTimeout(() => onEditAndResend(message.id), 150);
   }, [message, hideMenu, onEditAndResend]);
 
@@ -68,48 +76,49 @@ export function MessageActionsMenu({
         {/* Menu card */}
         <Pressable
           onPress={() => {}}
-          className="mx-4 mb-8 bg-[#0A0A0C] border border-[#27272A] p-2"
-          style={{ borderRadius: 12 }}
+          style={{ backgroundColor: cardBg, borderColor: border, borderWidth: 1, borderRadius: 12, marginHorizontal: 16, marginBottom: 32, padding: 8 }}
         >
           {/* Copy */}
           <Pressable
             onPress={handleCopy}
-            className="flex-row items-center h-11 px-3 rounded-lg active:bg-[#18181B]"
+            style={{ flexDirection: 'row', alignItems: 'center', height: 44, paddingHorizontal: 12, borderRadius: 8 }}
+            android_ripple={{ color: activeBg }}
           >
-            <Copy size={18} color="hsl(0, 0%, 63%)" strokeWidth={2} />
+            <Copy size={18} color={iconColor} strokeWidth={2} />
             <Text className="text-foreground text-[14px] font-medium ml-3">Copy</Text>
           </Pressable>
 
           {/* Divider */}
-          <View className="h-px bg-[#27272A] mx-1 my-0.5 opacity-50" />
+          <View style={{ height: 1, backgroundColor: border, marginHorizontal: 4, marginVertical: 2, opacity: 0.5 }} />
 
           {isUser ? (
-            /* Edit & Resend — user messages only */
             <Pressable
               onPress={handleEditAndResend}
-              className="flex-row items-center h-11 px-3 rounded-lg active:bg-[#18181B]"
+              style={{ flexDirection: 'row', alignItems: 'center', height: 44, paddingHorizontal: 12, borderRadius: 8 }}
+              android_ripple={{ color: activeBg }}
             >
-              <Pencil size={18} color="hsl(0, 0%, 63%)" strokeWidth={2} />
+              <Pencil size={18} color={iconColor} strokeWidth={2} />
               <Text className="text-foreground text-[14px] font-medium ml-3">Edit & Resend</Text>
             </Pressable>
           ) : (
-            /* Regenerate — assistant messages only */
             <Pressable
               onPress={handleRegenerate}
-              className="flex-row items-center h-11 px-3 rounded-lg active:bg-[#18181B]"
+              style={{ flexDirection: 'row', alignItems: 'center', height: 44, paddingHorizontal: 12, borderRadius: 8 }}
+              android_ripple={{ color: activeBg }}
             >
-              <RefreshCw size={18} color="hsl(0, 0%, 63%)" strokeWidth={2} />
+              <RefreshCw size={18} color={iconColor} strokeWidth={2} />
               <Text className="text-foreground text-[14px] font-medium ml-3">Regenerate</Text>
             </Pressable>
           )}
 
           {/* Divider */}
-          <View className="h-px bg-[#27272A] mx-1 my-0.5 opacity-50" />
+          <View style={{ height: 1, backgroundColor: border, marginHorizontal: 4, marginVertical: 2, opacity: 0.5 }} />
 
           {/* Delete */}
           <Pressable
             onPress={handleDelete}
-            className="flex-row items-center h-11 px-3 rounded-lg active:bg-[#18181B]"
+            style={{ flexDirection: 'row', alignItems: 'center', height: 44, paddingHorizontal: 12, borderRadius: 8 }}
+            android_ripple={{ color: activeBg }}
           >
             <Trash2 size={18} color="hsl(0, 84.2%, 60.2%)" strokeWidth={2} />
             <Text className="text-[14px] font-medium ml-3" style={{ color: 'hsl(0, 84.2%, 60.2%)' }}>Delete</Text>

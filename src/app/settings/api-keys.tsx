@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Plus, Bolt, Trash2, Shield, X, Check } from 'lucide-react-native';
 import { cn } from '@/lib/utils';
@@ -22,6 +23,7 @@ const PROVIDERS: ProviderConfig[] = [
 
 export default function ApiKeysScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { validateApiKey } = useSettingsStore();
 
   const [connectedProviders, setConnectedProviders] = useState<Set<ProviderId>>(new Set());
@@ -129,7 +131,7 @@ export default function ApiKeysScreen() {
     >
       <View className="flex-1 bg-background">
       {/* Top Bar */}
-      <View className="flex flex-row items-center justify-between px-6 h-16 w-full">
+      <View className="flex flex-row items-center justify-between px-6 h-16 w-full" style={{ marginTop: insets.top }}>
         <Pressable
           className="p-2 -ml-2 rounded-full active:bg-surface-container"
           onPress={handleBack}

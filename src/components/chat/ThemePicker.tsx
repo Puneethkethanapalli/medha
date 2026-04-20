@@ -41,17 +41,17 @@ export function ThemePicker() {
       {/* Bottom sheet card */}
       <View
         style={{
-          backgroundColor: '#09090B',
+          backgroundColor: currentTheme === 'light' ? '#FFFFFF' : currentTheme === 'oled' ? '#000000' : '#09090B',
           borderTopLeftRadius: 16,
           borderTopRightRadius: 16,
           borderTopWidth: 1,
-          borderTopColor: '#27272A',
+          borderTopColor: currentTheme === 'light' ? '#E4E4E7' : '#27272A',
           paddingBottom: 40,
         }}
       >
         {/* Handle indicator */}
         <View className="items-center pt-2 pb-1">
-          <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#27272A' }} />
+          <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: currentTheme === 'light' ? '#D4D4D8' : '#27272A' }} />
         </View>
 
         <View className="px-5">
@@ -62,7 +62,7 @@ export function ThemePicker() {
               onPress={close}
               className="w-8 h-8 items-center justify-center rounded-full active:bg-surface-container"
             >
-              <X size={20} color="hsl(0, 0%, 63%)" />
+              <X size={20} color={currentTheme === 'light' ? 'hsl(240, 4%, 46%)' : 'hsl(0, 0%, 63%)'} />
             </Pressable>
           </View>
 
