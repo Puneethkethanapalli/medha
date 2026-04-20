@@ -1,6 +1,6 @@
 import 'react-native-get-random-values';
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, ActivityIndicator, Dimensions, BackHandler } from 'react-native';
+import { View, ActivityIndicator, Dimensions, BackHandler, StyleSheet } from 'react-native';
 import { ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -177,13 +177,28 @@ function AppContent() {
 
 // Root layout with auth check and initialization
 export default function RootLayout() {
-  const segments = useSegments();
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <AuthGate />
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
+}
+
+/**
+ * AuthGate initializes the app and redirects based on API key status.
+ * It always renders AppContent (which contains Stack) so the navigation
+ * context is always present for useRouter/useSegments.
+ */
+function AuthGate() {
   const router = useRouter();
-  const { isInitialized, initialize } = useSettingsStore();
+  const segments = useSegments();
+  const { initialize } = useSettingsStore();
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const init = async () => {
+    (async () => {
       try {
         await initialize();
         initializeDatabase();
@@ -200,30 +215,37 @@ export default function RootLayout() {
       } else if (hasKey && isOnboarding) {
         router.replace('/');
       }
+
       setReady(true);
-    };
-
-    init();
-  }, [initialize, isInitialized, router, segments]);
-
-  if (!ready) {
-    return (
-      <View className="flex-1 bg-background items-center justify-center" style={{ backgroundColor: '#09090B' }}>
-        <View className="items-center gap-4">
-          <View className="h-16 w-16 items-center justify-center rounded-2xl border border-[#27272A] bg-[#09090B]">
-            <MedhaLogo size={28} />
-          </View>
-          <ActivityIndicator size="large" color="#FAFAFA" />
-        </View>
-      </View>
-    );
-  }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <AppContent />
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <>
+      <AppContent />
+      {/* Loading overlay — covers everything until init finishes */}
+      {!ready && (
+        <View
+          style={{
+            ...StyleSheet.absoluteFillObject,
+            backgroundColor: '#09090B',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 999,
+          }}
+        >
+          <View style={{ alignItems: 'center', gap: 16 }}>
+            <View style={{
+              height: 64, width: 64, alignItems: 'center', justifyContent: 'center',
+              borderRadius: 16, borderWidth: 1, borderColor: '#27272A', backgroundColor: '#09090B',
+            }}>
+              <MedhaLogo size={28} />
+            </View>
+            <ActivityIndicator size="large" color="#FAFAFA" />
+          </View>
+        </View>
+      )}
+    </>
   );
 }
