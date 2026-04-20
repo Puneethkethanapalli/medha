@@ -7,9 +7,12 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
+import { History } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
 import { MessageBubble } from './MessageBubble';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
 import { useChatStore } from '@/stores/chat-store';
+import { useUIStore } from '@/stores/ui-store';
 import type { Message } from '@/types';
 
 interface MessageListProps {
@@ -17,6 +20,9 @@ interface MessageListProps {
   targetMessageId?: string | null;
   targetRequestKey?: string | null;
   highlightedMessageId?: string | null;
+  onEditSubmit?: (messageId: string, newContent: string) => void;
+  onEditCancel?: () => void;
+  onRetry?: (messageId: string) => void;
 }
 
 // ─── Scroll thresholds ──────────────────────────────────────────────────
@@ -34,6 +40,9 @@ export function MessageList({
   targetMessageId = null,
   targetRequestKey = null,
   highlightedMessageId = null,
+  onEditSubmit,
+  onEditCancel,
+  onRetry,
 }: MessageListProps) {
   const flatListRef = useRef<FlatList<Message>>(null);
   const scrollFrameRef = useRef<number | null>(null);
@@ -256,14 +265,44 @@ export function MessageList({
 
   // ─── Renderers ─────────────────────────────────────────────────────
 
+  const editingMessageId = useUIStore((s) => s.editingMessageId);
+
+  // Find the index of the editing message to dim everything after it
+  const editingIndex = editingMessageId
+    ? messages.findIndex((m) => m.id === editingMessageId)
+    : -1;
+
   const renderItem = useCallback(
-    ({ item }: { item: Message }) => (
-      <MessageBubble
-        message={item}
-        highlighted={item.id === highlightedMessageId}
-      />
-    ),
-    [highlightedMessageId]
+    ({ item, index }: { item: Message; index: number }) => {
+      const isEditTarget = item.id === editingMessageId;
+      const isDimmed = editingIndex >= 0 && index > editingIndex;
+
+      return (
+        <>
+          {/* "Will be replaced" divider — shown right after the editing message */}
+          {editingIndex >= 0 && index === editingIndex + 1 && (
+            <View className="flex-row items-center py-2 my-2">
+              <View className="flex-1 h-px bg-outline-variant/20" />
+              <View className="px-3 flex-row items-center gap-1.5">
+                <History size={12} color="hsl(0, 0%, 44%)" />
+                <Text className="text-[10px] text-muted-foreground tracking-wide uppercase">Will be replaced</Text>
+              </View>
+              <View className="flex-1 h-px bg-outline-variant/20" />
+            </View>
+          )}
+          <MessageBubble
+            message={item}
+            highlighted={item.id === highlightedMessageId}
+            dimmed={isDimmed}
+            isEditing={isEditTarget}
+            onEditSubmit={onEditSubmit}
+            onEditCancel={onEditCancel}
+            onRetry={onRetry}
+          />
+        </>
+      );
+    },
+    [highlightedMessageId, editingMessageId, editingIndex, onEditSubmit, onEditCancel, onRetry]
   );
 
   const keyExtractor = useCallback((item: Message) => item.id, []);

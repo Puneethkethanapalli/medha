@@ -5,7 +5,6 @@ import { ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { PortalHost } from '@rn-primitives/portal';
-import { useColorScheme } from 'nativewind';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Drawer as DrawerLayout } from 'react-native-drawer-layout';
@@ -15,6 +14,7 @@ import { useSettingsStore } from '@/stores/settings-store';
 import { useUIStore } from '@/stores/ui-store';
 import { ConversationDrawer } from '@/components/navigation/ConversationDrawer';
 import { ModelPicker } from '@/components/chat/ModelPicker';
+import { ThemePicker } from '@/components/chat/ThemePicker';
 import { getConversations } from '@/lib/db/conversations';
 import { initializeDatabase } from '@/lib/db/schema';
 import type { Conversation } from '@/types';
@@ -24,8 +24,11 @@ import '@/global.css';
 const DRAWER_WIDTH = Dimensions.get('window').width * 0.85;
 
 function AppContent() {
-  const { colorScheme } = useColorScheme();
-  const resolvedScheme = colorScheme === 'dark' || colorScheme === 'light' ? colorScheme : 'dark';
+  const currentTheme = useSettingsStore((s) => s.theme);
+  // Map our theme to NativeWind's expected scheme for nav theme
+  const resolvedScheme = currentTheme === 'light' ? 'light' : 'dark';
+  // CSS class: 'dark' for dark/oled, 'light' for light, 'oled' for oled
+  const themeClass = currentTheme === 'light' ? '' : currentTheme === 'oled' ? 'oled' : 'dark';
   const router = useRouter();
 
   const drawerOpen = useUIStore((s) => s.drawerOpen);
@@ -54,10 +57,22 @@ function AppContent() {
 
   const modelPickerOpen = useUIStore((s) => s.modelPickerOpen);
   const closeModelPicker = useUIStore((s) => s.closeModelPicker);
+  const themePickerOpen = useUIStore((s) => s.themePickerOpen);
+  const closeThemePicker = useUIStore((s) => s.closeThemePicker);
+  const actionsMenuMessage = useUIStore((s) => s.actionsMenuMessage);
+  const hideActionsMenu = useUIStore((s) => s.hideActionsMenu);
 
-  // Handle Android back button: close model picker or drawer if open
+  // Handle Android back button: close overlays in priority order
   useEffect(() => {
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (actionsMenuMessage) {
+        hideActionsMenu();
+        return true;
+      }
+      if (themePickerOpen) {
+        closeThemePicker();
+        return true;
+      }
       if (modelPickerOpen) {
         closeModelPicker();
         return true;
@@ -69,7 +84,7 @@ function AppContent() {
       return false;
     });
     return () => handler.remove();
-  }, [drawerOpen, closeDrawer, modelPickerOpen, closeModelPicker]);
+  }, [drawerOpen, closeDrawer, modelPickerOpen, closeModelPicker, themePickerOpen, closeThemePicker, actionsMenuMessage, hideActionsMenu]);
 
   const handleSelectConversation = useCallback(
     (id: string) => {
@@ -125,7 +140,7 @@ function AppContent() {
   );
 
   return (
-    <View className={`${resolvedScheme === 'dark' ? 'dark' : ''} flex-1`}>
+    <View className={`${themeClass} flex-1`}>
       <ThemeProvider value={NAV_THEME[resolvedScheme]}>
         <StatusBar style={resolvedScheme === 'dark' ? 'light' : 'dark'} />
         <DrawerLayout
@@ -135,7 +150,7 @@ function AppContent() {
           drawerPosition="left"
           drawerType="front"
           renderDrawerContent={renderDrawerContent}
-          drawerStyle={{ width: DRAWER_WIDTH, backgroundColor: '#09090B' }}
+          drawerStyle={{ width: DRAWER_WIDTH, backgroundColor: currentTheme === 'light' ? '#FFFFFF' : '#09090B' }}
         >
           <Stack
             screenOptions={{
@@ -153,6 +168,7 @@ function AppContent() {
           </Stack>
         </DrawerLayout>
         <ModelPicker />
+        <ThemePicker />
         <PortalHost />
       </ThemeProvider>
     </View>

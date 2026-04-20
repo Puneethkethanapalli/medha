@@ -32,7 +32,11 @@ export default function SettingsScreen() {
       icon: Palette,
       label: 'Theme',
       description: 'Dark, Light, or OLED',
-      onPress: () => {}, // Sprint 7
+      onPress: () => {
+        router.back();
+        // Small delay so settings screen dismisses first
+        setTimeout(() => useUIStore.getState().openThemePicker(), 300);
+      },
     },
   ];
 

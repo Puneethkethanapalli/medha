@@ -5,7 +5,8 @@ import type { Conversation } from '../../types';
 export function createConversation(
   title: string = 'New Chat',
   model?: string,
-  systemPrompt?: string
+  systemPrompt?: string,
+  provider: string = 'openrouter'
 ): string {
   const db = getDatabase();
   const id = uuidv4();
@@ -13,8 +14,8 @@ export function createConversation(
 
   db.runSync(
     `INSERT INTO conversations (id, title, model, provider, system_prompt, created_at, updated_at, pinned)
-     VALUES (?, ?, ?, 'openrouter', ?, ?, ?, 0)`,
-    [id, title, model ?? null, systemPrompt ?? null, now, now]
+     VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
+    [id, title, model ?? null, provider, systemPrompt ?? null, now, now]
   );
 
   return id;

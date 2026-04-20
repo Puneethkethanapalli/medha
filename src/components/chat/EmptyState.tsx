@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Pressable } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/ui/text';
 import { Code, FileText, Lightbulb, Languages } from 'lucide-react-native';
 import { MedhaLogo } from '@/components/branding/MedhaLogo';
@@ -47,7 +48,10 @@ export function EmptyState({ onSuggestionPress }: EmptyStateProps) {
           return (
             <Pressable
               key={s.text}
-              onPress={() => onSuggestionPress(s.text)}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onSuggestionPress(s.text);
+              }}
               className="bg-surface-container-low border border-outline-variant/20 rounded-xl p-3 gap-2 active:scale-95 w-[48%]"
             >
               <Icon size={18} color="hsl(0, 0%, 63%)" />

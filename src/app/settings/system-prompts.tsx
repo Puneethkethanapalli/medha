@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import {
   BUILT_IN_PROMPT_PRESETS,
   DEFAULT_SYSTEM_PROMPT,
+  deleteCustomPromptPreset,
   exportPromptPresets,
   getCustomPromptPresets,
   importPromptPresets,
@@ -34,6 +35,7 @@ export default function SystemPromptsScreen() {
   const setActiveConversation = useUIStore((state) => state.setActiveConversation);
   const showToast = useUIStore((state) => state.showToast);
   const lastModel = useSettingsStore((state) => state.lastModel);
+  const lastProvider = useSettingsStore((state) => state.lastProvider);
 
   const resolvedConversationId = params.conversationId ?? activeConversationId ?? null;
 
@@ -118,7 +120,8 @@ export default function SystemPromptsScreen() {
       const conversationId = createConversation(
         'New Chat',
         lastModel ?? undefined,
-        promptValue ?? undefined
+        promptValue ?? undefined,
+        lastProvider || 'openrouter'
       );
 
       setActiveConversation(conversationId);
@@ -128,8 +131,21 @@ export default function SystemPromptsScreen() {
         router.dismissAll();
       }
       router.replace(`/chat/${conversationId}` as any);
+    } catch (error) {
+      console.error('Failed to save system prompt:', error);
+      showToast('Failed to save system prompt');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDeletePreset = async (preset: PromptPreset) => {
+    try {
+      const updated = await deleteCustomPromptPreset(preset.id);
+      setCustomPresets(updated);
+      showToast(`"${preset.name}" deleted`);
+    } catch {
+      showToast('Could not delete preset');
     }
   };
 
@@ -234,6 +250,11 @@ export default function SystemPromptsScreen() {
               <Pressable
                 key={preset.id}
                 onPress={() => setPrompt(preset.prompt)}
+                onLongPress={
+                  preset.builtin
+                    ? undefined
+                    : () => handleDeletePreset(preset)
+                }
                 className={`rounded-full px-4 py-2 border ${
                   selected
                     ? 'bg-foreground border-foreground'

@@ -5,13 +5,15 @@ import * as Haptics from 'expo-haptics';
 import { Menu, PenSquare } from 'lucide-react-native';
 import { ModelPill } from '@/components/chat/ModelPill';
 import { MessageList } from '@/components/chat/MessageList';
+import { MessageActionsMenu } from '@/components/chat/MessageActionsMenu';
+import { OfflineBanner } from '@/components/chat/OfflineBanner';
 import { InputBar } from '@/components/chat/InputBar';
 import { EmptyState } from '@/components/chat/EmptyState';
 import { Toast } from '@/components/common/Toast';
 import { useChatStore } from '@/stores/chat-store';
 import { useUIStore } from '@/stores/ui-store';
 import { useSettingsStore } from '@/stores/settings-store';
-import { addMessage, getMessages, updateMessage } from '@/lib/db/messages';
+import { addMessage, getMessages, updateMessage, deleteMessage, deleteMessagesAfter } from '@/lib/db/messages';
 import {
   createConversation,
   getConversation,
@@ -42,6 +44,7 @@ export function ChatScreen({
 
   const openDrawer = useUIStore((s) => s.openDrawer);
   const setActiveConversation = useUIStore((s) => s.setActiveConversation);
+  const setEditingMessage = useUIStore((s) => s.setEditingMessage);
   const lastModel = useSettingsStore((s) => s.lastModel);
   const lastProvider = useSettingsStore((s) => s.lastProvider);
 
@@ -93,9 +96,9 @@ export function ChatScreen({
     return () => clearTimeout(timeout);
   }, [focusMessageId, focusRequestKey]);
 
-  const handleSend = useCallback(
-    async (text: string) => {
-      // Resolve provider: use lastProvider or fall back to 'openrouter'
+  // ─── Core streaming logic (no user message creation) ────────────────
+  const streamNewResponse = useCallback(
+    async (convId: string) => {
       const providerId = lastProvider || 'openrouter';
       const apiKey = await getApiKey(providerId);
       if (!apiKey) return;
@@ -103,34 +106,9 @@ export function ChatScreen({
       const provider = getProvider(providerId);
       if (!provider) return;
 
-      // Resolve model: use lastModel or provider-specific default
       const model = lastModel || getDefaultModel(providerId);
-      let convId = currentConvId;
-
-      // Create new conversation if needed — NO navigation, just update state
-      if (!convId) {
-        const title = text.replace(/\n/g, ' ').slice(0, 50);
-        convId = createConversation(title, model);
-        setCurrentConvId(convId);
-        setActiveConversation(convId);
-      }
-
       const conversation = getConversation(convId);
       const systemPrompt = conversation?.system_prompt?.trim() || undefined;
-
-      // Save user message to SQLite
-      const userMsgId = addMessage(convId, 'user', text, model);
-      const userMsg: Message = {
-        id: userMsgId,
-        conversation_id: convId,
-        role: 'user',
-        content: text,
-        reasoning: null,
-        status: 'complete',
-        model,
-        tokens_used: null,
-        created_at: Date.now(),
-      };
 
       // Create placeholder assistant message
       const assistantMsgId = addMessage(convId, 'assistant', '', model);
@@ -147,16 +125,8 @@ export function ChatScreen({
         created_at: Date.now(),
       };
 
-      setMessages((prev) => [...prev, userMsg, assistantMsg]);
+      setMessages((prev) => [...prev, assistantMsg]);
       startStreaming(assistantMsgId);
-
-      // Auto-title: update conversation title from first user message
-      const currentMessages = getMessages(convId);
-      const userMessages = currentMessages.filter((m) => m.role === 'user');
-      if (userMessages.length <= 1) {
-        const title = text.replace(/\n/g, ' ').slice(0, 50);
-        updateConversation(convId, { title });
-      }
 
       // Build full message history for API
       const fullMessages = getMessages(convId).filter(
@@ -178,26 +148,23 @@ export function ChatScreen({
       const response = provider.stream(
         fullMessages,
         { model, apiKey, systemPrompt },
-        // onContent
         (token) => {
           fireFirstTokenHaptic();
           accumulated += token;
           appendToken(token);
         },
-        // onReasoning
         (reasoningToken) => {
           fireFirstTokenHaptic();
           accumulatedReasoning += reasoningToken;
           appendReasoningToken(reasoningToken);
         },
-        // onDone
         () => {
           updateMessage(assistantMsgId, {
             content: accumulated,
             reasoning: accumulatedReasoning || null,
             status: 'complete',
           });
-          touchConversation(convId!);
+          touchConversation(convId);
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantMsgId
@@ -207,14 +174,13 @@ export function ChatScreen({
           );
           stopStreaming();
         },
-        // onError
         (error) => {
           updateMessage(assistantMsgId, {
             content: accumulated || 'Error: ' + error.message,
             reasoning: accumulatedReasoning || null,
             status: 'error',
           });
-          touchConversation(convId!);
+          touchConversation(convId);
           setError(error.message);
           setMessages((prev) =>
             prev.map((m) =>
@@ -228,7 +194,51 @@ export function ChatScreen({
 
       abortRef.current = response;
     },
-    [currentConvId, lastModel, lastProvider, startStreaming, appendToken, appendReasoningToken, stopStreaming, setError, setActiveConversation]
+    [lastModel, lastProvider, startStreaming, appendToken, appendReasoningToken, stopStreaming, setError]
+  );
+
+  const handleSend = useCallback(
+    async (text: string) => {
+      const providerId = lastProvider || 'openrouter';
+      const model = lastModel || getDefaultModel(providerId);
+      let convId = currentConvId;
+
+      // Create new conversation if needed
+      if (!convId) {
+        const title = text.replace(/\n/g, ' ').slice(0, 50);
+        convId = createConversation(title, model);
+        setCurrentConvId(convId);
+        setActiveConversation(convId);
+      }
+
+      // Save user message to SQLite
+      const userMsgId = addMessage(convId, 'user', text, model);
+      const userMsg: Message = {
+        id: userMsgId,
+        conversation_id: convId,
+        role: 'user',
+        content: text,
+        reasoning: null,
+        status: 'complete',
+        model,
+        tokens_used: null,
+        created_at: Date.now(),
+      };
+
+      setMessages((prev) => [...prev, userMsg]);
+
+      // Auto-title: update conversation title from first user message
+      const currentMessages = getMessages(convId);
+      const userMessages = currentMessages.filter((m) => m.role === 'user');
+      if (userMessages.length <= 1) {
+        const title = text.replace(/\n/g, ' ').slice(0, 50);
+        updateConversation(convId, { title });
+      }
+
+      // Stream assistant response
+      await streamNewResponse(convId);
+    },
+    [currentConvId, lastModel, lastProvider, setActiveConversation, streamNewResponse]
   );
 
   const handleStop = useCallback(() => {
@@ -261,6 +271,7 @@ export function ChatScreen({
   );
 
   const handleNewChat = useCallback(() => {
+    setEditingMessage(null);
     setMessages([]);
     setCurrentConvId(null);
     setActiveConversation(null);
@@ -268,7 +279,96 @@ export function ChatScreen({
       router.dismissAll();
     }
     router.replace('/');
-  }, [router, setActiveConversation]);
+  }, [router, setActiveConversation, setEditingMessage]);
+
+  // ─── Edit & Resend ──────────────────────────────────────────────────
+
+  const handleEditAndResend = useCallback(
+    (messageId: string) => {
+      setEditingMessage(messageId);
+    },
+    [setEditingMessage]
+  );
+
+  const handleEditSubmit = useCallback(
+    async (messageId: string, newContent: string) => {
+      if (!currentConvId) return;
+
+      const msg = messages.find((m) => m.id === messageId);
+      if (!msg) return;
+
+      // Delete all messages after the edited one
+      deleteMessagesAfter(currentConvId, msg.created_at);
+
+      // Update the edited message content
+      updateMessage(messageId, { content: newContent });
+
+      // Clear edit mode
+      setEditingMessage(null);
+
+      // Reload messages from DB (now just includes up to the edited msg)
+      const updatedMessages = getMessages(currentConvId);
+      setMessages(updatedMessages);
+
+      // Stream a new assistant response (no new user msg created)
+      await streamNewResponse(currentConvId);
+    },
+    [currentConvId, messages, setEditingMessage, streamNewResponse]
+  );
+
+  const handleEditCancel = useCallback(() => {
+    setEditingMessage(null);
+  }, [setEditingMessage]);
+
+  // ─── Regenerate ─────────────────────────────────────────────────────
+
+  const handleRegenerate = useCallback(
+    async (messageId: string) => {
+      if (!currentConvId) return;
+
+      const msgIndex = messages.findIndex((m) => m.id === messageId);
+      if (msgIndex === -1) return;
+
+      const assistantMsg = messages[msgIndex];
+      if (assistantMsg.role !== 'assistant') return;
+
+      // Delete the assistant message from DB
+      deleteMessage(messageId);
+
+      // Remove from local state
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+
+      // Stream a new response (reuses the existing user message in history)
+      await streamNewResponse(currentConvId);
+    },
+    [currentConvId, messages, streamNewResponse]
+  );
+
+  // ─── Delete single message ──────────────────────────────────────────
+
+  const handleDeleteMessage = useCallback(
+    (messageId: string) => {
+      deleteMessage(messageId);
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+    },
+    []
+  );
+
+  // ─── Retry (re-send after error) ────────────────────────────────────
+
+  const handleRetry = useCallback(
+    async (messageId: string) => {
+      if (!currentConvId) return;
+
+      // Delete the errored assistant message
+      deleteMessage(messageId);
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+
+      // Stream a new response
+      await streamNewResponse(currentConvId);
+    },
+    [currentConvId, streamNewResponse]
+  );
 
   const insets = useSafeAreaInsets();
   const hasMessages = messages.length > 0;
@@ -295,6 +395,9 @@ export function ChatScreen({
         </Pressable>
       </View>
 
+      {/* Offline Banner */}
+      <OfflineBanner />
+
       {/* Content */}
       <View className="flex-1">
         {hasMessages ? (
@@ -303,6 +406,9 @@ export function ChatScreen({
             targetMessageId={focusMessageId}
             targetRequestKey={focusRequestKey}
             highlightedMessageId={highlightedMessageId}
+            onEditSubmit={handleEditSubmit}
+            onEditCancel={handleEditCancel}
+            onRetry={handleRetry}
           />
         ) : (
           <EmptyState onSuggestionPress={handleSuggestion} />
@@ -312,6 +418,13 @@ export function ChatScreen({
       {/* Input */}
       <InputBar onSend={handleSend} onStop={handleStop} />
       <Toast bottomOffset={Math.max(insets.bottom, 12) + 84} />
+
+      {/* Message Actions Menu */}
+      <MessageActionsMenu
+        onEditAndResend={handleEditAndResend}
+        onRegenerate={handleRegenerate}
+        onDelete={handleDeleteMessage}
+      />
     </KeyboardAvoidingView>
   );
 }

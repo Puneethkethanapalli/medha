@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { View, TextInput, Pressable, Animated, Easing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import { ArrowUp, Square } from 'lucide-react-native';
 import { useChatStore } from '@/stores/chat-store';
 
@@ -35,6 +36,7 @@ export function InputBar({ onSend, onStop }: InputBarProps) {
       }),
     ]).start();
 
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onSend(trimmed);
     setText('');
   }, [text, isStreaming, onSend, scaleAnim]);

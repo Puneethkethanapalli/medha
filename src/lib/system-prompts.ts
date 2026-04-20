@@ -112,6 +112,15 @@ export async function saveCustomPromptPreset(input: {
   return { presets: nextPresets, status: 'created' };
 }
 
+export async function deleteCustomPromptPreset(
+  id: string
+): Promise<PromptPreset[]> {
+  const presets = await getCustomPromptPresets();
+  const filtered = presets.filter((preset) => preset.id !== id);
+  await persistCustomPresets(filtered);
+  return filtered;
+}
+
 export async function exportPromptPresets(): Promise<string> {
   const presets = await getCustomPromptPresets();
   const payload: PromptPresetExportPayload = {
