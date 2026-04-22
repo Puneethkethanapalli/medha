@@ -25,6 +25,7 @@
     "@rn-primitives/separator": "^1.4.0",
     "@rn-primitives/slot": "^1.4.0",
     "@rn-primitives/switch": "^1.4.0",
+    "@shopify/flash-list": "^1.8.3",
     "@types/uuid": "^10.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

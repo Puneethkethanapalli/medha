@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Pressable, KeyboardAvoidingView } from 'react-native';
+import { View, Pressable, KeyboardAvoidingView, AppState, type AppStateStatus } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Menu, PenSquare } from 'lucide-react-native';
@@ -31,7 +31,7 @@ interface ChatScreenProps {
   focusRequestKey?: string | null;
 }
 
-export function ChatScreen({
+export const ChatScreen = React.memo(function ChatScreen({
   conversationId,
   focusMessageId = null,
   focusRequestKey = null,
@@ -62,6 +62,39 @@ export function ChatScreen({
       registerBuiltInProviders();
     }
   }, []);
+
+  // Handle app backgrounding during active stream — abort to prevent stuck state
+  useEffect(() => {
+    let lastState: AppStateStatus = 'active';
+    const handleAppStateChange = (nextState: AppStateStatus) => {
+      if (lastState === 'active' && nextState === 'background') {
+        // App just went to background while possibly streaming
+        if (abortRef.current) {
+          abortRef.current.abort();
+          abortRef.current = null;
+        }
+        const { streamingMessageId, streamingContent } = useChatStore.getState();
+        if (streamingMessageId) {
+          updateMessage(streamingMessageId, {
+            content: streamingContent,
+            status: 'cancelled',
+          });
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === streamingMessageId
+                ? { ...m, content: streamingContent, status: 'cancelled' as const }
+                : m
+            )
+          );
+          stopStreaming();
+        }
+      }
+      lastState = nextState;
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
+  }, [stopStreaming]);
 
   // Sync internal state when prop changes (e.g. navigating to a different conversation)
   useEffect(() => {
@@ -427,7 +460,7 @@ export function ChatScreen({
       />
     </KeyboardAvoidingView>
   );
-}
+});
 
 function getDefaultModel(providerId: string): string {
   switch (providerId) {

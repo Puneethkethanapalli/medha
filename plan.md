@@ -780,40 +780,41 @@ CREATE INDEX idx_conversations_updated ON conversations(updated_at DESC);
 > **Design refs:** `generated designs/settings/`, `generated designs/settings_screen/`, `generated designs/delete_confirmation_dialog/`
 
 #### Tasks
-- [ ] **8.1** Add Gemini provider (`src/lib/providers/gemini.ts`)
+- [x] **8.1** Add Gemini provider (`src/lib/providers/gemini.ts`)
   - Uses `@google/generative-ai` SDK (has RN-compatible streaming)
   - Implements same AIProvider interface
   - Direct API calls with user's Gemini API key
-- [ ] **8.2** Add Anthropic provider (`src/lib/providers/anthropic.ts`)
+- [x] **8.2** Add Anthropic provider (`src/lib/providers/anthropic.ts`)
   - Uses OpenAI-compatible format OR Anthropic SDK
   - SSE streaming (same parser as OpenRouter)
   - Handle Anthropic-specific response format (`content_block_delta`)
-- [ ] **8.3** Update onboarding for multiple providers
+- [x] **8.3** Update onboarding for multiple providers
   - Provider selection: OpenRouter, Gemini, Anthropic
   - Can add multiple keys
   - Model picker groups by provider
-- [ ] **8.4** Update model picker
+- [x] **8.4** Update model picker
   - Tabs or sections per provider
   - Show which providers have active keys
   - "Add key" inline if provider has no key
-- [ ] **8.5** Performance optimization
+- [x] **8.5** Performance optimization
   - Replace FlatList with `@shopify/flash-list` for chat history
   - Memoize message bubbles (React.memo)
   - Profile and fix any jank during streaming
-- [ ] **8.6** Error states & edge cases
+  - **Note:** FlashList requires `npx expo prebuild` to generate native Android code before `AutoLayoutView` native component is registered. Dev client (`expo start`) without prebuild will crash with `View config not found for component AutoLayoutView`. After prebuild, FlashList works correctly.
+- [x] **8.6** Error states & edge cases
   - No internet → show offline banner
   - API error → show error bubble with "Retry" button
   - Very long messages → virtualized rendering
   - App backgrounded during stream → handle gracefully
-- [ ] **8.7** App icon + splash screen
+- [x] **8.7** App icon + splash screen
   - Generate Medha app icon (use generate_image tool)
   - Configure in app.json
   - Splash screen with app logo
-- [ ] **8.8** README.md for GitHub
+- [x] **8.8** README.md for GitHub
   - Project description, screenshots, setup instructions
   - Feature list, tech stack, architecture diagram
   - License (MIT)
-- [ ] **8.9** Final verification pass
+- [x] **8.9** Final verification pass
 
 #### How to Test Sprint 8
 ```
