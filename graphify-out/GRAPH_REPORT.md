@@ -1,708 +1,771 @@
 # Graph Report - .  (2026-04-22)
 
 ## Corpus Check
-- 156 files · ~226,662 words
+- 191 files · ~244,077 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 379 nodes · 352 edges · 102 communities detected
-- Extraction: 77% EXTRACTED · 23% INFERRED · 0% AMBIGUOUS · INFERRED: 82 edges (avg confidence: 0.8)
+- 439 nodes · 416 edges · 111 communities detected
+- Extraction: 79% EXTRACTED · 21% INFERRED · 0% AMBIGUOUS · INFERRED: 88 edges (avg confidence: 0.81)
 - Token cost: 0 input · 0 output
 
 ## Community Hubs (Navigation)
-- [[_COMMUNITY_AI Provider Abstraction|AI Provider Abstraction]]
-- [[_COMMUNITY_Sprint 7 Features|Sprint 7 Features]]
-- [[_COMMUNITY_Model Cache Layer|Model Cache Layer]]
-- [[_COMMUNITY_Sprint 3-4 UI Screens|Sprint 3-4 UI Screens]]
+- [[_COMMUNITY_AI Provider Architecture|AI Provider Architecture]]
+- [[_COMMUNITY_Project Planning|Project Planning]]
+- [[_COMMUNITY_Storage & Initialization|Storage & Initialization]]
+- [[_COMMUNITY_UI Design System|UI Design System]]
+- [[_COMMUNITY_Input Enhancement|Input Enhancement]]
+- [[_COMMUNITY_Chat Screen & State|Chat Screen & State]]
 - [[_COMMUNITY_API Key Management|API Key Management]]
-- [[_COMMUNITY_Conversation Database|Conversation Database]]
-- [[_COMMUNITY_System Prompts & Search|System Prompts & Search]]
-- [[_COMMUNITY_SSE Parser Module|SSE Parser Module]]
-- [[_COMMUNITY_Markdown Renderer|Markdown Renderer]]
-- [[_COMMUNITY_Sprint 5-6 Features|Sprint 5-6 Features]]
+- [[_COMMUNITY_Database CRUD|Database CRUD]]
+- [[_COMMUNITY_System Prompts|System Prompts]]
+- [[_COMMUNITY_SSE Parser|SSE Parser]]
+- [[_COMMUNITY_UI Components|UI Components]]
+- [[_COMMUNITY_Android Native Integration|Android Native Integration]]
 - [[_COMMUNITY_Theming System|Theming System]]
-- [[_COMMUNITY_Model Picker Screens|Model Picker Screens]]
+- [[_COMMUNITY_Design Specs|Design Specs]]
+- [[_COMMUNITY_OpenRouter Provider|OpenRouter Provider]]
 - [[_COMMUNITY_Provider Registry|Provider Registry]]
-- [[_COMMUNITY_Nova Glass & Borders|Nova Glass & Borders]]
-- [[_COMMUNITY_Design System Specs|Design System Specs]]
-- [[_COMMUNITY_Input Components|Input Components]]
+- [[_COMMUNITY_Nova Design Tokens|Nova Design Tokens]]
+- [[_COMMUNITY_Design Spec Documents|Design Spec Documents]]
+- [[_COMMUNITY_Input & Utils|Input & Utils]]
 - [[_COMMUNITY_Biometric Auth|Biometric Auth]]
-- [[_COMMUNITY_Streaming Chat Store|Streaming Chat Store]]
-- [[_COMMUNITY_Build Workflow|Build Workflow]]
-- [[_COMMUNITY_Typography & Elevation|Typography & Elevation]]
-- [[_COMMUNITY_App Branding Assets|App Branding Assets]]
-- [[_COMMUNITY_Animated Icons|Animated Icons]]
-- [[_COMMUNITY_Community 22|Community 22]]
-- [[_COMMUNITY_Community 23|Community 23]]
-- [[_COMMUNITY_Medha Logo Component|Medha Logo Component]]
+- [[_COMMUNITY_Chat Store Selectors|Chat Store Selectors]]
+- [[_COMMUNITY_Build Instructions|Build Instructions]]
+- [[_COMMUNITY_Nova Visual Principles|Nova Visual Principles]]
+- [[_COMMUNITY_App Icons|App Icons]]
+- [[_COMMUNITY_Animated Icon|Animated Icon]]
+- [[_COMMUNITY_Animated Icon Web|Animated Icon Web]]
+- [[_COMMUNITY_External Link|External Link]]
+- [[_COMMUNITY_Medha Logo|Medha Logo]]
 - [[_COMMUNITY_Conversation Drawer|Conversation Drawer]]
-- [[_COMMUNITY_Community 26|Community 26]]
-- [[_COMMUNITY_Community 27|Community 27]]
-- [[_COMMUNITY_Community 28|Community 28]]
-- [[_COMMUNITY_Model Display Utils|Model Display Utils]]
-- [[_COMMUNITY_AI SDK Streaming|AI SDK Streaming]]
-- [[_COMMUNITY_Markdown Showcase Design|Markdown Showcase Design]]
-- [[_COMMUNITY_Chat Screen Designs|Chat Screen Designs]]
-- [[_COMMUNITY_App Logo Assets|App Logo Assets]]
-- [[_COMMUNITY_Community 34|Community 34]]
-- [[_COMMUNITY_Community 35|Community 35]]
-- [[_COMMUNITY_Community 36|Community 36]]
-- [[_COMMUNITY_Community 37|Community 37]]
-- [[_COMMUNITY_Community 38|Community 38]]
-- [[_COMMUNITY_Community 39|Community 39]]
-- [[_COMMUNITY_Community 40|Community 40]]
-- [[_COMMUNITY_Community 41|Community 41]]
-- [[_COMMUNITY_Community 42|Community 42]]
-- [[_COMMUNITY_Community 43|Community 43]]
-- [[_COMMUNITY_Community 44|Community 44]]
-- [[_COMMUNITY_Community 45|Community 45]]
-- [[_COMMUNITY_Community 46|Community 46]]
-- [[_COMMUNITY_Community 47|Community 47]]
-- [[_COMMUNITY_Community 48|Community 48]]
-- [[_COMMUNITY_Community 49|Community 49]]
-- [[_COMMUNITY_Community 50|Community 50]]
-- [[_COMMUNITY_Navigation Paradigm|Navigation Paradigm]]
-- [[_COMMUNITY_Dark Mode Colors|Dark Mode Colors]]
-- [[_COMMUNITY_Community 53|Community 53]]
-- [[_COMMUNITY_Community 54|Community 54]]
-- [[_COMMUNITY_Community 55|Community 55]]
-- [[_COMMUNITY_Community 56|Community 56]]
-- [[_COMMUNITY_Community 57|Community 57]]
-- [[_COMMUNITY_Community 58|Community 58]]
-- [[_COMMUNITY_Community 59|Community 59]]
-- [[_COMMUNITY_Community 60|Community 60]]
-- [[_COMMUNITY_Community 61|Community 61]]
-- [[_COMMUNITY_Community 62|Community 62]]
-- [[_COMMUNITY_Community 63|Community 63]]
-- [[_COMMUNITY_Community 64|Community 64]]
-- [[_COMMUNITY_Community 65|Community 65]]
-- [[_COMMUNITY_Community 66|Community 66]]
-- [[_COMMUNITY_Community 67|Community 67]]
-- [[_COMMUNITY_Community 68|Community 68]]
-- [[_COMMUNITY_Community 69|Community 69]]
-- [[_COMMUNITY_Community 70|Community 70]]
-- [[_COMMUNITY_Community 71|Community 71]]
-- [[_COMMUNITY_Community 72|Community 72]]
-- [[_COMMUNITY_Community 73|Community 73]]
-- [[_COMMUNITY_Community 74|Community 74]]
-- [[_COMMUNITY_Community 75|Community 75]]
-- [[_COMMUNITY_Community 76|Community 76]]
-- [[_COMMUNITY_Community 77|Community 77]]
-- [[_COMMUNITY_Community 78|Community 78]]
-- [[_COMMUNITY_Community 79|Community 79]]
-- [[_COMMUNITY_Community 80|Community 80]]
-- [[_COMMUNITY_Community 81|Community 81]]
-- [[_COMMUNITY_Community 82|Community 82]]
-- [[_COMMUNITY_Community 83|Community 83]]
-- [[_COMMUNITY_Community 84|Community 84]]
-- [[_COMMUNITY_Community 85|Community 85]]
-- [[_COMMUNITY_Community 86|Community 86]]
-- [[_COMMUNITY_Community 87|Community 87]]
-- [[_COMMUNITY_Community 88|Community 88]]
-- [[_COMMUNITY_Community 89|Community 89]]
-- [[_COMMUNITY_Community 90|Community 90]]
-- [[_COMMUNITY_Community 91|Community 91]]
-- [[_COMMUNITY_Community 92|Community 92]]
-- [[_COMMUNITY_Community 93|Community 93]]
-- [[_COMMUNITY_Community 94|Community 94]]
-- [[_COMMUNITY_Community 95|Community 95]]
-- [[_COMMUNITY_Community 96|Community 96]]
-- [[_COMMUNITY_Community 97|Community 97]]
-- [[_COMMUNITY_Community 98|Community 98]]
-- [[_COMMUNITY_Community 99|Community 99]]
-- [[_COMMUNITY_Community 100|Community 100]]
-- [[_COMMUNITY_Community 101|Community 101]]
+- [[_COMMUNITY_Avatar Component|Avatar Component]]
+- [[_COMMUNITY_Card Component|Card Component]]
+- [[_COMMUNITY_Icon Component|Icon Component]]
+- [[_COMMUNITY_Models Utility|Models Utility]]
+- [[_COMMUNITY_Chat Transport|Chat Transport]]
+- [[_COMMUNITY_Markdown Design|Markdown Design]]
+- [[_COMMUNITY_Chat Screens|Chat Screens]]
+- [[_COMMUNITY_Medha Logo Asset|Medha Logo Asset]]
+- [[_COMMUNITY_Reset Script|Reset Script]]
+- [[_COMMUNITY_Home Screen|Home Screen]]
+- [[_COMMUNITY_Settings Screen|Settings Screen]]
+- [[_COMMUNITY_Hint Row|Hint Row]]
+- [[_COMMUNITY_Empty State|Empty State]]
+- [[_COMMUNITY_Message Bubble|Message Bubble]]
+- [[_COMMUNITY_Offline Banner|Offline Banner]]
+- [[_COMMUNITY_Streaming Cursor|Streaming Cursor]]
+- [[_COMMUNITY_Thinking Block|Thinking Block]]
+- [[_COMMUNITY_Toast|Toast]]
+- [[_COMMUNITY_Badge|Badge]]
+- [[_COMMUNITY_Button|Button]]
+- [[_COMMUNITY_Dialog|Dialog]]
+- [[_COMMUNITY_Label|Label]]
+- [[_COMMUNITY_Native Anim View|Native Anim View]]
+- [[_COMMUNITY_Separator|Separator]]
+- [[_COMMUNITY_Toast Design|Toast Design]]
+- [[_COMMUNITY_Design Spec Details|Design Spec Details]]
+- [[_COMMUNITY_Design Spec Dark Mode|Design Spec Dark Mode]]
+- [[_COMMUNITY_Chat Blocks Design|Chat Blocks Design]]
+- [[_COMMUNITY_Expo Assets|Expo Assets]]
+- [[_COMMUNITY_Tab Icons|Tab Icons]]
+- [[_COMMUNITY_Empty State Screens|Empty State Screens]]
+- [[_COMMUNITY_Error Screens|Error Screens]]
+- [[_COMMUNITY_Offline Screens|Offline Screens]]
+- [[_COMMUNITY_Onboarding Screens|Onboarding Screens]]
+- [[_COMMUNITY_Search Screens|Search Screens]]
+- [[_COMMUNITY_App Identity|App Identity]]
+- [[_COMMUNITY_Expo React Host|Expo React Host]]
+- [[_COMMUNITY_Inter Font|Inter Font]]
+- [[_COMMUNITY_Babel Config|Babel Config]]
+- [[_COMMUNITY_ESLint Config|ESLint Config]]
+- [[_COMMUNITY_Metro Config|Metro Config]]
+- [[_COMMUNITY_NativeWind Env|NativeWind Env]]
+- [[_COMMUNITY_PostCSS Config|PostCSS Config]]
+- [[_COMMUNITY_Tailwind Config|Tailwind Config]]
+- [[_COMMUNITY_App Layout|App Layout]]
+- [[_COMMUNITY_Search Screen|Search Screen]]
+- [[_COMMUNITY_Chat Route|Chat Route]]
+- [[_COMMUNITY_ChatScreen Component|ChatScreen Component]]
+- [[_COMMUNITY_InputBar Component|InputBar Component]]
+- [[_COMMUNITY_MessageActionsMenu|MessageActionsMenu]]
+- [[_COMMUNITY_MessageList Component|MessageList Component]]
+- [[_COMMUNITY_ModelPicker|ModelPicker]]
+- [[_COMMUNITY_ModelPill|ModelPill]]
+- [[_COMMUNITY_ScrollToBottomButton|ScrollToBottomButton]]
+- [[_COMMUNITY_ThemePicker|ThemePicker]]
+- [[_COMMUNITY_Collapsible|Collapsible]]
+- [[_COMMUNITY_Switch|Switch]]
+- [[_COMMUNITY_Theme Constants|Theme Constants]]
+- [[_COMMUNITY_useColorScheme Hook|useColorScheme Hook]]
+- [[_COMMUNITY_Theme Lib|Theme Lib]]
+- [[_COMMUNITY_Provider Types|Provider Types]]
+- [[_COMMUNITY_UI Store|UI Store]]
+- [[_COMMUNITY_CSS Modules Types|CSS Modules Types]]
+- [[_COMMUNITY_Types Index|Types Index]]
+- [[_COMMUNITY_Syntax Highlighter Types|Syntax Highlighter Types]]
+- [[_COMMUNITY_Expo Start|Expo Start]]
+- [[_COMMUNITY_Expo Export|Expo Export]]
+- [[_COMMUNITY_React Native 0.83|React Native 0.83]]
+- [[_COMMUNITY_React 19.2|React 19.2]]
+- [[_COMMUNITY_Expo Local Auth|Expo Local Auth]]
+- [[_COMMUNITY_Core Design Tokens|Core Design Tokens]]
+- [[_COMMUNITY_Components Spec|Components Spec]]
+- [[_COMMUNITY_Layering Principle|Layering Principle]]
+- [[_COMMUNITY_Tutorial Web|Tutorial Web]]
+- [[_COMMUNITY_Conversation Drawer Screen|Conversation Drawer Screen]]
+- [[_COMMUNITY_Delete Dialog Screen|Delete Dialog Screen]]
+- [[_COMMUNITY_Markdown Showcase|Markdown Showcase]]
+- [[_COMMUNITY_Toast Showcase|Toast Showcase]]
+- [[_COMMUNITY_Follow Bottom Threshold|Follow Bottom Threshold]]
+- [[_COMMUNITY_Scroll Away Threshold|Scroll Away Threshold]]
+- [[_COMMUNITY_Jump Button Threshold|Jump Button Threshold]]
+- [[_COMMUNITY_Streaming Content Selector|Streaming Content Selector]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `Nova design language` - 15 edges
 2. `getDatabase()` - 14 edges
 3. `Medha AI Chat App` - 13 edges
-4. `streamCompletion()` - 12 edges
-5. `NovaMarkdownRenderer` - 9 edges
-6. `getCustomPromptPresets()` - 6 edges
-7. `importPromptPresets()` - 6 edges
-8. `initStorage()` - 6 edges
-9. `Text()` - 5 edges
-10. `saveCustomPromptPreset()` - 5 edges
+4. `streamNewResponse (ChatScreen)` - 13 edges
+5. `streamCompletion()` - 12 edges
+6. `NovaMarkdownRenderer` - 9 edges
+7. `Phase 4 - Wire Attachments (Multimodal)` - 8 edges
+8. `getCustomPromptPresets()` - 6 edges
+9. `importPromptPresets()` - 6 edges
+10. `initStorage()` - 6 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `expo-haptics` --conceptually_related_to--> `Toast notifications`  [INFERRED]
-  expo_streaming_guide.md → designs/15-toast-notifications.md
-- `Error & offline states` --conceptually_related_to--> `OpenRouter provider`  [INFERRED]
-  designs/13-error-offline-states.md → plan.md
-- `System prompt editor` --conceptually_related_to--> `SQLite schema`  [INFERRED]
-  designs/08-system-prompts.md → plan.md
-- `checkExistingKey()` --calls--> `hasAnyProviderKey()`  [INFERRED]
-  src/app/onboarding.tsx → src/stores/settings-store.ts
-- `handleVerifyAndContinue()` --calls--> `saveProviderKey()`  [INFERRED]
-  src/app/onboarding.tsx → src/stores/settings-store.ts
+- `Phase 4 - Wire Attachments (Multimodal)` --rationale_for--> `Base64 encoding utility`  [EXTRACTED]
+  input-phase4-multimodal.md → src/lib/attachments/encode.ts
+- `Phase 4 - Wire Attachments (Multimodal)` --rationale_for--> `OpenRouter provider`  [EXTRACTED]
+  input-phase4-multimodal.md → src/lib/providers/openrouter.ts
+- `Phase 4 - Wire Attachments (Multimodal)` --rationale_for--> `Google AI (Gemini) provider`  [EXTRACTED]
+  input-phase4-multimodal.md → src/lib/providers/google-ai.ts
+- `Phase 4 - Wire Attachments (Multimodal)` --rationale_for--> `Anthropic (Claude) provider`  [EXTRACTED]
+  input-phase4-multimodal.md → src/lib/providers/anthropic.ts
+- `Phase 2 - Voice Input (STT)` --rationale_for--> `VoiceInput component`  [EXTRACTED]
+  input-phase2-voice.md → src/components/chat/VoiceInput.tsx
 
 ## Hyperedges (group relationships)
-- **Medha tech stack dependencies** — plan_expo_sdk55, plan_react_native_083, plan_react_192, plan_nativewind_v4, plan_taiwindcss_v3, plan_react_native_reusables, plan_zustand, plan_expo_sqlite, plan_expo_secure_store, plan_expo_local_authentication, plan_openrouter, plan_expo_fetch, plan_ai_sdk_v6 [EXTRACTED 1.00]
-- **Sprint 2 streaming engine components** — plan_provider_interface, plan_sse_parser, plan_stream_wrapper, plan_openrouter, plan_chat_store, plan_expo_fetch [EXTRACTED 1.00]
-- **Database layer components** — plan_expo_sqlite, plan_sqlite_schema, plan_conversation_crud, plan_message_crud [EXTRACTED 1.00]
-- **Nova design system tokens** — design_nova_design_language, design_dark_mode_colors, design_light_mode_colors, design_typography_scale, design_spacing_system [EXTRACTED 1.00]
-- **Chat UI components** — design_message_bubbles, design_input_bar, design_model_selector_pill [EXTRACTED 1.00]
-- **Navigation components** — design_drawer_layout, design_bottom_sheet [EXTRACTED 1.00]
-- **Sprint 4 Nova UI redesign screens** — design_02_chat_empty, design_03_chat_active, design_04_conversation_drawer, design_05_model_picker [EXTRACTED 1.00]
-- **Sprint 7 features** — design_10_message_actions, design_12_theme_picker, design_13_error_offline, design_14_delete_confirmation [EXTRACTED 1.00]
-- **Streaming performance patterns** — expo_streaming_guide_ref_buffer, expo_streaming_guide_flashlist, expo_streaming_guide_abortcontroller, expo_streaming_guide_expo_haptics [EXTRACTED 0.90]
-- **Build workflow stages** — build_instructions_npx_expo_start, build_instructions_npx_expo_export, build_instructions_npx_expo_run_android, build_instructions_debug_apk, build_instructions_standalone_apk [EXTRACTED 1.00]
-- **Monochromatic Design Approach** — medha_nova_tonal_architecture, nova_carbon_surface_hierarchy, medha_design_specification_dark_mode_colors [EXTRACTED 1.00]
-- **No-Shadow Elevation System** — medha_nova_layering_principle, nova_carbon_tonal_elevation, nova_carbon_ghost_border, medha_nova_no_line_rule [EXTRACTED 1.00]
-- **Editorial Typography System** — medha_nova_editorial_authority, medha_design_specification_inter_font, nova_carbon_tonal_elevation [EXTRACTED 1.00]
-- **App Icon and Logo Assets** — assets_medha_mark_svg, assets_medha_mark_png, assets_medha_app_icon_png [EXTRACTED 1.00]
-- **Tab Bar Navigation Icons** — assets_tabicons_home_png, assets_tabicons_explore_png [EXTRACTED 1.00]
-- **Chat UI Component Set** — chat_active_conversation_screen, chat_empty_state_screen, chat_screen_empty_state_screen, conversation_drawer_screen, message_actions_menu_screen, message_edit_mode_screen [INFERRED 0.85]
-- **Error Handling States** — error_state_screen, error_state_rate_limited_screen, offline_state_screen, offline_state_banner_screen [INFERRED 0.80]
-- **Onboarding Flow** — onboarding_api_key_setup_screen, onboarding_error_state_screen, onboarding_success_state_screen [INFERRED 0.85]
+- **Sprint 9 Input Enhancement Phases** — input_phase1_keyboard, input_phase2_voice, input_phase3_attachments, input_phase4_multimodal [EXTRACTED 1.00]
+- **Keyboard Controller Replacement** — keyboard_provider, keyboard_stickyview, keyboard_awarescrollview, keyboard_avoidingview [EXTRACTED 1.00]
+- **Streaming Chat Coordination** — chatscreen_streamnewresponse, chatstore_startstreaming, chatstore_appendtoken, chatstore_stopstreaming, db_updatemessage [EXTRACTED 1.00]
+- **Expo Android Integration** — mainapplication, mainactivity, applicationlifecycledispatcher, splashscreenmanager, reactactivitydelegatewrapper [INFERRED 0.85]
+- **React Native Bootstrapping** — mainapplication_reacthost, exporeacthostfactory_getdefaulthost, mainapplication_loadreactnative, mainactivity_createreactactivitydelegate [EXTRACTED 1.00]
+- **New Architecture Support** — mainapplication, defaultnewarchitectureentrypoint, mainactivity_createreactactivitydelegate [INFERRED 0.80]
 
 ## Communities
 
-### Community 0 - "AI Provider Abstraction"
-Cohesion: 0.08
-Nodes (10): AnthropicProvider, GoogleAIProvider, MiniMaxProvider, OpenRouterProvider, buildHttpError(), isAbort(), processEvents(), streamCompletion() (+2 more)
+### Community 0 - "AI Provider Architecture"
+Cohesion: 0.07
+Nodes (10): AnthropicProvider, GoogleAIProvider, NovaMarkdownRenderer, MiniMaxProvider, buildHttpError(), isAbort(), processEvents(), streamCompletion() (+2 more)
 
-### Community 1 - "Sprint 7 Features"
+### Community 1 - "Project Planning"
 Cohesion: 0.08
-Nodes (27): Message actions & edit mode, Theme picker, Error & offline states, AbortController, expo/fetch API, SSE parser, StreamText class, TextDecoder stream (+19 more)
+Nodes (26): System prompt editor, Search screen, AbortController, expo/fetch API, SSE parser, StreamText class, TextDecoder stream, Vercel AI SDK v6 (+18 more)
 
-### Community 2 - "Model Cache Layer"
+### Community 2 - "Storage & Initialization"
 Cohesion: 0.11
 Nodes (10): getLastModel(), getLastProvider(), getTheme(), initStorage(), isBiometricLockEnabled(), isOnboardingComplete(), setLastProvider(), setOnboardingComplete() (+2 more)
 
-### Community 3 - "Sprint 3-4 UI Screens"
+### Community 3 - "UI Design System"
 Cohesion: 0.1
 Nodes (23): Onboarding screen, Chat empty state, Chat active conversation, Conversation drawer, Model picker bottom sheet, Settings screen, API key management, Delete confirmation dialog (+15 more)
 
-### Community 4 - "API Key Management"
+### Community 4 - "Input Enhancement"
+Cohesion: 0.09
+Nodes (21): Base64 encoding utility, Attachment picker module, Attachment storage module, getDefaultModel (ChatScreen), Medha Input Enhancement Plan (Sprint 9), Phase 1 - Keyboard Controller Swap, Phase 2 - Voice Input (STT), Phase 3 - File & Image Attachments (+13 more)
+
+### Community 5 - "Chat Screen & State"
+Cohesion: 0.15
+Nodes (21): AppState background handler, ChatScreen component, handleEditSubmit (ChatScreen), handleRegenerate (ChatScreen), handleRetry (ChatScreen), handleSend (ChatScreen), handleStop (ChatScreen), streamNewResponse (ChatScreen) (+13 more)
+
+### Community 6 - "API Key Management"
 Cohesion: 0.13
 Nodes (12): checkConnectedProviders(), handleAddKey(), deleteApiKey(), hasApiKey(), maskApiKey(), saveApiKey(), deleteProviderKey(), getConfiguredProviders() (+4 more)
 
-### Community 5 - "Conversation Database"
+### Community 7 - "Database CRUD"
 Cohesion: 0.18
 Nodes (16): createConversation(), deleteConversation(), getConversations(), touchConversation(), updateConversation(), addMessage(), buildSearchPreview(), deleteMessage() (+8 more)
 
-### Community 6 - "System Prompts & Search"
+### Community 8 - "System Prompts"
 Cohesion: 0.21
 Nodes (14): getConversation(), deleteCustomPromptPreset(), exportPromptPresets(), getCustomPromptPresets(), handleDeletePreset(), handleExport(), handleImport(), handleSavePreset() (+6 more)
 
-### Community 7 - "SSE Parser Module"
+### Community 9 - "SSE Parser"
 Cohesion: 0.29
 Nodes (3): extractTokens(), SSEParser, ThinkTagSeparator
 
-### Community 8 - "Markdown Renderer"
-Cohesion: 0.22
-Nodes (1): NovaMarkdownRenderer
+### Community 10 - "UI Components"
+Cohesion: 0.2
+Nodes (10): Message actions & edit mode, Theme picker, Error & offline states, Chat Zustand store, OpenRouter provider, AIProvider interface, Sprint 2: Streaming Engine, Sprint 7: Edit & Resend + Themes (+2 more)
 
-### Community 9 - "Sprint 5-6 Features"
-Cohesion: 0.22
-Nodes (9): System prompt editor, Search screen, Conversation CRUD, expo-sqlite, Message CRUD, SecureStore wrapper, Sprint 1: Database + Storage, Sprint 6: System Prompts + Search (+1 more)
+### Community 11 - "Android Native Integration"
+Cohesion: 0.25
+Nodes (9): ApplicationLifecycleDispatcher, DefaultNewArchitectureEntryPoint, MainActivity, createReactActivityDelegate, invokeDefaultOnBackPressed, MainApplication, loadReactNative Call, ReactActivityDelegateWrapper (+1 more)
 
-### Community 10 - "Theming System"
+### Community 12 - "Theming System"
 Cohesion: 0.25
 Nodes (4): ThemedText(), ThemedView(), useColorScheme(), useTheme()
 
-### Community 11 - "Model Picker Screens"
+### Community 13 - "Design Specs"
 Cohesion: 0.25
 Nodes (8): API Key Management Screen, Model Picker Bottom Sheet Screen, Model Picker Bottom Sheet Screen, Model Picker Bottom Sheet Screen, Onboarding API Key Setup Screen, Settings Screen, System Prompt Editor Screen, Theme Picker Screen
 
-### Community 12 - "Provider Registry"
+### Community 14 - "OpenRouter Provider"
+Cohesion: 0.33
+Nodes (1): OpenRouterProvider
+
+### Community 15 - "Provider Registry"
 Cohesion: 0.53
 Nodes (5): getProvider(), listProviders(), registerBuiltInProviders(), registerProvider(), getProviderInstance()
 
-### Community 13 - "Nova Glass & Borders"
+### Community 16 - "Nova Design Tokens"
 Cohesion: 0.33
 Nodes (6): Glass Exception (Frosted Obsidian), No-Line Rule, Tonal Nesting, Ambient Glow (2026 AI Signature), Glass & Texture Rule, Surface Hierarchy & Nesting
 
-### Community 14 - "Design System Specs"
+### Community 17 - "Design Spec Documents"
 Cohesion: 0.5
 Nodes (5): Medha Master Design Language, The Obsidian Monolith, Quiet Intelligence, Nova Design System - Quiet Intelligence, Carbon Design System - Obsidian Monolith
 
-### Community 15 - "Input Components"
+### Community 18 - "Input & Utils"
 Cohesion: 0.5
 Nodes (2): Input(), cn()
 
-### Community 16 - "Biometric Auth"
+### Community 19 - "Biometric Auth"
 Cohesion: 0.83
 Nodes (3): authenticateWithBiometric(), canUseBiometricLock(), getBiometricStatus()
 
-### Community 17 - "Streaming Chat Store"
+### Community 20 - "Chat Store Selectors"
 Cohesion: 0.5
 Nodes (0): 
 
-### Community 18 - "Build Workflow"
+### Community 21 - "Build Instructions"
 Cohesion: 0.5
 Nodes (4): Debug APK, JDK 17, npx expo run:android, Standalone APK
 
-### Community 19 - "Typography & Elevation"
+### Community 22 - "Nova Visual Principles"
 Cohesion: 0.5
 Nodes (4): Editorial Authority Typography, Layering Principle, Ghost Border Fallback, Tonal Elevation
 
-### Community 20 - "App Branding Assets"
+### Community 23 - "App Icons"
 Cohesion: 0.5
 Nodes (4): Medha App Icon, Medha Logo Mark, Medha Shield Logo Mark, Splash Screen Icon
 
-### Community 21 - "Animated Icons"
+### Community 24 - "Animated Icon"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 22 - "Community 22"
+### Community 25 - "Animated Icon Web"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 23 - "Community 23"
+### Community 26 - "External Link"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 24 - "Medha Logo Component"
+### Community 27 - "Medha Logo"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 25 - "Conversation Drawer"
+### Community 28 - "Conversation Drawer"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 26 - "Community 26"
+### Community 29 - "Avatar Component"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 27 - "Community 27"
+### Community 30 - "Card Component"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 28 - "Community 28"
+### Community 31 - "Icon Component"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 29 - "Model Display Utils"
+### Community 32 - "Models Utility"
 Cohesion: 1.0
 Nodes (2): getModelDisplayName(), keepSelectedModelVisible()
 
-### Community 30 - "AI SDK Streaming"
+### Community 33 - "Chat Transport"
 Cohesion: 0.67
 Nodes (3): DefaultChatTransport, Ref-buffer pattern, useChat hook
 
-### Community 31 - "Markdown Showcase Design"
+### Community 34 - "Markdown Design"
 Cohesion: 0.67
 Nodes (3): Markdown rendering showcase, react-native-marked, Sprint 5: Markdown Rendering
 
-### Community 32 - "Chat Screen Designs"
+### Community 35 - "Chat Screens"
 Cohesion: 0.67
 Nodes (3): Chat Active Conversation Screen, Message Actions Menu Screen, Message Edit Mode Screen
 
-### Community 33 - "App Logo Assets"
+### Community 36 - "Medha Logo Asset"
 Cohesion: 0.67
 Nodes (3): Medha App Logo, Medha App Logo 512, Medha App Logo SVG
 
-### Community 34 - "Community 34"
+### Community 37 - "Reset Script"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 35 - "Community 35"
+### Community 38 - "Home Screen"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 36 - "Community 36"
+### Community 39 - "Settings Screen"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 37 - "Community 37"
+### Community 40 - "Hint Row"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 38 - "Community 38"
+### Community 41 - "Empty State"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 39 - "Community 39"
+### Community 42 - "Message Bubble"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 40 - "Community 40"
+### Community 43 - "Offline Banner"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 41 - "Community 41"
+### Community 44 - "Streaming Cursor"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 42 - "Community 42"
+### Community 45 - "Thinking Block"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 43 - "Community 43"
+### Community 46 - "Toast"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 44 - "Community 44"
+### Community 47 - "Badge"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 45 - "Community 45"
+### Community 48 - "Button"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 46 - "Community 46"
+### Community 49 - "Dialog"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 47 - "Community 47"
+### Community 50 - "Label"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 48 - "Community 48"
+### Community 51 - "Native Anim View"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 49 - "Community 49"
+### Community 52 - "Separator"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 50 - "Community 50"
+### Community 53 - "Toast Design"
 Cohesion: 1.0
 Nodes (2): Toast notifications, expo-haptics
 
-### Community 51 - "Navigation Paradigm"
+### Community 54 - "Design Spec Details"
 Cohesion: 1.0
 Nodes (2): Chat-First Navigation, Navigation Paradigm
 
-### Community 52 - "Dark Mode Colors"
+### Community 55 - "Design Spec Dark Mode"
 Cohesion: 1.0
 Nodes (2): Dark Mode Color Palette, Tonal Architecture
 
-### Community 53 - "Community 53"
+### Community 56 - "Chat Blocks Design"
 Cohesion: 1.0
 Nodes (2): Editorial Blocks (Anti-Bubble), Message Bubbles (Pills)
 
-### Community 54 - "Community 54"
+### Community 57 - "Expo Assets"
 Cohesion: 1.0
 Nodes (2): Expo Logo, Expo Symbol Background Pattern
 
-### Community 55 - "Community 55"
+### Community 58 - "Tab Icons"
 Cohesion: 1.0
 Nodes (2): Explore Tab Icon, Home Tab Icon
 
-### Community 56 - "Community 56"
+### Community 59 - "Empty State Screens"
 Cohesion: 1.0
 Nodes (2): Chat Empty State Screen, Chat Screen Empty State Screen
 
-### Community 57 - "Community 57"
+### Community 60 - "Error Screens"
 Cohesion: 1.0
 Nodes (2): Error State Rate Limited Screen, Error State Screen
 
-### Community 58 - "Community 58"
+### Community 61 - "Offline Screens"
 Cohesion: 1.0
 Nodes (2): Offline State Banner Screen, Offline State Screen
 
-### Community 59 - "Community 59"
+### Community 62 - "Onboarding Screens"
 Cohesion: 1.0
 Nodes (2): Onboarding Error State Screen, Onboarding Success State Screen
 
-### Community 60 - "Community 60"
+### Community 63 - "Search Screens"
 Cohesion: 1.0
 Nodes (2): Search Results Screen, Search Results Screen
 
-### Community 61 - "Community 61"
+### Community 64 - "App Identity"
+Cohesion: 1.0
+Nodes (2): Medha BYOK AI Chat App, Nova Design Language
+
+### Community 65 - "Expo React Host"
+Cohesion: 1.0
+Nodes (2): ExpoReactHostFactory.getDefaultReactHost, ReactHost Property
+
+### Community 66 - "Inter Font"
 Cohesion: 1.0
 Nodes (1): Inter Font
 
-### Community 62 - "Community 62"
+### Community 67 - "Babel Config"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 63 - "Community 63"
+### Community 68 - "ESLint Config"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 64 - "Community 64"
+### Community 69 - "Metro Config"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 65 - "Community 65"
+### Community 70 - "NativeWind Env"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 66 - "Community 66"
+### Community 71 - "PostCSS Config"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 67 - "Community 67"
+### Community 72 - "Tailwind Config"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 68 - "Community 68"
+### Community 73 - "App Layout"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 69 - "Community 69"
+### Community 74 - "Search Screen"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 70 - "Community 70"
+### Community 75 - "Chat Route"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 71 - "Community 71"
+### Community 76 - "ChatScreen Component"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 72 - "Community 72"
+### Community 77 - "InputBar Component"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 73 - "Community 73"
+### Community 78 - "MessageActionsMenu"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 74 - "Community 74"
+### Community 79 - "MessageList Component"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 75 - "Community 75"
+### Community 80 - "ModelPicker"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 76 - "Community 76"
+### Community 81 - "ModelPill"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 77 - "Community 77"
+### Community 82 - "ScrollToBottomButton"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 78 - "Community 78"
+### Community 83 - "ThemePicker"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 79 - "Community 79"
+### Community 84 - "Collapsible"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 80 - "Community 80"
+### Community 85 - "Switch"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 81 - "Community 81"
+### Community 86 - "Theme Constants"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 82 - "Community 82"
+### Community 87 - "useColorScheme Hook"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 83 - "Community 83"
+### Community 88 - "Theme Lib"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 84 - "Community 84"
+### Community 89 - "Provider Types"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 85 - "Community 85"
+### Community 90 - "UI Store"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 86 - "Community 86"
+### Community 91 - "CSS Modules Types"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 87 - "Community 87"
+### Community 92 - "Types Index"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 88 - "Community 88"
+### Community 93 - "Syntax Highlighter Types"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 89 - "Community 89"
+### Community 94 - "Expo Start"
 Cohesion: 1.0
 Nodes (1): npx expo start
 
-### Community 90 - "Community 90"
+### Community 95 - "Expo Export"
 Cohesion: 1.0
 Nodes (1): npx expo export
 
-### Community 91 - "Community 91"
+### Community 96 - "React Native 0.83"
 Cohesion: 1.0
 Nodes (1): React Native 0.83
 
-### Community 92 - "Community 92"
+### Community 97 - "React 19.2"
 Cohesion: 1.0
 Nodes (1): React 19.2
 
-### Community 93 - "Community 93"
+### Community 98 - "Expo Local Auth"
 Cohesion: 1.0
 Nodes (1): expo-local-authentication
 
-### Community 94 - "Community 94"
+### Community 99 - "Core Design Tokens"
 Cohesion: 1.0
 Nodes (1): Core Design Tokens
 
-### Community 95 - "Community 95"
+### Community 100 - "Components Spec"
 Cohesion: 1.0
 Nodes (1): Core Components
 
-### Community 96 - "Community 96"
+### Community 101 - "Layering Principle"
 Cohesion: 1.0
 Nodes (1): Layering Principle
 
-### Community 97 - "Community 97"
+### Community 102 - "Tutorial Web"
 Cohesion: 1.0
 Nodes (1): Tutorial Web Image
 
-### Community 98 - "Community 98"
+### Community 103 - "Conversation Drawer Screen"
 Cohesion: 1.0
 Nodes (1): Conversation Drawer Screen
 
-### Community 99 - "Community 99"
+### Community 104 - "Delete Dialog Screen"
 Cohesion: 1.0
 Nodes (1): Delete Confirmation Dialog Screen
 
-### Community 100 - "Community 100"
+### Community 105 - "Markdown Showcase"
 Cohesion: 1.0
 Nodes (1): Markdown Rendering Showcase Screen
 
-### Community 101 - "Community 101"
+### Community 106 - "Toast Showcase"
 Cohesion: 1.0
 Nodes (1): Toast Notifications Showcase Screen
 
+### Community 107 - "Follow Bottom Threshold"
+Cohesion: 1.0
+Nodes (1): FOLLOW_BOTTOM_THRESHOLD
+
+### Community 108 - "Scroll Away Threshold"
+Cohesion: 1.0
+Nodes (1): SCROLL_AWAY_THRESHOLD
+
+### Community 109 - "Jump Button Threshold"
+Cohesion: 1.0
+Nodes (1): JUMP_BUTTON_THRESHOLD
+
+### Community 110 - "Streaming Content Selector"
+Cohesion: 1.0
+Nodes (1): useStreamingContent selector
+
 ## Knowledge Gaps
-- **89 isolated node(s):** `npx expo start`, `npx expo export`, `Debug APK`, `Standalone APK`, `JDK 17` (+84 more)
+- **114 isolated node(s):** `npx expo start`, `npx expo export`, `Debug APK`, `Standalone APK`, `JDK 17` (+109 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **Thin community `Community 34`** (2 nodes): `moveDirectories()`, `reset-project.js`
+- **Thin community `Reset Script`** (2 nodes): `moveDirectories()`, `reset-project.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 35`** (2 nodes): `HomeScreen()`, `index.tsx`
+- **Thin community `Home Screen`** (2 nodes): `HomeScreen()`, `index.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 36`** (2 nodes): `SettingsScreen()`, `settings.tsx`
+- **Thin community `Settings Screen`** (2 nodes): `SettingsScreen()`, `settings.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 37`** (2 nodes): `HintRow()`, `hint-row.tsx`
+- **Thin community `Hint Row`** (2 nodes): `HintRow()`, `hint-row.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 38`** (2 nodes): `EmptyState()`, `EmptyState.tsx`
+- **Thin community `Empty State`** (2 nodes): `EmptyState()`, `EmptyState.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 39`** (2 nodes): `getAssistantStatusLabel()`, `MessageBubble.tsx`
+- **Thin community `Message Bubble`** (2 nodes): `getAssistantStatusLabel()`, `MessageBubble.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 40`** (2 nodes): `OfflineBanner()`, `OfflineBanner.tsx`
+- **Thin community `Offline Banner`** (2 nodes): `OfflineBanner()`, `OfflineBanner.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 41`** (2 nodes): `StreamingCursor.tsx`, `StreamingCursor()`
+- **Thin community `Streaming Cursor`** (2 nodes): `StreamingCursor.tsx`, `StreamingCursor()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 42`** (2 nodes): `ThinkingBlock.tsx`, `toggleExpanded()`
+- **Thin community `Thinking Block`** (2 nodes): `ThinkingBlock.tsx`, `toggleExpanded()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 43`** (2 nodes): `Toast.tsx`, `Toast()`
+- **Thin community `Toast`** (2 nodes): `Toast.tsx`, `Toast()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 44`** (2 nodes): `Badge()`, `badge.tsx`
+- **Thin community `Badge`** (2 nodes): `Badge()`, `badge.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 45`** (2 nodes): `Button()`, `button.tsx`
+- **Thin community `Button`** (2 nodes): `Button()`, `button.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 46`** (2 nodes): `cn()`, `dialog.tsx`
+- **Thin community `Dialog`** (2 nodes): `cn()`, `dialog.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 47`** (2 nodes): `Label()`, `label.tsx`
+- **Thin community `Label`** (2 nodes): `Label()`, `label.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 48`** (2 nodes): `NativeOnlyAnimatedView()`, `native-only-animated-view.tsx`
+- **Thin community `Native Anim View`** (2 nodes): `NativeOnlyAnimatedView()`, `native-only-animated-view.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 49`** (2 nodes): `Separator()`, `separator.tsx`
+- **Thin community `Separator`** (2 nodes): `Separator()`, `separator.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 50`** (2 nodes): `Toast notifications`, `expo-haptics`
+- **Thin community `Toast Design`** (2 nodes): `Toast notifications`, `expo-haptics`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Navigation Paradigm`** (2 nodes): `Chat-First Navigation`, `Navigation Paradigm`
+- **Thin community `Design Spec Details`** (2 nodes): `Chat-First Navigation`, `Navigation Paradigm`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Dark Mode Colors`** (2 nodes): `Dark Mode Color Palette`, `Tonal Architecture`
+- **Thin community `Design Spec Dark Mode`** (2 nodes): `Dark Mode Color Palette`, `Tonal Architecture`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 53`** (2 nodes): `Editorial Blocks (Anti-Bubble)`, `Message Bubbles (Pills)`
+- **Thin community `Chat Blocks Design`** (2 nodes): `Editorial Blocks (Anti-Bubble)`, `Message Bubbles (Pills)`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 54`** (2 nodes): `Expo Logo`, `Expo Symbol Background Pattern`
+- **Thin community `Expo Assets`** (2 nodes): `Expo Logo`, `Expo Symbol Background Pattern`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 55`** (2 nodes): `Explore Tab Icon`, `Home Tab Icon`
+- **Thin community `Tab Icons`** (2 nodes): `Explore Tab Icon`, `Home Tab Icon`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 56`** (2 nodes): `Chat Empty State Screen`, `Chat Screen Empty State Screen`
+- **Thin community `Empty State Screens`** (2 nodes): `Chat Empty State Screen`, `Chat Screen Empty State Screen`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 57`** (2 nodes): `Error State Rate Limited Screen`, `Error State Screen`
+- **Thin community `Error Screens`** (2 nodes): `Error State Rate Limited Screen`, `Error State Screen`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 58`** (2 nodes): `Offline State Banner Screen`, `Offline State Screen`
+- **Thin community `Offline Screens`** (2 nodes): `Offline State Banner Screen`, `Offline State Screen`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 59`** (2 nodes): `Onboarding Error State Screen`, `Onboarding Success State Screen`
+- **Thin community `Onboarding Screens`** (2 nodes): `Onboarding Error State Screen`, `Onboarding Success State Screen`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 60`** (2 nodes): `Search Results Screen`, `Search Results Screen`
+- **Thin community `Search Screens`** (2 nodes): `Search Results Screen`, `Search Results Screen`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 61`** (1 nodes): `Inter Font`
+- **Thin community `App Identity`** (2 nodes): `Medha BYOK AI Chat App`, `Nova Design Language`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 62`** (1 nodes): `babel.config.js`
+- **Thin community `Expo React Host`** (2 nodes): `ExpoReactHostFactory.getDefaultReactHost`, `ReactHost Property`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 63`** (1 nodes): `eslint.config.js`
+- **Thin community `Inter Font`** (1 nodes): `Inter Font`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 64`** (1 nodes): `metro.config.js`
+- **Thin community `Babel Config`** (1 nodes): `babel.config.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 65`** (1 nodes): `nativewind-env.d.ts`
+- **Thin community `ESLint Config`** (1 nodes): `eslint.config.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 66`** (1 nodes): `postcss.config.mjs`
+- **Thin community `Metro Config`** (1 nodes): `metro.config.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 67`** (1 nodes): `tailwind.config.js`
+- **Thin community `NativeWind Env`** (1 nodes): `nativewind-env.d.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 68`** (1 nodes): `_layout.tsx`
+- **Thin community `PostCSS Config`** (1 nodes): `postcss.config.mjs`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 69`** (1 nodes): `search.tsx`
+- **Thin community `Tailwind Config`** (1 nodes): `tailwind.config.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 70`** (1 nodes): `[id].tsx`
+- **Thin community `App Layout`** (1 nodes): `_layout.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 71`** (1 nodes): `ChatScreen.tsx`
+- **Thin community `Search Screen`** (1 nodes): `search.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 72`** (1 nodes): `InputBar.tsx`
+- **Thin community `Chat Route`** (1 nodes): `[id].tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 73`** (1 nodes): `MessageActionsMenu.tsx`
+- **Thin community `ChatScreen Component`** (1 nodes): `ChatScreen.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 74`** (1 nodes): `MessageList.tsx`
+- **Thin community `InputBar Component`** (1 nodes): `InputBar.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 75`** (1 nodes): `ModelPicker.tsx`
+- **Thin community `MessageActionsMenu`** (1 nodes): `MessageActionsMenu.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 76`** (1 nodes): `ModelPill.tsx`
+- **Thin community `MessageList Component`** (1 nodes): `MessageList.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 77`** (1 nodes): `ScrollToBottomButton.tsx`
+- **Thin community `ModelPicker`** (1 nodes): `ModelPicker.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 78`** (1 nodes): `ThemePicker.tsx`
+- **Thin community `ModelPill`** (1 nodes): `ModelPill.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 79`** (1 nodes): `collapsible.tsx`
+- **Thin community `ScrollToBottomButton`** (1 nodes): `ScrollToBottomButton.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 80`** (1 nodes): `switch.tsx`
+- **Thin community `ThemePicker`** (1 nodes): `ThemePicker.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 81`** (1 nodes): `theme.ts`
+- **Thin community `Collapsible`** (1 nodes): `collapsible.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 82`** (1 nodes): `use-color-scheme.ts`
+- **Thin community `Switch`** (1 nodes): `switch.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 83`** (1 nodes): `theme.ts`
+- **Thin community `Theme Constants`** (1 nodes): `theme.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 84`** (1 nodes): `types.ts`
+- **Thin community `useColorScheme Hook`** (1 nodes): `use-color-scheme.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 85`** (1 nodes): `ui-store.ts`
+- **Thin community `Theme Lib`** (1 nodes): `theme.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 86`** (1 nodes): `css-modules.d.ts`
+- **Thin community `Provider Types`** (1 nodes): `types.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 87`** (1 nodes): `index.ts`
+- **Thin community `UI Store`** (1 nodes): `ui-store.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 88`** (1 nodes): `react-native-syntax-highlighter.d.ts`
+- **Thin community `CSS Modules Types`** (1 nodes): `css-modules.d.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 89`** (1 nodes): `npx expo start`
+- **Thin community `Types Index`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 90`** (1 nodes): `npx expo export`
+- **Thin community `Syntax Highlighter Types`** (1 nodes): `react-native-syntax-highlighter.d.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 91`** (1 nodes): `React Native 0.83`
+- **Thin community `Expo Start`** (1 nodes): `npx expo start`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 92`** (1 nodes): `React 19.2`
+- **Thin community `Expo Export`** (1 nodes): `npx expo export`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 93`** (1 nodes): `expo-local-authentication`
+- **Thin community `React Native 0.83`** (1 nodes): `React Native 0.83`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 94`** (1 nodes): `Core Design Tokens`
+- **Thin community `React 19.2`** (1 nodes): `React 19.2`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 95`** (1 nodes): `Core Components`
+- **Thin community `Expo Local Auth`** (1 nodes): `expo-local-authentication`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 96`** (1 nodes): `Layering Principle`
+- **Thin community `Core Design Tokens`** (1 nodes): `Core Design Tokens`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 97`** (1 nodes): `Tutorial Web Image`
+- **Thin community `Components Spec`** (1 nodes): `Core Components`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 98`** (1 nodes): `Conversation Drawer Screen`
+- **Thin community `Layering Principle`** (1 nodes): `Layering Principle`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 99`** (1 nodes): `Delete Confirmation Dialog Screen`
+- **Thin community `Tutorial Web`** (1 nodes): `Tutorial Web Image`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 100`** (1 nodes): `Markdown Rendering Showcase Screen`
+- **Thin community `Conversation Drawer Screen`** (1 nodes): `Conversation Drawer Screen`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 101`** (1 nodes): `Toast Notifications Showcase Screen`
+- **Thin community `Delete Dialog Screen`** (1 nodes): `Delete Confirmation Dialog Screen`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Markdown Showcase`** (1 nodes): `Markdown Rendering Showcase Screen`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Toast Showcase`** (1 nodes): `Toast Notifications Showcase Screen`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Follow Bottom Threshold`** (1 nodes): `FOLLOW_BOTTOM_THRESHOLD`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Scroll Away Threshold`** (1 nodes): `SCROLL_AWAY_THRESHOLD`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Jump Button Threshold`** (1 nodes): `JUMP_BUTTON_THRESHOLD`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Streaming Content Selector`** (1 nodes): `useStreamingContent selector`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+
+## Suggested Questions
+_Questions this graph is uniquely positioned to answer:_
+
+- **Why does `streamCompletion()` connect `AI Provider Architecture` to `SSE Parser`, `OpenRouter Provider`?**
+  _High betweenness centrality (0.023) - this node is a cross-community bridge._
+- **Why does `Text()` connect `AI Provider Architecture` to `System Prompts`?**
+  _High betweenness centrality (0.023) - this node is a cross-community bridge._
+- **Why does `importPromptPresets()` connect `System Prompts` to `AI Provider Architecture`?**
+  _High betweenness centrality (0.018) - this node is a cross-community bridge._
+- **Are the 12 inferred relationships involving `getDatabase()` (e.g. with `createConversation()` and `getConversations()`) actually correct?**
+  _`getDatabase()` has 12 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 7 inferred relationships involving `streamCompletion()` (e.g. with `Text()` and `.stream()`) actually correct?**
+  _`streamCompletion()` has 7 INFERRED edges - model-reasoned connections that need verification._
+- **What connects `npx expo start`, `npx expo export`, `Debug APK` to the rest of the system?**
+  _114 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `AI Provider Architecture` be split into smaller, more focused modules?**
+  _Cohesion score 0.07 - nodes in this community are weakly interconnected._
