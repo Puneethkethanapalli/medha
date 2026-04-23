@@ -37,7 +37,12 @@
       ],
       "expo-secure-store",
       "expo-sqlite",
-      "expo-sharing"
+      "expo-sharing",
+      ["expo-speech-recognition", {
+        "microphonePermission": "Allow Medha to use your microphone for voice input.",
+        "speechRecognitionPermission": "Allow Medha to use speech recognition.",
+        "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
+      }]
     ],
     "experiments": {
       "typedRoutes": true,
