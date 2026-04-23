@@ -42,7 +42,9 @@
         "microphonePermission": "Allow Medha to use your microphone for voice input.",
         "speechRecognitionPermission": "Allow Medha to use speech recognition.",
         "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
-      }]
+      }],
+      "expo-image-picker",
+      "expo-document-picker"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -24,7 +24,7 @@ import {
 import { getApiKey } from '@/lib/storage/secure';
 import { getProvider, registerBuiltInProviders, listProviders } from '@/lib/providers/registry';
 import { useRouter } from 'expo-router';
-import type { Message } from '@/types';
+import type { Message, Attachment } from '@/types';
 
 interface ChatScreenProps {
   conversationId: string | null;
@@ -153,6 +153,7 @@ export const ChatScreen = React.memo(function ChatScreen({
         role: 'assistant',
         content: '',
         reasoning: null,
+        attachments: null,
         status: 'streaming',
         model,
         tokens_used: null,
@@ -232,7 +233,7 @@ export const ChatScreen = React.memo(function ChatScreen({
   );
 
   const handleSend = useCallback(
-    async (text: string) => {
+    async (text: string, attachments?: Attachment[]) => {
       const providerId = lastProvider || 'openrouter';
       const model = lastModel || getDefaultModel(providerId);
       let convId = currentConvId;
@@ -246,13 +247,14 @@ export const ChatScreen = React.memo(function ChatScreen({
       }
 
       // Save user message to SQLite
-      const userMsgId = addMessage(convId, 'user', text, model);
+      const userMsgId = addMessage(convId, 'user', text, model, attachments || null);
       const userMsg: Message = {
         id: userMsgId,
         conversation_id: convId,
         role: 'user',
         content: text,
         reasoning: null,
+        attachments: attachments || null,
         status: 'complete',
         model,
         tokens_used: null,

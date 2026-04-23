@@ -9,12 +9,22 @@ export interface Conversation {
   pinned: number;
 }
 
+export interface Attachment {
+  id: string;
+  type: 'image' | 'document';
+  uri: string;           // local file URI (persistent app directory)
+  name: string;          // display name (e.g. "photo.jpg", "report.pdf")
+  mimeType: string;      // e.g. 'image/jpeg', 'application/pdf'
+  size: number;          // file size in bytes
+}
+
 export interface Message {
   id: string;
   conversation_id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
   reasoning: string | null;
+  attachments: Attachment[] | null;
   status: 'complete' | 'streaming' | 'cancelled' | 'error';
   model: string | null;
   tokens_used: number | null;

@@ -1,21 +1,23 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from './schema';
-import type { Message, MessageSearchResult } from '../../types';
+import type { Message, Attachment, MessageSearchResult } from '../../types';
 
 export function addMessage(
   conversationId: string,
   role: 'user' | 'assistant' | 'system',
   content: string,
-  model?: string
+  model?: string,
+  attachments?: Attachment[] | null
 ): string {
   const db = getDatabase();
   const id = uuidv4();
   const now = Date.now();
 
   db.runSync(
-    `INSERT INTO messages (id, conversation_id, role, content, status, model, created_at)
-     VALUES (?, ?, ?, ?, 'complete', ?, ?)`,
-    [id, conversationId, role, content, model ?? null, now]
+    `INSERT INTO messages (id, conversation_id, role, content, status, model, attachments, created_at)
+     VALUES (?, ?, ?, ?, 'complete', ?, ?, ?)`,
+    [id, conversationId, role, content, model ?? null,
+     attachments ? JSON.stringify(attachments) : null, now]
   );
 
   return id;
@@ -23,16 +25,19 @@ export function addMessage(
 
 export function getMessages(conversationId: string): Message[] {
   const db = getDatabase();
-  const rows = db.getAllSync<Message>(
+  const rows = db.getAllSync<any>(
     'SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC',
     [conversationId]
   );
-  return rows;
+  return rows.map((row) => ({
+    ...row,
+    attachments: row.attachments ? JSON.parse(row.attachments) : null,
+  }));
 }
 
 export function updateMessage(
   id: string,
-  fields: Partial<Pick<Message, 'content' | 'status' | 'tokens_used' | 'reasoning'>>
+  fields: Partial<Pick<Message, 'content' | 'status' | 'tokens_used' | 'reasoning' | 'attachments'>>
 ): void {
   const db = getDatabase();
   const sets: string[] = [];
@@ -53,6 +58,10 @@ export function updateMessage(
   if (fields.tokens_used !== undefined) {
     sets.push('tokens_used = ?');
     values.push(fields.tokens_used ?? null);
+  }
+  if (fields.attachments !== undefined) {
+    sets.push('attachments = ?');
+    values.push(fields.attachments ? JSON.stringify(fields.attachments) : null);
   }
 
   if (sets.length === 0) return;

@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from 'react';
-import { Pressable, View, TextInput } from 'react-native';
+import { Pressable, View, TextInput, Image } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import LottieView from 'lottie-react-native';
-import { Copy, RefreshCw, TriangleAlert } from 'lucide-react-native';
+import { Copy, RefreshCw, TriangleAlert, FileText } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useStreamingContent, useStreamingReasoning } from '@/stores/chat-store';
 import { useUIStore } from '@/stores/ui-store';
@@ -160,6 +160,31 @@ export const MessageBubble = React.memo(function MessageBubble({
           <Text className="text-foreground text-[14px] leading-relaxed">
             {message.content}
           </Text>
+          {/* Attachments */}
+          {message.attachments && message.attachments.length > 0 && (
+            <View className="flex-row flex-wrap gap-2 mt-2">
+              {message.attachments.map((att) =>
+                att.type === 'image' ? (
+                  <Image
+                    key={att.id}
+                    source={{ uri: att.uri }}
+                    className="w-24 h-24 rounded-lg"
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View
+                    key={att.id}
+                    className="flex-row items-center bg-muted/50 rounded-lg px-2 py-1.5 gap-1.5"
+                  >
+                    <FileText size={12} color="hsl(0, 0%, 63%)" />
+                    <Text className="text-muted-foreground text-[11px]" numberOfLines={1}>
+                      {att.name}
+                    </Text>
+                  </View>
+                )
+              )}
+            </View>
+          )}
         </Pressable>
       </View>
     );

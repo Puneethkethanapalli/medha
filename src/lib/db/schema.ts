@@ -56,4 +56,11 @@ export function initializeDatabase(): void {
   } catch {
     // Column already exists — ignore
   }
+
+  // Add attachments column (Sprint 9)
+  try {
+    database.runSync('ALTER TABLE messages ADD COLUMN attachments TEXT');
+  } catch {
+    // Column already exists — ignore
+  }
 }
