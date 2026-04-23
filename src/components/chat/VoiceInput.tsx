@@ -2,6 +2,8 @@ import React, { useState, useCallback } from 'react';
 import { View, Pressable, Text } from 'react-native';
 import Animated, {
   useSharedValue,
+  withSequence,
+  withTiming,
   withSpring,
   useAnimatedStyle,
 } from 'react-native-reanimated';
@@ -17,19 +19,19 @@ interface VoiceInputProps {
   onCancel: () => void;
 }
 
-const NUM_BARS = 5;
-const SPRING_CONFIG = { damping: 12, stiffness: 180 };
+const BASE_HEIGHT = 4;
+const DECAY_SPRING = { damping: 10, stiffness: 120 };
 
 export function VoiceInput({ onTranscript, onCancel }: VoiceInputProps) {
   const [transcript, setTranscript] = useState('');
   const [isListening, setIsListening] = useState(false);
 
   // Waveform bars driven by volume
-  const bar0 = useSharedValue(4);
-  const bar1 = useSharedValue(4);
-  const bar2 = useSharedValue(4);
-  const bar3 = useSharedValue(4);
-  const bar4 = useSharedValue(4);
+  const bar0 = useSharedValue(BASE_HEIGHT);
+  const bar1 = useSharedValue(BASE_HEIGHT);
+  const bar2 = useSharedValue(BASE_HEIGHT);
+  const bar3 = useSharedValue(BASE_HEIGHT);
+  const bar4 = useSharedValue(BASE_HEIGHT);
   const bars = [bar0, bar1, bar2, bar3, bar4];
 
   useSpeechRecognitionEvent('result', (event) => {
@@ -43,9 +45,14 @@ export function VoiceInput({ onTranscript, onCancel }: VoiceInputProps) {
   useSpeechRecognitionEvent('volumechange', (event) => {
     const normalized = Math.max(0, (event.value + 2) / 12); // 0-1
     bars.forEach((bar, i) => {
-      // Stagger bars for wave effect — each bar gets a slightly different multiplier
-      const variance = 0.6 + Math.sin(i * 1.2) * 0.4;
-      bar.value = withSpring(4 + normalized * 20 * variance, SPRING_CONFIG);
+      // Per-bar jitter so they don't all look identical
+      const jitter = 0.7 + Math.random() * 0.6;
+      const peakHeight = BASE_HEIGHT + normalized * 22 * jitter;
+      // Pulse: jump up fast → spring back to baseline
+      bar.value = withSequence(
+        withTiming(peakHeight, { duration: 60 }),
+        withSpring(BASE_HEIGHT, DECAY_SPRING),
+      );
     });
   });
 
@@ -138,6 +145,8 @@ export function VoiceInput({ onTranscript, onCancel }: VoiceInputProps) {
   }));
   const barStyles = [barStyle0, barStyle1, barStyle2, barStyle3, barStyle4];
 
+  const hasTranscript = transcript.length > 0;
+
   return (
     <View className="flex-row items-center gap-3 px-4 py-3 bg-surface-container-low rounded-2xl">
       {/* Cancel button */}
@@ -148,21 +157,24 @@ export function VoiceInput({ onTranscript, onCancel }: VoiceInputProps) {
         <X size={16} color="hsl(0, 0%, 63%)" />
       </Pressable>
 
-      {/* Waveform / transcript area */}
-      <View className="flex-1 items-center justify-center min-h-[36px]">
-        {transcript ? (
-          <Text className="text-foreground text-[14px]" numberOfLines={2}>
+      {/* Waveform + transcript area — waveform always visible while listening */}
+      <View className="flex-1 flex-row items-center justify-center min-h-[36px] gap-2">
+        {/* Waveform bars — always shown while recording */}
+        <View className="flex-row items-center gap-[3px]">
+          {barStyles.map((style, i) => (
+            <Animated.View key={i} style={style} />
+          ))}
+        </View>
+
+        {/* Transcript or "Listening..." label */}
+        {hasTranscript ? (
+          <Text className="text-foreground text-[14px] flex-1 flex-shrink" numberOfLines={2}>
             {transcript}
           </Text>
         ) : (
-          <View className="flex-row items-center gap-[3px]">
-            {barStyles.map((style, i) => (
-              <Animated.View key={i} style={style} />
-            ))}
-            <Text className="text-muted-foreground text-[13px] ml-2">
-              Listening...
-            </Text>
-          </View>
+          <Text className="text-muted-foreground text-[13px]">
+            Listening...
+          </Text>
         )}
       </View>
 
