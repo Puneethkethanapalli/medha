@@ -1,6 +1,7 @@
 import { fetch } from 'expo/fetch';
 import type { AIProvider } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
+import { buildAnthropicMessages } from '@/lib/attachments/multimodal';
 import type { Message, Model } from '@/types';
 
 const ANTHROPIC_BASE_URL = 'https://api.anthropic.com/v1';
@@ -36,12 +37,8 @@ export class AnthropicProvider implements AIProvider {
   ) {
     const abortController = new AbortController();
 
-    // Anthropic uses its own message format: system is a top-level field, not in messages
-    const requestMessages: { role: string; content: string }[] = [];
-    for (const msg of messages) {
-      if (msg.role === 'system') continue; // handled separately
-      requestMessages.push({ role: msg.role, content: msg.content });
-    }
+    // Build messages array (handles multimodal attachments, excludes system)
+    const requestMessages = buildAnthropicMessages(messages);
 
     const body: Record<string, unknown> = {
       model: config.model,

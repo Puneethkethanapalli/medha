@@ -1,6 +1,7 @@
 import { fetch } from 'expo/fetch';
 import type { AIProvider } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
+import { buildOpenAIMessages } from '@/lib/attachments/multimodal';
 import type { Message } from '@/types';
 
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
@@ -25,14 +26,8 @@ export class OpenRouterProvider implements AIProvider {
   ) {
     const abortController = new AbortController();
 
-    // Build messages array
-    const requestMessages: { role: string; content: string }[] = [];
-    if (config.systemPrompt) {
-      requestMessages.push({ role: 'system', content: config.systemPrompt });
-    }
-    for (const msg of messages) {
-      requestMessages.push({ role: msg.role, content: msg.content });
-    }
+    // Build messages array (handles multimodal attachments)
+    const requestMessages = buildOpenAIMessages(messages, config.systemPrompt);
 
     const body: Record<string, unknown> = {
       model: config.model,

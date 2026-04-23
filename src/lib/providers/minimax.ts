@@ -1,6 +1,7 @@
 import { fetch } from 'expo/fetch';
 import type { AIProvider } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
+import { buildOpenAIMessages } from '@/lib/attachments/multimodal';
 import type { Message, Model } from '@/types';
 
 const MINIMAX_BASE_URL = 'https://api.minimax.io/v1';
@@ -33,13 +34,8 @@ export class MiniMaxProvider implements AIProvider {
   ) {
     const abortController = new AbortController();
 
-    const requestMessages: { role: string; content: string }[] = [];
-    if (config.systemPrompt) {
-      requestMessages.push({ role: 'system', content: config.systemPrompt });
-    }
-    for (const msg of messages) {
-      requestMessages.push({ role: msg.role, content: msg.content });
-    }
+    // Build messages array (handles multimodal attachments)
+    const requestMessages = buildOpenAIMessages(messages, config.systemPrompt);
 
     const body: Record<string, unknown> = {
       model: config.model,

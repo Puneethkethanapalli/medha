@@ -78,15 +78,7 @@ export async function pickDocuments(): Promise<Attachment[]> {
   const result = await DocumentPicker.getDocumentAsync({
     multiple: true,
     copyToCacheDirectory: true,
-    type: [
-      'application/pdf',
-      'text/plain',
-      'text/markdown',
-      'text/csv',
-      'application/json',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    ],
+    type: '*/*',
   });
 
   if (result.canceled || !result.assets.length) return [];
