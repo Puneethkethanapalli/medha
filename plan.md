@@ -857,52 +857,468 @@ CREATE INDEX idx_conversations_updated ON conversations(updated_at DESC);
 | **6** | System prompts + search | ~2h | 19h |
 | **7** | Edit/resend + themes | ~2h | 21h |
 | **8** | Multi-provider + polish + README | ~3h | 24h |
+| **9** | Input enhancement (keyboard, voice, attachments) | ~8h | 32h |
+| **10** | Thinking mode toggle | ~3h | 35h |
+| **11** | Slash commands | ~2h | 37h |
+| **12** | Persistent memory system | ~4h | 41h |
+| **13** | Rules & instructions | ~2h | 43h |
+| ~~14~~ | ~~Multi-service fallback~~ _(deferred)_ | — | — |
+| **15** | Token & cost estimator | ~3h | 46h |
 
-**Total: ~24 hours** (fits a 2–3 weekend project)
+**Total: ~46 hours** (MVP at 24h + post-MVP features at 22h)
 
 ---
 
-## 🔮 Future Sprints (Post-MVP, Cool/Nice features)
+## 🔮 Future Sprints (Post-Sprint 15, Cool/Nice features)
 
-These are not in scope for the initial build but documented for later:
+These are not in scope for the current phase but documented for later (sprints 16+). Sprints 10–15 are fully detailed below.
 
-### Input & Interaction (Sprints 9–11)
+---
 
-- **Sprint 9**: Input Enhancement — keyboard avoidance, voice input (STT), file/image attachments, multimodal AI (~8h, 4 phases)
-  - Phase 1: Swap `KeyboardAvoidingView` → `KeyboardProvider` + `KeyboardStickyView` (~1h)
-  - Phase 2: Mic button + `expo-speech-recognition` live STT + waveform overlay (~2h)
-  - Phase 3: Attachment button + image/document picker + preview tray + DB migration (~3h)
-  - Phase 4: Wire attachments to provider layer (base64 images for vision models) (~2h)
-  - See `input.md` for full architecture, install commands, and phase details
-- **Sprint 10**: Thinking mode toggle (CoT blocks for o1/Gemini thinking/Claude extended thinking)
-- **Sprint 11**: Slash commands (/summarize /translate /code — quick actions from input bar)
+### Sprint 10 — Thinking Mode Toggle
+> **Goal:** User can explicitly enable/disable thinking (CoT) mode per conversation. When enabled, providers that support extended thinking (OpenRouter o1/o3, Gemini 2.5 thinking, Claude 3.7 extended thinking) send reasoning parameters. ThinkingBlock already renders — this sprint adds the control surface and provider-level opt-in.
+> **Duration:** ~3 hours
 
-### Intelligence & Memory (Sprints 12–13)
+#### Prerequisites
+- ThinkingBlock component already exists (`src/components/chat/ThinkingBlock.tsx`) — renders reasoning when present
+- SSE parser already handles `reasoning_details`, `delta.reasoning`, `<think>` tags, and Anthropic `thinking_delta` (`src/lib/streaming/sse-parser.ts`)
+- Chat store already has `streamingReasoning` + `appendReasoningToken` (`src/stores/chat-store.ts`)
 
-- **Sprint 12**: Persistent memory system (~4h)
-  - AI stores facts, preferences, and learnings across conversations in SQLite
-  - Auto-inject relevant memories into system prompt on each request
-  - "Remember this" / "Forget this" explicit commands
-  - Memory management screen (view, edit, delete, hit count)
-  - Promotion: memories with 5+ hits get baked into system prompt permanently
-- **Sprint 13**: Rules & instructions (~2h)
-  - User-defined global rules that apply to all conversations (like ChatGPT's "Custom Instructions")
-  - Per-conversation rules override
-  - Rules editor screen with presets (e.g., "Always respond in Hindi", "Be concise")
-  - Injected into system prompt before memory and user message
+#### Tasks
+- [ ] **10.1** Add thinking mode state to settings store (`src/stores/settings-store.ts`)
+  - New field: `thinkingMode: 'auto' | 'on' | 'off'` (default: `'auto'`)
+  - `'auto'` — let provider decide (current behavior, no extra params)
+  - `'on'` — explicitly request thinking/reasoning from the model
+  - `'off'` — suppress thinking output (strip reasoning from display)
+  - Persist to MMKV via `setThinkingMode()` / `getThinkingModeSync()`
+- [ ] **10.2** Add thinking mode toggle UI to chat top bar
+  - New `ThinkingToggle` component (`src/components/chat/ThinkingToggle.tsx`)
+  - Small pill next to ModelPill in the chat top bar: `lucide Brain` icon + label ("Auto" / "Think" / "Off")
+  - Tap cycles through modes: auto → on → off → auto
+  - Visual states: `auto` = `bg-muted` + `text-muted-foreground`, `on` = `bg-foreground` + `text-background`, `off` = `bg-muted` + dimmed icon
+  - Light haptic on toggle
+- [ ] **10.3** Wire thinking mode into `StreamConfig` (`src/lib/providers/types.ts`)
+  - Add `thinkingMode?: 'auto' | 'on' | 'off'` to `StreamConfig`
+  - Pass from `ChatScreen.streamNewResponse()` into `provider.stream()`
+- [ ] **10.4** Update OpenRouter provider (`src/lib/providers/openrouter.ts`)
+  - When `thinkingMode === 'on'`: add `reasoning: { effort: "high" }` to request body (OpenRouter reasoning param for o1/o3/thinking models)
+  - When `thinkingMode === 'off'`: omit reasoning params, do NOT call `onReasoning` (swallow reasoning tokens)
+  - `'auto'`: current behavior — no change
+- [ ] **10.5** Update Google AI provider (`src/lib/providers/google-ai.ts`)
+  - When `thinkingMode === 'on'`: add `thinkingConfig: { thinkingBudget: 8192 }` to request body for Gemini 2.5 models
+  - When `thinkingMode === 'off'`: add `thinkingConfig: { thinkingBudget: 0 }` to suppress thinking
+  - `'auto'`: no thinkingConfig sent (model defaults)
+- [ ] **10.6** Update Anthropic provider (`src/lib/providers/anthropic.ts`)
+  - When `thinkingMode === 'on'` and model supports it (claude-3.7-sonnet, claude-sonnet-4): set `thinking: { type: "enabled", budget_tokens: 8192 }` in request body
+  - When `thinkingMode === 'off'`: omit thinking param entirely
+  - `'auto'`: no thinking param (model defaults)
+  - **Note**: Anthropic extended thinking requires `max_tokens` to be set and `temperature` must be 1.0 when thinking is enabled
+- [ ] **10.7** Update MiniMax provider (`src/lib/providers/minimax.ts`)
+  - MiniMax M1 always returns reasoning — when `thinkingMode === 'off'`, swallow `onReasoning` tokens silently
+- [ ] **10.8** Add per-conversation thinking mode override
+  - Add `thinking_mode TEXT` column to conversations table (migration in `schema.ts`)
+  - When set on conversation, override global setting for that conversation
+  - Accessible via long-press on ThinkingToggle → bottom sheet with "This conversation" / "Global default" options
+- [ ] **10.9** Verify: thinking mode toggle works across providers
 
-### Provider & Reliability (Sprints 14–15)
+#### How to Test Sprint 10
+```
+✅ ThinkingToggle pill visible in top bar next to ModelPill
+✅ Tap cycles: Auto → Think → Off → Auto
+✅ Think mode ON + Gemini 2.5 → ThinkingBlock appears with reasoning
+✅ Think mode ON + Claude 3.7 → extended thinking tokens stream into ThinkingBlock
+✅ Think mode ON + OpenRouter o3 → reasoning_details rendered
+✅ Think mode OFF → no ThinkingBlock shown even for thinking-capable models
+✅ Auto mode → same behavior as before (reasoning shown when model provides it)
+✅ Per-conversation override persists across app restarts
+✅ Setting persists in MMKV across app restarts
+```
 
-- **Sprint 14**: Multi-service fallback chain (~3h)
+#### 📗 Things Learned
+- (fill after completing)
+
+#### 📕 Mistakes Made
+- (fill after completing)
+
+#### 📘 Things to Remember
+- Anthropic extended thinking requires `temperature: 1.0` — override user's temperature setting when thinking is enabled
+- Gemini `thinkingBudget: 0` explicitly disables thinking; omitting the field lets model decide
+- OpenRouter `reasoning.effort` values: `"low"`, `"medium"`, `"high"` — use `"high"` for explicit think mode
+- MiniMax M1 always thinks — can't disable server-side, only suppress client-side display
+- Per-conversation override is nullable — `null` means "use global default"
+
+---
+
+### Sprint 11 — Slash Commands
+> **Goal:** User types `/` in the input bar to see a list of quick-action commands. Commands transform the last message or prepend instructions before sending.
+> **Duration:** ~2 hours
+
+#### Tasks
+- [ ] **11.1** Define slash command registry (`src/lib/commands/registry.ts`)
+  - Command interface:
+    ```typescript
+    interface SlashCommand {
+      id: string;
+      name: string;           // e.g. "summarize"
+      label: string;          // e.g. "Summarize"
+      description: string;    // e.g. "Summarize the conversation so far"
+      icon: string;           // lucide icon name
+      action: 'prepend' | 'wrap' | 'standalone';
+      template: string;       // e.g. "Summarize the above conversation concisely:"
+    }
+    ```
+  - Built-in commands:
+    - `/summarize` — "Summarize the conversation so far" (standalone, sends template as user message)
+    - `/translate [lang]` — "Translate the last response to {lang}" (standalone)
+    - `/code` — "Write code for: {user input}" (prepend)
+    - `/explain` — "Explain this simply: {user input}" (prepend)
+    - `/fix` — "Fix the errors in this code: {user input}" (prepend)
+    - `/longer` — "Expand on your last response with more detail" (standalone)
+    - `/shorter` — "Make your last response more concise" (standalone)
+- [ ] **11.2** Create slash command picker (`src/components/chat/SlashCommandPicker.tsx`)
+  - Appears as a floating list above InputBar when user types `/` as first character
+  - Filters commands as user types (e.g., `/sum` filters to "Summarize")
+  - Each row: `lucide` icon + command name (bold) + description (muted)
+  - `bg-surface-container-low`, `border-outline-variant/20`, rounded-xl, max 5 visible rows
+  - Tap command → auto-fill or execute
+  - Dismiss: tap outside, backspace past `/`, or press escape
+- [ ] **11.3** Integrate picker with InputBar (`src/components/chat/InputBar.tsx`)
+  - Detect `/` as first character in input → show SlashCommandPicker
+  - On command select:
+    - `'standalone'`: send template as message immediately, clear input
+    - `'prepend'`: replace `/command` with template prefix, let user type the rest
+    - `'wrap'`: wrap current input text with template
+  - Filter commands by typing: `/su` → shows only "Summarize"
+- [ ] **11.4** Wire command execution into ChatScreen
+  - Commands that reference "last response" pull `messages[messages.length - 1].content`
+  - `/translate [lang]` extracts language arg from user input
+  - Standalone commands skip the input bar and call `handleSend()` directly
+- [ ] **11.5** Custom slash commands (stretch goal)
+  - Allow users to create custom commands from settings
+  - Store in MMKV as JSON array
+  - Each custom command: name, description, template, action type
+- [ ] **11.6** Verify: slash commands work end-to-end
+
+#### How to Test Sprint 11
+```
+✅ Type "/" → command picker appears above input bar
+✅ Type "/sum" → filters to "Summarize"
+✅ Tap "Summarize" → sends summary request as message
+✅ Type "/translate Hindi" → sends translation request
+✅ Type "/code " → input prefilled with "Write code for: "
+✅ Backspace past "/" → picker dismisses
+✅ Tap outside picker → dismisses
+✅ Commands work during active conversation with message history
+```
+
+#### 📗 Things Learned
+- (fill after completing)
+
+#### 📕 Mistakes Made
+- (fill after completing)
+
+#### 📘 Things to Remember
+- Slash commands are a UX convenience — they just prepend/transform text before sending to the same streaming pipeline
+- Don't create a separate "command execution" path — reuse `handleSend()` with modified text
+- Filter should be case-insensitive
+- `/translate` needs arg parsing — split on first space after command name
+- Picker must render above the keyboard (use absolute positioning relative to InputBar)
+
+---
+
+### Sprint 12 — Persistent Memory System
+> **Goal:** AI remembers facts, preferences, and context across conversations. Memories are stored in SQLite, ranked by usage, and auto-injected into system prompts.
+> **Duration:** ~4 hours
+
+#### Tasks
+- [ ] **12.1** Create memories SQLite table (`src/lib/db/schema.ts` — new migration)
+  ```sql
+  CREATE TABLE IF NOT EXISTS memories (
+    id TEXT PRIMARY KEY,
+    content TEXT NOT NULL,          -- the fact/preference/learning
+    category TEXT DEFAULT 'general', -- 'preference' | 'fact' | 'instruction' | 'general'
+    source TEXT,                     -- conversation_id that created it (nullable)
+    hit_count INTEGER DEFAULT 0,     -- times injected into a prompt
+    pinned INTEGER DEFAULT 0,        -- user-pinned = always inject
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category);
+  CREATE INDEX IF NOT EXISTS idx_memories_hits ON memories(hit_count DESC);
+  ```
+- [ ] **12.2** Create memory CRUD (`src/lib/db/memories.ts`)
+  - `addMemory(content, category?, source?) → id`
+  - `getMemories(limit?) → Memory[]` (ordered by hit_count DESC, then updated_at DESC)
+  - `getMemoriesByCategory(category) → Memory[]`
+  - `updateMemory(id, fields)`
+  - `deleteMemory(id)`
+  - `incrementHitCount(id)` — bumps hit_count + updated_at
+  - `searchMemories(query) → Memory[]` — LIKE search on content
+  - `getPinnedMemories() → Memory[]`
+- [ ] **12.3** Create memory injection module (`src/lib/memory/injector.ts`)
+  - `buildMemoryContext(conversationMessages: Message[]) → string`
+  - Selects top-N relevant memories (pinned first, then by hit_count, max ~500 tokens worth)
+  - Formats as a structured block:
+    ```
+    [User Memory]
+    - Prefers concise responses
+    - Works with React Native and Expo
+    - Native language is Telugu
+    [/User Memory]
+    ```
+  - Increments `hit_count` for each memory used
+  - Injected into system prompt (before user's custom system prompt)
+- [ ] **12.4** Wire memory injection into streaming pipeline (`src/components/chat/ChatScreen.tsx`)
+  - In `streamNewResponse()`: call `buildMemoryContext()` before building the request
+  - Prepend memory context to `systemPrompt` in `StreamConfig`
+  - Only inject if user has memories (skip empty)
+- [ ] **12.5** Add explicit memory commands
+  - Detect "remember this:" / "remember that" patterns in user messages (simple regex)
+  - After assistant responds, extract the fact and call `addMemory()`
+  - Detect "forget" / "forget about" patterns → show confirmation, call `deleteMemory()`
+  - Toast notification: "Remembered: {preview}" or "Forgotten: {preview}"
+- [ ] **12.6** Create memory management screen (`src/app/settings/memories.tsx`)
+  - New route accessible from Settings drawer item
+  - Header: ArrowLeft + "Memories" + memory count badge
+  - List of memory cards, each showing:
+    - Content text (14sp `text-foreground`)
+    - Category pill (e.g., "Preference", "Fact") — `bg-muted`, `text-muted-foreground`
+    - Hit count: `lucide Zap` + count (muted)
+    - Pin toggle: `lucide Pin` / `lucide PinOff`
+    - Swipe-to-delete or long-press → delete confirmation
+  - "Add Memory" FAB → modal with text input + category picker
+  - Search bar at top (filters memories by content)
+  - Empty state: `lucide Brain` icon + "No memories yet" + description text
+- [ ] **12.7** Add memory toggle to settings
+  - Global toggle in settings: "Memory" on/off (persisted in MMKV)
+  - When off, `buildMemoryContext()` returns empty string — no injection
+- [ ] **12.8** Verify: memory creation, injection, and management
+
+#### How to Test Sprint 12
+```
+✅ Type "remember that I prefer dark mode" → Toast "Remembered: I prefer dark mode"
+✅ New conversation → system prompt includes "[User Memory]" block with stored memories
+✅ Memory management screen shows all memories with hit counts
+✅ Pin a memory → always included in injection (even if hit_count is low)
+✅ Delete a memory → removed from future injections
+✅ Add memory manually from management screen → appears in list
+✅ Search memories → filters by content
+✅ Toggle memory OFF in settings → no injection happens
+✅ Hit count increments each time a memory is used in a prompt
+✅ Memory persists across app restarts
+```
+
+#### 📗 Things Learned
+- (fill after completing)
+
+#### 📕 Mistakes Made
+- (fill after completing)
+
+#### 📘 Things to Remember
+- Memory injection goes BEFORE user's custom system prompt — order matters
+- Keep total injected memory under ~500 tokens to avoid eating context window
+- Hit count is a proxy for relevance — higher hit = more useful = inject first
+- Pinned memories bypass hit_count ranking — always injected
+- "Remember" detection is simple regex, not AI-powered — keep it explicit (user says "remember")
+- Don't auto-extract memories from conversations without user intent — privacy concern
+- SQLite LIKE search is fine for <1000 memories — upgrade to FTS5 only if needed
+
+---
+
+### Sprint 13 — Rules & Instructions
+> **Goal:** Users define global rules (like ChatGPT "Custom Instructions") and per-conversation rule overrides. Rules are injected into every system prompt.
+> **Duration:** ~2 hours
+
+#### Tasks
+- [ ] **13.1** Create rules storage (`src/lib/storage/rules.ts`)
+  - Store global rules as a single text blob in MMKV (key: `global_rules`)
+  - `getGlobalRules() → string`
+  - `setGlobalRules(rules: string)`
+  - Per-conversation rules stored in conversations table (new column)
+- [ ] **13.2** Add `rules` column to conversations table (`src/lib/db/schema.ts` — migration)
+  ```sql
+  ALTER TABLE conversations ADD COLUMN rules TEXT;
+  ```
+  - Nullable — `null` means "use global rules only"
+- [ ] **13.3** Create rules injection module (`src/lib/rules/injector.ts`)
+  - `buildRulesContext(conversationId?: string) → string`
+  - Priority order: per-conversation rules (if set) > global rules
+  - Formats as:
+    ```
+    [User Rules]
+    - Always respond in English unless asked otherwise
+    - Be concise, avoid filler
+    [/User Rules]
+    ```
+  - Injected into system prompt BEFORE memory context
+- [ ] **13.4** Wire rules injection into streaming pipeline
+  - In `ChatScreen.streamNewResponse()`: call `buildRulesContext(convId)` 
+  - Compose final system prompt: rules + memory + user's custom system prompt
+  - Order: `[User Rules]\n\n[User Memory]\n\n{custom system prompt}`
+- [ ] **13.5** Create global rules editor screen (`src/app/settings/rules.tsx`)
+  - Header: ArrowLeft + "Rules & Instructions"
+  - Large multiline text area: `bg-surface-container-low`, `border-outline-variant/20`, rounded-xl
+  - Placeholder: "Tell the AI how to behave across all conversations..."
+  - Character count in bottom-right corner (muted)
+  - "Save" button in header (disabled when unchanged)
+  - Rule presets as horizontal scroll pills below the text area:
+    - "Be concise" / "Always use code examples" / "Respond in Hindi" / "Explain like I'm 5" / "Use formal tone"
+  - Tap preset → appends to text area (doesn't replace)
+  - Info text below: "These rules apply to all new conversations"
+- [ ] **13.6** Add per-conversation rules access
+  - In conversation drawer long-press menu: add "Edit Rules" option
+  - Opens a bottom sheet with same text area UI as global rules editor
+  - Toggle: "Use global rules" (default on) / "Custom rules for this chat"
+  - When custom is set, show both global (read-only, dimmed) and custom (editable) sections
+- [ ] **13.7** Verify: rules injection and per-conversation override
+
+#### How to Test Sprint 13
+```
+✅ Set global rule "Be concise" → AI responses across all conversations are shorter
+✅ Rules editor shows character count, presets scroll horizontally
+✅ Tap preset → appends to text area
+✅ Save → persists across app restarts
+✅ Set per-conversation rule → overrides global for that conversation only
+✅ Other conversations still use global rules
+✅ Toggle "Use global rules" off → custom rules used instead
+✅ System prompt order: [Rules] → [Memory] → [User Custom Prompt]
+```
+
+#### 📗 Things Learned
+- (fill after completing)
+
+#### 📕 Mistakes Made
+- (fill after completing)
+
+#### 📘 Things to Remember
+- Rules go first in system prompt — they set the tone before memory and custom prompts
+- Per-conversation rules REPLACE global rules (not append) — simpler mental model for users
+- Keep rules concise — they eat into context window on every request
+- Presets are convenience — user can always type freeform
+- Don't validate rule content — users should write whatever they want
+- Rules + memory + custom system prompt = full system prompt injection chain
+
+---
+
+### Provider & Reliability (Sprint 14 — deferred)
+
+- **Sprint 14**: Multi-service fallback chain (~3h) — _skipped for now, not priority_
   - Ordered provider priority list in settings (drag to reorder)
   - Auto-retry on next provider when primary fails (rate limit, timeout, auth error)
   - Visual indicator showing which provider served the response
   - Configurable timeout + error classification
-- **Sprint 15**: Token + cost estimator (~3h)
-  - Live token counter in input bar (estimate before sending)
-  - Per-message token usage display
-  - Per-conversation cost tracking (using model pricing data)
-  - Usage dashboard with charts (daily/weekly/monthly spend)
+
+---
+
+### Sprint 15 — Token & Cost Estimator
+> **Goal:** Users see estimated token counts before sending, per-message token usage after responses, per-conversation cost tracking, and a usage dashboard.
+> **Duration:** ~3 hours
+
+#### Tasks
+- [ ] **15.1** Create tokenizer utility (`src/lib/tokens/estimator.ts`)
+  - **Do NOT bundle a full tokenizer** (tiktoken WASM is 4MB+ and breaks RN)
+  - Use a simple heuristic estimator: `estimateTokens(text: string) → number`
+    - English: ~4 chars per token (GPT) or ~3.5 chars per token (Claude/Gemini)
+    - Formula: `Math.ceil(text.length / 3.75)` (averaged across providers)
+  - Also export `estimateMessageTokens(messages: Message[], systemPrompt?: string) → number` — sums all message content + system prompt
+  - Accurate enough for cost estimation (within ~15% of real tokenizer)
+- [ ] **15.2** Create model pricing data (`src/lib/tokens/pricing.ts`)
+  - Static pricing map keyed by model ID (or prefix pattern):
+    ```typescript
+    interface ModelPricing {
+      promptPer1M: number;      // USD per 1M input tokens
+      completionPer1M: number;  // USD per 1M output tokens
+    }
+    ```
+  - Populate from OpenRouter/Anthropic/Google pricing pages
+  - Fallback: use pricing from OpenRouter `listModels()` response (already parsed in `Model.pricing`)
+  - `getModelPricing(modelId: string) → ModelPricing | null`
+  - Cache pricing from API responses in MMKV
+- [ ] **15.3** Add live token counter to InputBar (`src/components/chat/InputBar.tsx`)
+  - Small token count badge below the text input (right-aligned)
+  - Shows: `~{n} tokens` in `text-muted-foreground` (12sp)
+  - Updates on text change (debounced 300ms via `useMemo` or `useCallback`)
+  - Includes: system prompt tokens + memory tokens + all message history tokens + current input
+  - Color coding: normal (muted) → yellow (>75% of model context window) → red (>90%)
+  - Tap → shows breakdown tooltip: "Input: ~X | History: ~Y | System: ~Z"
+- [ ] **15.4** Add per-message token display to MessageBubble (`src/components/chat/MessageBubble.tsx`)
+  - Below each assistant message: small muted text showing token usage
+  - Format: `~{input}↑ ~{output}↓` (estimated input/output tokens)
+  - For messages with `tokens_used` from API → show actual count instead of estimate
+  - Only visible on tap (or always visible as a user preference toggle)
+- [ ] **15.5** Extract actual token usage from API responses
+  - Update `streamCompletion()` to capture `usage` object from the final SSE event
+  - OpenAI/OpenRouter: `usage.prompt_tokens`, `usage.completion_tokens` in final chunk
+  - Anthropic: `message_delta` event contains `usage.output_tokens`
+  - Google AI: `usageMetadata.promptTokenCount`, `usageMetadata.candidatesTokenCount`
+  - Pass back via new callback: `onUsage?: (usage: { prompt: number; completion: number }) => void`
+  - Save to `messages.tokens_used` as JSON string: `{"prompt": N, "completion": M}`
+- [ ] **15.6** Add per-conversation cost tracking
+  - Create `token_usage` table in SQLite:
+    ```sql
+    CREATE TABLE IF NOT EXISTS token_usage (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      model TEXT NOT NULL,
+      prompt_tokens INTEGER NOT NULL,
+      completion_tokens INTEGER NOT NULL,
+      cost_usd REAL,                    -- estimated cost in USD
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+      FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_token_usage_conv ON token_usage(conversation_id);
+    CREATE INDEX IF NOT EXISTS idx_token_usage_date ON token_usage(created_at);
+    ```
+  - After each completed response: insert usage record with estimated cost
+  - `getConversationCost(convId) → { totalTokens: number, estimatedCost: number }`
+- [ ] **15.7** Show conversation cost in drawer
+  - In `ConversationDrawer.tsx`: show small cost badge per conversation
+  - Format: `$0.003` or `<$0.01` for very cheap conversations
+  - Only show if cost > 0 (skip free models)
+- [ ] **15.8** Create usage dashboard screen (`src/app/settings/usage.tsx`)
+  - Header: ArrowLeft + "Usage & Costs"
+  - Summary cards at top:
+    - "Today": total tokens + cost
+    - "This Week": total tokens + cost
+    - "This Month": total tokens + cost
+  - Bar chart showing daily usage for last 7 days (simple View-based bars, no charting lib needed)
+    - Each bar: `bg-foreground` with height proportional to token count
+    - Day labels below (Mon, Tue, etc.)
+  - Breakdown by provider: list of providers with token count + cost
+  - Breakdown by model: top 5 most-used models with stats
+  - "Reset Usage Data" destructive button at bottom
+- [ ] **15.9** Verify: token counting, cost tracking, and usage dashboard
+
+#### How to Test Sprint 15
+```
+✅ Type in input bar → token count badge shows estimated tokens
+✅ Token count updates as text changes (debounced)
+✅ Send message → assistant response shows token usage below bubble
+✅ Conversation in drawer shows cost badge (e.g., "$0.01")
+✅ Usage dashboard shows today/week/month summaries
+✅ Bar chart renders daily usage for last 7 days
+✅ Provider breakdown shows correct distribution
+✅ Free model conversations show $0.00 or no cost badge
+✅ Usage persists across app restarts
+✅ "Reset Usage Data" clears all tracking data
+```
+
+#### 📗 Things Learned
+- (fill after completing)
+
+#### 📕 Mistakes Made
+- (fill after completing)
+
+#### 📘 Things to Remember
+- Do NOT use tiktoken/WASM tokenizer — too heavy for RN, heuristic is good enough for cost estimation
+- Token estimation formula: `Math.ceil(text.length / 3.75)` — averaged across GPT/Claude/Gemini
+- OpenRouter returns pricing in `Model.pricing` — cache and use for cost calculation
+- Anthropic doesn't return usage in SSE stream by default — check `stream_options` or final event
+- Cost display: always show as USD with 3 decimal places for sub-cent amounts
+- Bar chart: use simple View heights — no need for `react-native-chart-kit` or similar
+- `tokens_used` column already exists on messages table — change from `INTEGER` to `TEXT` to store JSON `{"prompt": N, "completion": M}`
 
 ### Tools & Extensibility (Sprints 16–18)
 
