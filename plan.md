@@ -866,18 +866,22 @@ CREATE INDEX idx_conversations_updated ON conversations(updated_at DESC);
 
 These are not in scope for the initial build but documented for later:
 
-- **Sprint 9**: Thinking mode toggle (CoT blocks for o1/Gemini thinking/Claude extended thinking)
-- **Sprint 10**: Swipe to branch (alternate timelines)
-- **Sprint 11**: Token + cost estimator (live counter in input bar)
-- **Sprint 12**: TTS playback + voice input
+- **Sprint 9**: Input Enhancement — keyboard avoidance, voice input (STT), file/image attachments, multimodal AI (~8h, 4 phases)
+  - Phase 1: Swap `KeyboardAvoidingView` → `KeyboardProvider` + `KeyboardStickyView` (~1h)
+  - Phase 2: Mic button + `expo-speech-recognition` live STT + waveform overlay (~2h)
+  - Phase 3: Attachment button + image/document picker + preview tray + DB migration (~3h)
+  - Phase 4: Wire attachments to provider layer (base64 images for vision models) (~2h)
+  - See `input.md` for full architecture, install commands, and phase details
+- **Sprint 10**: Thinking mode toggle (CoT blocks for o1/Gemini thinking/Claude extended thinking)
+- **Sprint 11**: Swipe to branch (alternate timelines)
+- **Sprint 12**: Token + cost estimator (live counter in input bar)
 - **Sprint 13**: Slash commands (/summarize /translate /code)
 - **Sprint 14**: Multi-model compare (side-by-side responses)
 - **Sprint 15**: Fallback chain (auto-retry on next model)
-- **Sprint 16**: File attachments (PDF/image upload)
-- **Sprint 17**: Conversation export (PDF, Markdown)
-- **Sprint 18**: Usage dashboard (token spend charts)
-- **Sprint 19**: Widgets (Android home screen)
-- **Sprint 20**: Cloud sync (Google Drive JSON)
+- **Sprint 16**: Conversation export (PDF, Markdown)
+- **Sprint 17**: Usage dashboard (token spend charts)
+- **Sprint 18**: Widgets (Android home screen)
+- **Sprint 19**: Cloud sync (Google Drive JSON)
 
 ---
 
