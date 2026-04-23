@@ -866,6 +866,8 @@ CREATE INDEX idx_conversations_updated ON conversations(updated_at DESC);
 
 These are not in scope for the initial build but documented for later:
 
+### Input & Interaction (Sprints 9–11)
+
 - **Sprint 9**: Input Enhancement — keyboard avoidance, voice input (STT), file/image attachments, multimodal AI (~8h, 4 phases)
   - Phase 1: Swap `KeyboardAvoidingView` → `KeyboardProvider` + `KeyboardStickyView` (~1h)
   - Phase 2: Mic button + `expo-speech-recognition` live STT + waveform overlay (~2h)
@@ -873,15 +875,82 @@ These are not in scope for the initial build but documented for later:
   - Phase 4: Wire attachments to provider layer (base64 images for vision models) (~2h)
   - See `input.md` for full architecture, install commands, and phase details
 - **Sprint 10**: Thinking mode toggle (CoT blocks for o1/Gemini thinking/Claude extended thinking)
-- **Sprint 11**: Swipe to branch (alternate timelines)
-- **Sprint 12**: Token + cost estimator (live counter in input bar)
-- **Sprint 13**: Slash commands (/summarize /translate /code)
-- **Sprint 14**: Multi-model compare (side-by-side responses)
-- **Sprint 15**: Fallback chain (auto-retry on next model)
-- **Sprint 16**: Conversation export (PDF, Markdown)
-- **Sprint 17**: Usage dashboard (token spend charts)
-- **Sprint 18**: Widgets (Android home screen)
-- **Sprint 19**: Cloud sync (Google Drive JSON)
+- **Sprint 11**: Slash commands (/summarize /translate /code — quick actions from input bar)
+
+### Intelligence & Memory (Sprints 12–13)
+
+- **Sprint 12**: Persistent memory system (~4h)
+  - AI stores facts, preferences, and learnings across conversations in SQLite
+  - Auto-inject relevant memories into system prompt on each request
+  - "Remember this" / "Forget this" explicit commands
+  - Memory management screen (view, edit, delete, hit count)
+  - Promotion: memories with 5+ hits get baked into system prompt permanently
+- **Sprint 13**: Rules & instructions (~2h)
+  - User-defined global rules that apply to all conversations (like ChatGPT's "Custom Instructions")
+  - Per-conversation rules override
+  - Rules editor screen with presets (e.g., "Always respond in Hindi", "Be concise")
+  - Injected into system prompt before memory and user message
+
+### Provider & Reliability (Sprints 14–15)
+
+- **Sprint 14**: Multi-service fallback chain (~3h)
+  - Ordered provider priority list in settings (drag to reorder)
+  - Auto-retry on next provider when primary fails (rate limit, timeout, auth error)
+  - Visual indicator showing which provider served the response
+  - Configurable timeout + error classification
+- **Sprint 15**: Token + cost estimator (~3h)
+  - Live token counter in input bar (estimate before sending)
+  - Per-message token usage display
+  - Per-conversation cost tracking (using model pricing data)
+  - Usage dashboard with charts (daily/weekly/monthly spend)
+
+### Tools & Extensibility (Sprints 16–18)
+
+- **Sprint 16**: Web search tool (~4h)
+  - First "tool" integration — web search via Serper/Tavily/DuckDuckGo API
+  - Tool-use protocol compatible with OpenAI/Anthropic/Gemini function calling
+  - Display search results inline in chat with source links
+  - Foundation architecture for future tools
+- **Sprint 17**: MCP server support (~6h)
+  - Implement MCP (Model Context Protocol) client
+  - Add MCP server config UI in settings (endpoint URL + optional auth headers)
+  - Curated list of popular free MCP servers (web search, weather, calculator)
+  - Auto-reconnect on app startup
+  - Tool results rendered inline in chat
+- **Sprint 18**: Skills system (~4h)
+  - Downloadable/shareable skill packs (bundles of system prompt + tools + rules)
+  - Skill marketplace or import from URL/file
+  - Examples: "Code Reviewer", "Travel Planner", "Fitness Coach"
+  - Each skill defines: name, icon, system prompt, allowed tools, example prompts
+
+### Apps & Personas (Sprint 19)
+
+- **Sprint 19**: Custom Apps — like ChatGPT's Custom GPTs (~6h)
+  - Create shareable "apps" that combine: name, icon, description, system prompt, skills, rules, pinned model
+  - App launcher screen (grid of created apps)
+  - "Create App" wizard — guided flow to define persona, behavior, and capabilities
+  - Share apps as JSON files (import/export)
+  - Preset apps: "Medha Default", "Code Assistant", "Writing Coach", "Language Tutor"
+
+### Data & Export (Sprints 20–21)
+
+- **Sprint 20**: Backup & restore (~3h)
+  - Export all conversations as JSON (with attachments as base64)
+  - Import conversations from JSON
+  - Export/import settings (API keys optionally excluded for security)
+  - Share individual conversations as Markdown
+- **Sprint 21**: Cloud sync (Google Drive / local backup) (~4h)
+
+### Polish & Platform (Sprints 22–25)
+
+- **Sprint 22**: TTS + response actions (~3h)
+  - Text-to-speech via `expo-speech` (per-message speaker icon, auto-play option)
+  - Copy code block button in markdown renderer
+  - Re-generate last response button (retry with same prompt)
+  - Undo snackbar for conversation/message deletions
+- **Sprint 23**: Swipe to branch (alternate response timelines)
+- **Sprint 24**: Multi-model compare (side-by-side responses from different models)
+- **Sprint 25**: Widgets (Android home screen — quick chat, continue conversation)
 
 ---
 
