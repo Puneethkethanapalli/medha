@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, ActivityIndicator, KeyboardAvoidingView } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useRouter } from 'expo-router';
 import { ClipboardPaste, Check, TriangleAlert, ArrowRight } from 'lucide-react-native';
 import { cn } from '@/lib/utils';
@@ -139,17 +140,14 @@ export default function OnboardingScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-background"
-      behavior="padding"
-      keyboardVerticalOffset={0}
+    <KeyboardAwareScrollView
+      bottomOffset={62}
+      contentContainerStyle={{ flexGrow: 1 }}
+      style={{ flex: 1, backgroundColor: 'transparent' }}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
     >
-      <ScrollView
-        className="flex-1"
-        contentContainerClassName="flex flex-col py-12 px-6"
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
+      <View className="flex flex-col py-12 px-6">
         {/* Top Section */}
         <View className="flex flex-col items-center justify-end w-full h-[240px] pb-8 text-center">
           <View className="w-20 h-20 items-center justify-center rounded-[28px] border border-outline-variant/20 bg-[#09090B] mb-4">
@@ -264,7 +262,7 @@ export default function OnboardingScreen() {
             You can add more providers later in Settings
           </Text>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </View>
+    </KeyboardAwareScrollView>
   );
 }

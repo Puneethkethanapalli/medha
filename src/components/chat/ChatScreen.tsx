@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Pressable, KeyboardAvoidingView, AppState, type AppStateStatus } from 'react-native';
+import { View, Pressable, AppState, type AppStateStatus } from 'react-native';
+import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Menu, PenSquare } from 'lucide-react-native';
@@ -407,11 +408,7 @@ export const ChatScreen = React.memo(function ChatScreen({
   const hasMessages = messages.length > 0;
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-background"
-      behavior="padding"
-      keyboardVerticalOffset={0}
-    >
+    <View className="flex-1 bg-background">
       {/* Top Bar */}
       <View
         className="flex-row items-center px-4 h-14"
@@ -448,8 +445,11 @@ export const ChatScreen = React.memo(function ChatScreen({
         )}
       </View>
 
-      {/* Input */}
-      <InputBar onSend={handleSend} onStop={handleStop} />
+      {/* Input — sticks above keyboard */}
+      <KeyboardStickyView offset={{ closed: 0, opened: 0 }}>
+        <InputBar onSend={handleSend} onStop={handleStop} />
+      </KeyboardStickyView>
+
       <Toast bottomOffset={Math.max(insets.bottom, 12) + 84} />
 
       {/* Message Actions Menu */}
@@ -458,7 +458,7 @@ export const ChatScreen = React.memo(function ChatScreen({
         onRegenerate={handleRegenerate}
         onDelete={handleDeleteMessage}
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 });
 

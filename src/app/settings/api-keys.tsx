@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView } from 'react-native';
+import { View, Text, TextInput, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Plus, Bolt, Trash2, Shield, X, Check } from 'lucide-react-native';
@@ -124,11 +125,7 @@ export default function ApiKeysScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-background"
-      behavior="padding"
-      keyboardVerticalOffset={0}
-    >
+    <View className="flex-1 bg-background">
       <View className="flex-1 bg-background">
       {/* Top Bar */}
       <View className="flex flex-row items-center justify-between px-6 h-16 w-full" style={{ marginTop: insets.top }}>
@@ -145,7 +142,12 @@ export default function ApiKeysScreen() {
       </View>
 
       {/* Main Content */}
-      <ScrollView className="flex-1 px-4 pt-4 pb-8" contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+      <KeyboardAwareScrollView
+        bottomOffset={62}
+        contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 16, paddingTop: 16 }}
+        keyboardShouldPersistTaps="handled"
+        style={{ flex: 1 }}
+      >
         {/* Provider Cards */}
         {PROVIDERS.map((provider) => {
           const isConnected = connectedProviders.has(provider.id);
@@ -253,8 +255,8 @@ export default function ApiKeysScreen() {
             Keys are encrypted and stored locally on your device
           </Text>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
