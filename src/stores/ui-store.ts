@@ -1,10 +1,12 @@
 import { create } from 'zustand';
-import type { Message } from '@/types';
+import type { Attachment, Message } from '@/types';
 
 interface UIState {
   drawerOpen: boolean;
   modelPickerOpen: boolean;
   themePickerOpen: boolean;
+  attachmentSheetOpen: boolean;
+  onAttachCallback: ((attachments: Attachment[]) => void) | null;
   activeConversationId: string | null;
   toast: {
     id: number;
@@ -22,6 +24,8 @@ interface UIActions {
   toggleDrawer: () => void;
   openModelPicker: () => void;
   closeModelPicker: () => void;
+  openAttachmentSheet: (onAttach: (attachments: Attachment[]) => void) => void;
+  closeAttachmentSheet: () => void;
   openThemePicker: () => void;
   closeThemePicker: () => void;
   setActiveConversation: (id: string | null) => void;
@@ -36,6 +40,8 @@ export const useUIStore = create<UIState & UIActions>((set) => ({
   drawerOpen: false,
   modelPickerOpen: false,
   themePickerOpen: false,
+  attachmentSheetOpen: false,
+  onAttachCallback: null,
   activeConversationId: null,
   toast: null,
   actionsMenuMessage: null,
@@ -46,6 +52,8 @@ export const useUIStore = create<UIState & UIActions>((set) => ({
   toggleDrawer: () => set((s) => ({ drawerOpen: !s.drawerOpen })),
   openModelPicker: () => set({ modelPickerOpen: true }),
   closeModelPicker: () => set({ modelPickerOpen: false }),
+  openAttachmentSheet: (onAttach) => set({ attachmentSheetOpen: true, onAttachCallback: onAttach }),
+  closeAttachmentSheet: () => set({ attachmentSheetOpen: false, onAttachCallback: null }),
   openThemePicker: () => set({ themePickerOpen: true }),
   closeThemePicker: () => set({ themePickerOpen: false }),
   setActiveConversation: (id) => set({ activeConversationId: id }),

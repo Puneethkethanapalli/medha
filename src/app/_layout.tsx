@@ -16,6 +16,7 @@ import { useSettingsStore } from '@/stores/settings-store';
 import { useUIStore } from '@/stores/ui-store';
 import { ConversationDrawer } from '@/components/navigation/ConversationDrawer';
 import { ModelPicker } from '@/components/chat/ModelPicker';
+import { AttachmentSheet } from '@/components/chat/AttachmentSheet';
 import { ThemePicker } from '@/components/chat/ThemePicker';
 import { getConversations } from '@/lib/db/conversations';
 import { initializeDatabase } from '@/lib/db/schema';
@@ -69,12 +70,18 @@ function AppContent() {
   const closeThemePicker = useUIStore((s) => s.closeThemePicker);
   const actionsMenuMessage = useUIStore((s) => s.actionsMenuMessage);
   const hideActionsMenu = useUIStore((s) => s.hideActionsMenu);
+  const attachmentSheetOpen = useUIStore((s) => s.attachmentSheetOpen);
+  const closeAttachmentSheet = useUIStore((s) => s.closeAttachmentSheet);
 
   // Handle Android back button: close overlays in priority order
   useEffect(() => {
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
       if (actionsMenuMessage) {
         hideActionsMenu();
+        return true;
+      }
+      if (attachmentSheetOpen) {
+        closeAttachmentSheet();
         return true;
       }
       if (themePickerOpen) {
@@ -92,7 +99,7 @@ function AppContent() {
       return false;
     });
     return () => handler.remove();
-  }, [drawerOpen, closeDrawer, modelPickerOpen, closeModelPicker, themePickerOpen, closeThemePicker, actionsMenuMessage, hideActionsMenu]);
+  }, [drawerOpen, closeDrawer, modelPickerOpen, closeModelPicker, themePickerOpen, closeThemePicker, actionsMenuMessage, hideActionsMenu, attachmentSheetOpen, closeAttachmentSheet]);
 
   const handleSelectConversation = useCallback(
     (id: string) => {
@@ -176,6 +183,7 @@ function AppContent() {
           </Stack>
         </DrawerLayout>
         <ModelPicker />
+        <AttachmentSheet />
         <ThemePicker />
         <PortalHost />
       </ThemeProvider>
