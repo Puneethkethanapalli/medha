@@ -860,22 +860,21 @@ CREATE INDEX idx_conversations_updated ON conversations(updated_at DESC);
 | **9** | Input enhancement (keyboard, voice, attachments) | ~8h | 32h |
 | **10** | Thinking mode toggle | ~3h | 35h |
 | **11** | Slash commands | ~2h | 37h |
-| **12** | Persistent memory system | ~4h | 41h |
+| **12** | Tool calling architecture + web search | ~4h | 41h |
 | **13** | Rules & instructions | ~2h | 43h |
-| ~~14~~ | ~~Multi-service fallback~~ _(deferred)_ | — | — |
-| **15** | Token & cost estimator | ~3h | 46h |
-| **16** | Web search tool | ~4h | 50h |
-| **17** | MCP server support | ~6h | 56h |
-| **18** | Skills system | ~4h | 60h |
-| **19** | Custom apps (GPT-like personas) | ~6h | 66h |
+| **14** | Persistent memory system (tool-based) | ~4h | 47h |
+| **15** | MCP server support | ~6h | 53h |
+| **16** | Skills system | ~4h | 57h |
+| **17** | Custom apps (GPT-like personas) | ~6h | 63h |
+| **18** | Token & cost estimator | ~3h | 66h |
 
 **Total: ~66 hours** (MVP at 24h + post-MVP features at 42h)
 
 ---
 
-## 🔮 Future Sprints (Post-Sprint 19, Cool/Nice features)
+## 🔮 Future Sprints (Post-Sprint 18, Cool/Nice features)
 
-These are not in scope for the current phase but documented for later (sprints 20+). Sprints 10–19 are fully detailed below.
+These are not in scope for the current phase but documented for later (sprints 19+). Sprints 10–18 are fully detailed below.
 
 ---
 
@@ -1041,86 +1040,88 @@ These are not in scope for the current phase but documented for later (sprints 2
 
 ---
 
-### Sprint 12 — Persistent Memory System
-> **Goal:** AI remembers facts, preferences, and context across conversations. Memories are stored in SQLite, ranked by usage, and auto-injected into system prompts.
+### Sprint 12 — Tool Calling Architecture + Web Search
+> **Goal:** First tool integration. AI can search the web via function calling, display results inline, and cite sources. Establishes the tool architecture used by Sprint 14 (Memory), Sprint 15 (MCP), and Sprint 16 (Skills).
 > **Duration:** ~4 hours
 
 #### Tasks
-- [ ] **12.1** Create memories SQLite table (`src/lib/db/schema.ts` — new migration)
-  ```sql
-  CREATE TABLE IF NOT EXISTS memories (
-    id TEXT PRIMARY KEY,
-    content TEXT NOT NULL,          -- the fact/preference/learning
-    category TEXT DEFAULT 'general', -- 'preference' | 'fact' | 'instruction' | 'general'
-    source TEXT,                     -- conversation_id that created it (nullable)
-    hit_count INTEGER DEFAULT 0,     -- times injected into a prompt
-    pinned INTEGER DEFAULT 0,        -- user-pinned = always inject
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL
-  );
-  CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category);
-  CREATE INDEX IF NOT EXISTS idx_memories_hits ON memories(hit_count DESC);
+- [ ] **12.1** Define tool system types (`src/lib/tools/types.ts`)
+  ```typescript
+  interface ToolDefinition {
+    name: string;
+    description: string;
+    parameters: Record<string, ToolParameter>;  // JSON Schema subset
+    execute: (args: Record<string, unknown>) => Promise<ToolResult>;
+  }
+  interface ToolParameter {
+    type: 'string' | 'number' | 'boolean';
+    description: string;
+    required?: boolean;
+    enum?: string[];
+  }
+  interface ToolResult {
+    content: string;           // markdown-formatted result for display
+    raw?: unknown;             // raw data for AI context
+    citations?: Citation[];    // source URLs
+  }
+  interface Citation { title: string; url: string; snippet?: string; }
   ```
-- [ ] **12.2** Create memory CRUD (`src/lib/db/memories.ts`)
-  - `addMemory(content, category?, source?) → id`
-  - `getMemories(limit?) → Memory[]` (ordered by hit_count DESC, then updated_at DESC)
-  - `getMemoriesByCategory(category) → Memory[]`
-  - `updateMemory(id, fields)`
-  - `deleteMemory(id)`
-  - `incrementHitCount(id)` — bumps hit_count + updated_at
-  - `searchMemories(query) → Memory[]` — LIKE search on content
-  - `getPinnedMemories() → Memory[]`
-- [ ] **12.3** Create memory injection module (`src/lib/memory/injector.ts`)
-  - `buildMemoryContext(conversationMessages: Message[]) → string`
-  - Selects top-N relevant memories (pinned first, then by hit_count, max ~500 tokens worth)
-  - Formats as a structured block:
-    ```
-    [User Memory]
-    - Prefers concise responses
-    - Works with React Native and Expo
-    - Native language is Telugu
-    [/User Memory]
-    ```
-  - Increments `hit_count` for each memory used
-  - Injected into system prompt (before user's custom system prompt)
-- [ ] **12.4** Wire memory injection into streaming pipeline (`src/components/chat/ChatScreen.tsx`)
-  - In `streamNewResponse()`: call `buildMemoryContext()` before building the request
-  - Prepend memory context to `systemPrompt` in `StreamConfig`
-  - Only inject if user has memories (skip empty)
-- [ ] **12.5** Add explicit memory commands
-  - Detect "remember this:" / "remember that" patterns in user messages (simple regex)
-  - After assistant responds, extract the fact and call `addMemory()`
-  - Detect "forget" / "forget about" patterns → show confirmation, call `deleteMemory()`
-  - Toast notification: "Remembered: {preview}" or "Forgotten: {preview}"
-- [ ] **12.6** Create memory management screen (`src/app/settings/memories.tsx`)
-  - New route accessible from Settings drawer item
-  - Header: ArrowLeft + "Memories" + memory count badge
-  - List of memory cards, each showing:
-    - Content text (14sp `text-foreground`)
-    - Category pill (e.g., "Preference", "Fact") — `bg-muted`, `text-muted-foreground`
-    - Hit count: `lucide Zap` + count (muted)
-    - Pin toggle: `lucide Pin` / `lucide PinOff`
-    - Swipe-to-delete or long-press → delete confirmation
-  - "Add Memory" FAB → modal with text input + category picker
-  - Search bar at top (filters memories by content)
-  - Empty state: `lucide Brain` icon + "No memories yet" + description text
-- [ ] **12.7** Add memory toggle to settings
-  - Global toggle in settings: "Memory" on/off (persisted in MMKV)
-  - When off, `buildMemoryContext()` returns empty string — no injection
-- [ ] **12.8** Verify: memory creation, injection, and management
+- [ ] **12.2** Create tool registry (`src/lib/tools/registry.ts`)
+  - `registerTool(tool: ToolDefinition)`
+  - `getTool(name: string) → ToolDefinition | null`
+  - `listTools() → ToolDefinition[]`
+  - `getToolSchemas() → OpenAI-format tool schemas` — converts to `{ type: 'function', function: { name, description, parameters } }[]`
+- [ ] **12.3** Implement web search tool (`src/lib/tools/web-search.ts`)
+  - Uses DuckDuckGo HTML search (no API key needed) OR Serper API (if key configured)
+  - Tool name: `web_search`, params: `{ query: string, num_results?: number }`
+  - Parses HTML results into `Citation[]` with title, URL, snippet
+  - Returns markdown-formatted results: numbered list with `[Title](url)` + snippet
+  - Fallback: if DuckDuckGo blocked, use Serper (user provides key in settings)
+- [ ] **12.4** Add web search API key to settings (`src/app/settings/api-keys.tsx`)
+  - Optional Serper API key field (free tier: 2500 queries/month)
+  - Label: "Web Search (Serper)" — below existing provider keys
+  - Stored in SecureStore like other API keys
+- [ ] **12.5** Wire tool calling into provider layer (`src/lib/providers/types.ts`)
+  - Add `tools?: ToolDefinition[]` to `StreamConfig`
+  - Add new callbacks to `AIProvider.stream()`:
+    - `onToolCall?: (name: string, args: Record<string, unknown>) => void`
+  - Each provider converts `ToolDefinition[]` to its native format:
+    - OpenRouter/OpenAI: `tools` array with `type: 'function'`
+    - Anthropic: `tools` array with `input_schema`
+    - Google AI: `tools` with `functionDeclarations`
+- [ ] **12.6** Implement tool call loop in ChatScreen (`src/components/chat/ChatScreen.tsx`)
+  - When AI returns a `tool_calls` response instead of content:
+    1. Display a "Searching..." status indicator in the assistant bubble
+    2. Execute tool via `registry.getTool(name).execute(args)`
+    3. Append tool result as a new message with `role: 'tool'` (or provider equivalent)
+    4. Re-stream to get AI's final response incorporating tool results
+  - Max tool call rounds: 3 (prevent infinite loops)
+  - Add `role: 'tool'` to Message type union
+- [ ] **12.7** Update SSE parser to detect tool call chunks (`src/lib/streaming/sse-parser.ts`)
+  - OpenAI/OpenRouter: `delta.tool_calls[0].function.name` + `delta.tool_calls[0].function.arguments`
+  - Anthropic: `content_block_start` with `type: 'tool_use'` + `content_block_delta` with `input_json_delta`
+  - Accumulate tool call arguments across chunks (arguments stream as partial JSON)
+- [ ] **12.8** Create search results display component (`src/components/chat/SearchResults.tsx`)
+  - Renders inline in assistant bubble when tool result contains citations
+  - Each citation: favicon placeholder + title (link) + snippet (muted)
+  - `bg-surface-container-low`, rounded-lg, compact layout
+  - Tap link → opens in system browser via `Linking.openURL()`
+- [ ] **12.9** Add tool toggle in chat UI
+  - Small `lucide Globe` pill next to ThinkingToggle in top bar
+  - Tap → enables/disables web search for this conversation
+  - When enabled, tool schemas sent with every request
+- [ ] **12.10** Verify: web search end-to-end
 
 #### How to Test Sprint 12
 ```
-✅ Type "remember that I prefer dark mode" → Toast "Remembered: I prefer dark mode"
-✅ New conversation → system prompt includes "[User Memory]" block with stored memories
-✅ Memory management screen shows all memories with hit counts
-✅ Pin a memory → always included in injection (even if hit_count is low)
-✅ Delete a memory → removed from future injections
-✅ Add memory manually from management screen → appears in list
-✅ Search memories → filters by content
-✅ Toggle memory OFF in settings → no injection happens
-✅ Hit count increments each time a memory is used in a prompt
-✅ Memory persists across app restarts
+✅ Ask "What's the weather in Tokyo today?" with search enabled → AI searches, cites sources
+✅ Search results render inline with clickable links
+✅ Tap link → opens in browser
+✅ Ask factual question → AI includes [Source](url) citations in response
+✅ Search disabled → AI responds without tool calls (normal behavior)
+✅ Multiple search rounds: AI searches, reads results, searches again if needed (max 3)
+✅ No Serper key → falls back to DuckDuckGo
+✅ Works with OpenRouter, Google AI, and Anthropic providers
 ```
 
 #### 📗 Things Learned
@@ -1130,13 +1131,13 @@ These are not in scope for the current phase but documented for later (sprints 2
 - (fill after completing)
 
 #### 📘 Things to Remember
-- Memory injection goes BEFORE user's custom system prompt — order matters
-- Keep total injected memory under ~500 tokens to avoid eating context window
-- Hit count is a proxy for relevance — higher hit = more useful = inject first
-- Pinned memories bypass hit_count ranking — always injected
-- "Remember" detection is simple regex, not AI-powered — keep it explicit (user says "remember")
-- Don't auto-extract memories from conversations without user intent — privacy concern
-- SQLite LIKE search is fine for <1000 memories — upgrade to FTS5 only if needed
+- Tool call arguments stream as partial JSON — accumulate across chunks before parsing
+- Anthropic tool format differs from OpenAI — `input_schema` vs `parameters`, `tool_use` content blocks
+- Google AI uses `functionDeclarations` inside a `tools` array — different structure
+- DuckDuckGo HTML scraping may be unreliable — Serper is the reliable fallback
+- Max 3 tool rounds to prevent infinite loops (AI calls tool → gets result → calls tool again...)
+- Tool results go as `role: 'tool'` in OpenAI format, `tool_result` in Anthropic format
+- Don't send tool schemas when tools are disabled — wastes tokens
 
 ---
 
@@ -1215,9 +1216,9 @@ These are not in scope for the current phase but documented for later (sprints 2
 
 ---
 
-### Provider & Reliability (Sprint 14 — deferred)
+### Provider & Reliability (deferred)
 
-- **Sprint 14**: Multi-service fallback chain (~3h) — _skipped for now, not priority_
+- **Multi-service fallback chain** (~3h) — _skipped for now, not priority_
   - Ordered provider priority list in settings (drag to reorder)
   - Auto-retry on next provider when primary fails (rate limit, timeout, auth error)
   - Visual indicator showing which provider served the response
@@ -1225,198 +1226,101 @@ These are not in scope for the current phase but documented for later (sprints 2
 
 ---
 
-### Sprint 15 — Token & Cost Estimator
-> **Goal:** Users see estimated token counts before sending, per-message token usage after responses, per-conversation cost tracking, and a usage dashboard.
-> **Duration:** ~3 hours
-
-#### Tasks
-- [ ] **15.1** Create tokenizer utility (`src/lib/tokens/estimator.ts`)
-  - **Do NOT bundle a full tokenizer** (tiktoken WASM is 4MB+ and breaks RN)
-  - Use a simple heuristic estimator: `estimateTokens(text: string) → number`
-    - English: ~4 chars per token (GPT) or ~3.5 chars per token (Claude/Gemini)
-    - Formula: `Math.ceil(text.length / 3.75)` (averaged across providers)
-  - Also export `estimateMessageTokens(messages: Message[], systemPrompt?: string) → number` — sums all message content + system prompt
-  - Accurate enough for cost estimation (within ~15% of real tokenizer)
-- [ ] **15.2** Create model pricing data (`src/lib/tokens/pricing.ts`)
-  - Static pricing map keyed by model ID (or prefix pattern):
-    ```typescript
-    interface ModelPricing {
-      promptPer1M: number;      // USD per 1M input tokens
-      completionPer1M: number;  // USD per 1M output tokens
-    }
-    ```
-  - Populate from OpenRouter/Anthropic/Google pricing pages
-  - Fallback: use pricing from OpenRouter `listModels()` response (already parsed in `Model.pricing`)
-  - `getModelPricing(modelId: string) → ModelPricing | null`
-  - Cache pricing from API responses in MMKV
-- [ ] **15.3** Add live token counter to InputBar (`src/components/chat/InputBar.tsx`)
-  - Small token count badge below the text input (right-aligned)
-  - Shows: `~{n} tokens` in `text-muted-foreground` (12sp)
-  - Updates on text change (debounced 300ms via `useMemo` or `useCallback`)
-  - Includes: system prompt tokens + memory tokens + all message history tokens + current input
-  - Color coding: normal (muted) → yellow (>75% of model context window) → red (>90%)
-  - Tap → shows breakdown tooltip: "Input: ~X | History: ~Y | System: ~Z"
-- [ ] **15.4** Add per-message token display to MessageBubble (`src/components/chat/MessageBubble.tsx`)
-  - Below each assistant message: small muted text showing token usage
-  - Format: `~{input}↑ ~{output}↓` (estimated input/output tokens)
-  - For messages with `tokens_used` from API → show actual count instead of estimate
-  - Only visible on tap (or always visible as a user preference toggle)
-- [ ] **15.5** Extract actual token usage from API responses
-  - Update `streamCompletion()` to capture `usage` object from the final SSE event
-  - OpenAI/OpenRouter: `usage.prompt_tokens`, `usage.completion_tokens` in final chunk
-  - Anthropic: `message_delta` event contains `usage.output_tokens`
-  - Google AI: `usageMetadata.promptTokenCount`, `usageMetadata.candidatesTokenCount`
-  - Pass back via new callback: `onUsage?: (usage: { prompt: number; completion: number }) => void`
-  - Save to `messages.tokens_used` as JSON string: `{"prompt": N, "completion": M}`
-- [ ] **15.6** Add per-conversation cost tracking
-  - Create `token_usage` table in SQLite:
-    ```sql
-    CREATE TABLE IF NOT EXISTS token_usage (
-      id TEXT PRIMARY KEY,
-      conversation_id TEXT NOT NULL,
-      message_id TEXT NOT NULL,
-      model TEXT NOT NULL,
-      prompt_tokens INTEGER NOT NULL,
-      completion_tokens INTEGER NOT NULL,
-      cost_usd REAL,                    -- estimated cost in USD
-      created_at INTEGER NOT NULL,
-      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
-      FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
-    );
-    CREATE INDEX IF NOT EXISTS idx_token_usage_conv ON token_usage(conversation_id);
-    CREATE INDEX IF NOT EXISTS idx_token_usage_date ON token_usage(created_at);
-    ```
-  - After each completed response: insert usage record with estimated cost
-  - `getConversationCost(convId) → { totalTokens: number, estimatedCost: number }`
-- [ ] **15.7** Show conversation cost in drawer
-  - In `ConversationDrawer.tsx`: show small cost badge per conversation
-  - Format: `$0.003` or `<$0.01` for very cheap conversations
-  - Only show if cost > 0 (skip free models)
-- [ ] **15.8** Create usage dashboard screen (`src/app/settings/usage.tsx`)
-  - Header: ArrowLeft + "Usage & Costs"
-  - Summary cards at top:
-    - "Today": total tokens + cost
-    - "This Week": total tokens + cost
-    - "This Month": total tokens + cost
-  - Bar chart showing daily usage for last 7 days (simple View-based bars, no charting lib needed)
-    - Each bar: `bg-foreground` with height proportional to token count
-    - Day labels below (Mon, Tue, etc.)
-  - Breakdown by provider: list of providers with token count + cost
-  - Breakdown by model: top 5 most-used models with stats
-  - "Reset Usage Data" destructive button at bottom
-- [ ] **15.9** Verify: token counting, cost tracking, and usage dashboard
-
-#### How to Test Sprint 15
-```
-✅ Type in input bar → token count badge shows estimated tokens
-✅ Token count updates as text changes (debounced)
-✅ Send message → assistant response shows token usage below bubble
-✅ Conversation in drawer shows cost badge (e.g., "$0.01")
-✅ Usage dashboard shows today/week/month summaries
-✅ Bar chart renders daily usage for last 7 days
-✅ Provider breakdown shows correct distribution
-✅ Free model conversations show $0.00 or no cost badge
-✅ Usage persists across app restarts
-✅ "Reset Usage Data" clears all tracking data
-```
-
-#### 📗 Things Learned
-- (fill after completing)
-
-#### 📕 Mistakes Made
-- (fill after completing)
-
-#### 📘 Things to Remember
-- Do NOT use tiktoken/WASM tokenizer — too heavy for RN, heuristic is good enough for cost estimation
-- Token estimation formula: `Math.ceil(text.length / 3.75)` — averaged across GPT/Claude/Gemini
-- OpenRouter returns pricing in `Model.pricing` — cache and use for cost calculation
-- Anthropic doesn't return usage in SSE stream by default — check `stream_options` or final event
-- Cost display: always show as USD with 3 decimal places for sub-cent amounts
-- Bar chart: use simple View heights — no need for `react-native-chart-kit` or similar
-- `tokens_used` column already exists on messages table — change from `INTEGER` to `TEXT` to store JSON `{"prompt": N, "completion": M}`
-
-### Sprint 16 — Web Search Tool
-> **Goal:** First tool integration. AI can search the web via function calling, display results inline, and cite sources. Establishes the tool architecture used by Sprint 17 (MCP) and Sprint 18 (Skills).
+### Sprint 14 — Persistent Memory System (Tool-Based)
+> **Goal:** AI remembers facts, preferences, and context across conversations. Uses tool calling (from Sprint 12) so the AI can proactively save and manage memories — no brittle regex detection. Memories are stored in SQLite, ranked by usage, and auto-injected into system prompts.
 > **Duration:** ~4 hours
 
-#### Tasks
-- [ ] **16.1** Define tool system types (`src/lib/tools/types.ts`)
-  ```typescript
-  interface ToolDefinition {
-    name: string;
-    description: string;
-    parameters: Record<string, ToolParameter>;  // JSON Schema subset
-    execute: (args: Record<string, unknown>) => Promise<ToolResult>;
-  }
-  interface ToolParameter {
-    type: 'string' | 'number' | 'boolean';
-    description: string;
-    required?: boolean;
-    enum?: string[];
-  }
-  interface ToolResult {
-    content: string;           // markdown-formatted result for display
-    raw?: unknown;             // raw data for AI context
-    citations?: Citation[];    // source URLs
-  }
-  interface Citation { title: string; url: string; snippet?: string; }
-  ```
-- [ ] **16.2** Create tool registry (`src/lib/tools/registry.ts`)
-  - `registerTool(tool: ToolDefinition)`
-  - `getTool(name: string) → ToolDefinition | null`
-  - `listTools() → ToolDefinition[]`
-  - `getToolSchemas() → OpenAI-format tool schemas` — converts to `{ type: 'function', function: { name, description, parameters } }[]`
-- [ ] **16.3** Implement web search tool (`src/lib/tools/web-search.ts`)
-  - Uses DuckDuckGo HTML search (no API key needed) OR Serper API (if key configured)
-  - Tool name: `web_search`, params: `{ query: string, num_results?: number }`
-  - Parses HTML results into `Citation[]` with title, URL, snippet
-  - Returns markdown-formatted results: numbered list with `[Title](url)` + snippet
-  - Fallback: if DuckDuckGo blocked, use Serper (user provides key in settings)
-- [ ] **16.4** Add web search API key to settings (`src/app/settings/api-keys.tsx`)
-  - Optional Serper API key field (free tier: 2500 queries/month)
-  - Label: "Web Search (Serper)" — below existing provider keys
-  - Stored in SecureStore like other API keys
-- [ ] **16.5** Wire tool calling into provider layer (`src/lib/providers/types.ts`)
-  - Add `tools?: ToolDefinition[]` to `StreamConfig`
-  - Add new callbacks to `AIProvider.stream()`:
-    - `onToolCall?: (name: string, args: Record<string, unknown>) => void`
-  - Each provider converts `ToolDefinition[]` to its native format:
-    - OpenRouter/OpenAI: `tools` array with `type: 'function'`
-    - Anthropic: `tools` array with `input_schema`
-    - Google AI: `tools` with `functionDeclarations`
-- [ ] **16.6** Implement tool call loop in ChatScreen (`src/components/chat/ChatScreen.tsx`)
-  - When AI returns a `tool_calls` response instead of content:
-    1. Display a "Searching..." status indicator in the assistant bubble
-    2. Execute tool via `registry.getTool(name).execute(args)`
-    3. Append tool result as a new message with `role: 'tool'` (or provider equivalent)
-    4. Re-stream to get AI's final response incorporating tool results
-  - Max tool call rounds: 3 (prevent infinite loops)
-  - Add `role: 'tool'` to Message type union
-- [ ] **16.7** Update SSE parser to detect tool call chunks (`src/lib/streaming/sse-parser.ts`)
-  - OpenAI/OpenRouter: `delta.tool_calls[0].function.name` + `delta.tool_calls[0].function.arguments`
-  - Anthropic: `content_block_start` with `type: 'tool_use'` + `content_block_delta` with `input_json_delta`
-  - Accumulate tool call arguments across chunks (arguments stream as partial JSON)
-- [ ] **16.8** Create search results display component (`src/components/chat/SearchResults.tsx`)
-  - Renders inline in assistant bubble when tool result contains citations
-  - Each citation: favicon placeholder + title (link) + snippet (muted)
-  - `bg-surface-container-low`, rounded-lg, compact layout
-  - Tap link → opens in system browser via `Linking.openURL()`
-- [ ] **16.9** Add tool toggle in chat UI
-  - Small `lucide Globe` pill next to ThinkingToggle in top bar
-  - Tap → enables/disables web search for this conversation
-  - When enabled, tool schemas sent with every request
-- [ ] **16.10** Verify: web search end-to-end
+#### Prerequisites
+- Sprint 12 (tool calling architecture) must be complete — memory uses `save_memory` and `forget_memory` as registered tools
 
-#### How to Test Sprint 16
+#### Tasks
+- [ ] **14.1** Create memories SQLite table (`src/lib/db/schema.ts` — new migration)
+  ```sql
+  CREATE TABLE IF NOT EXISTS memories (
+    id TEXT PRIMARY KEY,
+    content TEXT NOT NULL,          -- the fact/preference/learning
+    category TEXT DEFAULT 'general', -- 'preference' | 'fact' | 'instruction' | 'general'
+    source TEXT,                     -- conversation_id that created it (nullable)
+    hit_count INTEGER DEFAULT 0,     -- times injected into a prompt
+    pinned INTEGER DEFAULT 0,        -- user-pinned = always inject
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category);
+  CREATE INDEX IF NOT EXISTS idx_memories_hits ON memories(hit_count DESC);
+  ```
+- [ ] **14.2** Create memory CRUD (`src/lib/db/memories.ts`)
+  - `addMemory(content, category?, source?) → id`
+  - `getMemories(limit?) → Memory[]` (ordered by hit_count DESC, then updated_at DESC)
+  - `getMemoriesByCategory(category) → Memory[]`
+  - `updateMemory(id, fields)`
+  - `deleteMemory(id)`
+  - `incrementHitCount(id)` — bumps hit_count + updated_at
+  - `searchMemories(query) → Memory[]` — LIKE search on content
+  - `getPinnedMemories() → Memory[]`
+- [ ] **14.3** Create memory injection module (`src/lib/memory/injector.ts`)
+  - `buildMemoryContext(conversationMessages: Message[]) → string`
+  - Selects top-N relevant memories (pinned first, then by hit_count, max ~500 tokens worth)
+  - Formats as a structured block:
+    ```
+    [User Memory]
+    - Prefers concise responses
+    - Works with React Native and Expo
+    - Native language is Telugu
+    [/User Memory]
+    ```
+  - Increments `hit_count` for each memory used
+  - Injected into system prompt (before user's custom system prompt)
+- [ ] **14.4** Register memory tools in tool registry (`src/lib/tools/memory-tools.ts`)
+  - `save_memory` tool:
+    - Params: `{ content: string, category?: 'preference' | 'fact' | 'instruction' | 'general' }`
+    - Description: "Save a user fact, preference, or instruction for future conversations"
+    - Execute: calls `addMemory()` from CRUD, returns confirmation
+  - `forget_memory` tool:
+    - Params: `{ query: string }`
+    - Description: "Remove a previously saved memory matching the query"
+    - Execute: searches memories by query, deletes best match, returns confirmation
+  - Register both in `src/lib/tools/registry.ts` alongside `web_search`
+- [ ] **14.5** Add memory instruction to system prompt
+  - Append to system prompt: "You have access to memory tools. When the user shares a personal preference, fact about themselves, or instruction for future conversations, use the save_memory tool to remember it. When they ask you to forget something, use the forget_memory tool."
+  - This replaces the old regex-based detection — the AI decides when to save memories naturally
+  - Memory tools are always available (not gated by the search toggle)
+- [ ] **14.6** Wire memory injection into streaming pipeline (`src/components/chat/ChatScreen.tsx`)
+  - In `streamNewResponse()`: call `buildMemoryContext()` before building the request
+  - Prepend memory context to `systemPrompt` in `StreamConfig`
+  - Only inject if user has memories (skip empty)
+  - Memory tools included in tool schemas for every request (when memory is enabled)
+- [ ] **14.7** Create memory management screen (`src/app/settings/memories.tsx`)
+  - New route accessible from Settings drawer item
+  - Header: ArrowLeft + "Memories" + memory count badge
+  - List of memory cards, each showing:
+    - Content text (14sp `text-foreground`)
+    - Category pill (e.g., "Preference", "Fact") — `bg-muted`, `text-muted-foreground`
+    - Hit count: `lucide Zap` + count (muted)
+    - Pin toggle: `lucide Pin` / `lucide PinOff`
+    - Swipe-to-delete or long-press → delete confirmation
+  - "Add Memory" FAB → modal with text input + category picker
+  - Search bar at top (filters memories by content)
+  - Empty state: `lucide Brain` icon + "No memories yet" + description text
+- [ ] **14.8** Add memory toggle to settings
+  - Global toggle in settings: "Memory" on/off (persisted in MMKV)
+  - When off, `buildMemoryContext()` returns empty string and memory tools are not registered
+- [ ] **14.9** Verify: memory creation via tool calling, injection, and management
+
+#### How to Test Sprint 14
 ```
-✅ Ask "What's the weather in Tokyo today?" with search enabled → AI searches, cites sources
-✅ Search results render inline with clickable links
-✅ Tap link → opens in browser
-✅ Ask factual question → AI includes [Source](url) citations in response
-✅ Search disabled → AI responds without tool calls (normal behavior)
-✅ Multiple search rounds: AI searches, reads results, searches again if needed (max 3)
-✅ No Serper key → falls back to DuckDuckGo
-✅ Works with OpenRouter, Google AI, and Anthropic providers
+✅ Tell AI "I prefer dark mode" → AI proactively calls save_memory tool → Toast "Memory saved"
+✅ Tell AI "My name is Puneeth" → AI calls save_memory with category 'fact'
+✅ Tell AI "forget my name" → AI calls forget_memory → memory removed
+✅ New conversation → system prompt includes "[User Memory]" block with stored memories
+✅ Memory management screen shows all memories with hit counts
+✅ Pin a memory → always included in injection (even if hit_count is low)
+✅ Delete a memory manually → removed from future injections
+✅ Add memory manually from management screen → appears in list
+✅ Search memories → filters by content
+✅ Toggle memory OFF in settings → no injection happens, memory tools not available
+✅ Hit count increments each time a memory is used in a prompt
+✅ Memory persists across app restarts
 ```
 
 #### 📗 Things Learned
@@ -1426,26 +1330,27 @@ These are not in scope for the current phase but documented for later (sprints 2
 - (fill after completing)
 
 #### 📘 Things to Remember
-- Tool call arguments stream as partial JSON — accumulate across chunks before parsing
-- Anthropic tool format differs from OpenAI — `input_schema` vs `parameters`, `tool_use` content blocks
-- Google AI uses `functionDeclarations` inside a `tools` array — different structure
-- DuckDuckGo HTML scraping may be unreliable — Serper is the reliable fallback
-- Max 3 tool rounds to prevent infinite loops (AI calls tool → gets result → calls tool again...)
-- Tool results go as `role: 'tool'` in OpenAI format, `tool_result` in Anthropic format
-- Don't send tool schemas when tools are disabled — wastes tokens
+- Memory tools use the same tool architecture as web search (Sprint 12) — no special plumbing needed
+- AI-driven extraction is superior to regex — the model understands context and decides what's worth saving
+- Memory injection goes BEFORE user's custom system prompt — order matters
+- Keep total injected memory under ~500 tokens to avoid eating context window
+- Hit count is a proxy for relevance — higher hit = more useful = inject first
+- Pinned memories bypass hit_count ranking — always injected
+- Memory tools are always active (not behind search toggle) — they're a core feature
+- SQLite LIKE search is fine for <1000 memories — upgrade to FTS5 only if needed
 
 ---
 
-### Sprint 17 — MCP Server Support
-> **Goal:** Implement an MCP (Model Context Protocol) client so users can connect to external tool servers. Extends the Sprint 16 tool architecture with remote tool discovery and execution.
+### Sprint 15 — MCP Server Support
+> **Goal:** Implement an MCP (Model Context Protocol) client so users can connect to external tool servers. Extends the Sprint 12 tool architecture with remote tool discovery and execution.
 > **Duration:** ~6 hours
 
 #### Prerequisites
-- Sprint 16 tool system (types, registry, tool call loop) must be complete
+- Sprint 12 tool system (types, registry, tool call loop) must be complete
 - Tool rendering and SSE tool call parsing already implemented
 
 #### Tasks
-- [ ] **17.1** Create MCP client module (`src/lib/mcp/client.ts`)
+- [ ] **15.1** Create MCP client module (`src/lib/mcp/client.ts`)
   - Implements MCP client protocol over HTTP+SSE (Streamable HTTP transport)
   - `MCPClient` class:
     - `connect(serverUrl: string, headers?: Record<string, string>) → Promise<void>`
@@ -1456,12 +1361,12 @@ These are not in scope for the current phase but documented for later (sprints 2
   - MCP transport: HTTP POST for requests, SSE for streaming responses
   - Handles `initialize` → `initialized` handshake
   - Protocol version: `2025-03-26` (latest stable)
-- [ ] **17.2** Create MCP-to-tool bridge (`src/lib/mcp/bridge.ts`)
-  - Converts `MCPToolSchema` (MCP format) → `ToolDefinition` (Sprint 16 format)
+- [ ] **15.2** Create MCP-to-tool bridge (`src/lib/mcp/bridge.ts`)
+  - Converts `MCPToolSchema` (MCP format) → `ToolDefinition` (Sprint 12 format)
   - Wraps `MCPClient.callTool()` as `ToolDefinition.execute()`
-  - Auto-registers MCP tools into the tool registry from Sprint 16
+  - Auto-registers MCP tools into the tool registry from Sprint 12
   - Handles tool name conflicts: prefix with server name (e.g., `weather.get_forecast`)
-- [ ] **17.3** Create MCP server config storage (`src/lib/mcp/config.ts`)
+- [ ] **15.3** Create MCP server config storage (`src/lib/mcp/config.ts`)
   - Store server configs in SQLite:
     ```sql
     CREATE TABLE IF NOT EXISTS mcp_servers (
@@ -1475,14 +1380,14 @@ These are not in scope for the current phase but documented for later (sprints 2
     );
     ```
   - CRUD: `addServer()`, `getServers()`, `updateServer()`, `deleteServer()`, `toggleServer()`
-- [ ] **17.4** Create MCP connection manager (`src/lib/mcp/manager.ts`)
+- [ ] **15.4** Create MCP connection manager (`src/lib/mcp/manager.ts`)
   - Manages multiple MCPClient instances (one per configured server)
   - `connectAll()` — connects to all enabled servers with `auto_connect = 1`
   - `disconnectAll()` — cleanup on app background/exit
   - Connection state tracking per server: `connecting | connected | error | disconnected`
   - Auto-reconnect with exponential backoff on connection loss
   - Emits state changes via Zustand store
-- [ ] **17.5** Create MCP store (`src/stores/mcp-store.ts`)
+- [ ] **15.5** Create MCP store (`src/stores/mcp-store.ts`)
   - Zustand store for MCP state:
     ```typescript
     interface MCPState {
@@ -1496,7 +1401,7 @@ These are not in scope for the current phase but documented for later (sprints 2
       reconnect: (id: string) => Promise<void>;
     }
     ```
-- [ ] **17.6** Create MCP server management screen (`src/app/settings/mcp-servers.tsx`)
+- [ ] **15.6** Create MCP server management screen (`src/app/settings/mcp-servers.tsx`)
   - Header: ArrowLeft + "MCP Servers" + `lucide Plus` add button
   - Server list, each card showing:
     - Server name (14sp bold) + URL (12sp muted, truncated)
@@ -1514,23 +1419,23 @@ These are not in scope for the current phase but documented for later (sprints 2
       - "Calculator" — basic math MCP server
     - Each with description + "Add" button
   - Empty state: `lucide Plug` icon + "Connect to MCP servers to extend AI capabilities"
-- [ ] **17.7** Wire MCP tools into ChatScreen tool loop
+- [ ] **15.7** Wire MCP tools into ChatScreen tool loop
   - On app startup: `MCPManager.connectAll()` → discover tools → register in tool registry
   - MCP tools appear alongside built-in tools (web search) in tool schemas sent to AI
   - Tool call flow: AI requests tool → registry resolves → if MCP tool, routes through MCPClient
-  - Tool result rendering: same `SearchResults`/inline display as Sprint 16
-- [ ] **17.8** Add MCP tool indicator to chat UI
+  - Tool result rendering: same `SearchResults`/inline display as Sprint 12
+- [ ] **15.8** Add MCP tool indicator to chat UI
   - When MCP tools are active, show `lucide Plug` badge in top bar (next to search globe)
   - Tap → shows list of connected servers + available tools
   - During tool execution: show server name in "Running tool..." indicator
-- [ ] **17.9** Handle MCP errors gracefully
+- [ ] **15.9** Handle MCP errors gracefully
   - Server unreachable → show error in server card, skip its tools (don't block chat)
   - Tool execution timeout (30s) → cancel and show error in chat
   - Invalid tool result → show raw error to user, continue conversation
   - Server disconnects mid-conversation → toast notification, remove its tools from active set
-- [ ] **17.10** Verify: MCP server connection, tool discovery, and execution
+- [ ] **15.10** Verify: MCP server connection, tool discovery, and execution
 
-#### How to Test Sprint 17
+#### How to Test Sprint 15
 ```
 ✅ Add MCP server via URL → connects, shows tool count
 ✅ Server card shows green dot when connected
@@ -1560,16 +1465,16 @@ These are not in scope for the current phase but documented for later (sprints 2
 - Don't block the chat if an MCP server fails — gracefully degrade
 ---
 
-### Sprint 18 — Skills System
-> **Goal:** Users can install, create, and share "skill packs" — bundles of system prompt + tool config + rules that create specialized AI personas. Foundation for Sprint 19 (Custom Apps).
+### Sprint 16 — Skills System
+> **Goal:** Users can install, create, and share "skill packs" — bundles of system prompt + tool config + rules that create specialized AI personas. Foundation for Sprint 17 (Custom Apps).
 > **Duration:** ~4 hours
 
 #### Prerequisites
-- Sprint 12 (memory), Sprint 13 (rules), Sprint 16 (tools) must be complete
+- Sprint 14 (memory), Sprint 13 (rules), Sprint 12 (tools) must be complete
 - Tool registry and rules injection already working
 
 #### Tasks
-- [ ] **18.1** Define skill types (`src/lib/skills/types.ts`)
+- [ ] **16.1** Define skill types (`src/lib/skills/types.ts`)
   ```typescript
   interface Skill {
     id: string;
@@ -1587,7 +1492,7 @@ These are not in scope for the current phase but documented for later (sprints 2
     createdAt: number;
   }
   ```
-- [ ] **18.2** Create skills storage (`src/lib/db/skills.ts`)
+- [ ] **16.2** Create skills storage (`src/lib/db/skills.ts`)
   - SQLite table:
     ```sql
     CREATE TABLE IF NOT EXISTS skills (
@@ -1607,20 +1512,20 @@ These are not in scope for the current phase but documented for later (sprints 2
     );
     ```
   - CRUD: `addSkill()`, `getSkills()`, `getEnabledSkills()`, `updateSkill()`, `deleteSkill()`, `toggleSkill()`
-- [ ] **18.3** Seed built-in skills
+- [ ] **16.3** Seed built-in skills
   - "Code Reviewer" — system prompt for code analysis, uses no tools, examples: "Review this function", "Find bugs in..."
   - "Research Assistant" — system prompt for research, uses `web_search` tool, examples: "Research topic X", "Compare A vs B"
   - "Creative Writer" — system prompt for creative writing, no tools, examples: "Write a short story about...", "Write a poem..."
   - "Translator" — system prompt for translation, no tools, examples: "Translate to Hindi: ...", "Translate to Japanese: ..."
   - "Fitness Coach" — system prompt for fitness advice, no tools, examples: "Create a workout plan", "Meal plan for..."
   - Built-in skills are read-only — user can disable but not edit or delete
-- [ ] **18.4** Wire skills into system prompt injection
+- [ ] **16.4** Wire skills into system prompt injection
   - Update `ChatScreen.streamNewResponse()`: compose system prompt as:
     `[User Rules] → [Active Skill Prompt] → [Active Skill Rules] → [User Memory] → [Custom System Prompt]`
   - Only inject enabled skills' prompts
   - If multiple skills enabled, concatenate their prompts (separated by `\n---\n`)
   - Skill tools: only send tool schemas for tools listed in active skills (scoped tool access)
-- [ ] **18.5** Create skill management screen (`src/app/settings/skills.tsx`)
+- [ ] **16.5** Create skill management screen (`src/app/settings/skills.tsx`)
   - Header: ArrowLeft + "Skills" + `lucide Plus` add button
   - Two sections: "Built-in" and "Custom"
   - Each skill card:
@@ -1629,12 +1534,12 @@ These are not in scope for the current phase but documented for later (sprints 2
     - Tap card → skill detail bottom sheet (full prompt, rules, tools, examples)
     - Long-press custom skill → edit/delete options
   - Empty custom section: "Create or import a skill to customize your AI"
-- [ ] **18.6** Create skill editor (`src/components/skills/SkillEditor.tsx`)
+- [ ] **16.6** Create skill editor (`src/components/skills/SkillEditor.tsx`)
   - Full-screen modal for creating/editing skills
   - Fields: name, description, icon picker (grid of common lucide icons), system prompt (multiline), rules (multiline), tool selection (checkboxes from registry), example prompts (tag input)
   - "Preview" button — shows how the skill's system prompt will look when injected
   - "Save" button
-- [ ] **18.7** Import/export skills as JSON
+- [ ] **16.7** Import/export skills as JSON
   - Export: `expo-sharing` → share skill as `.skill.json` file
   - Import: pick JSON file → validate schema → add to custom skills
   - JSON schema:
@@ -1651,13 +1556,13 @@ These are not in scope for the current phase but documented for later (sprints 2
     }
     ```
   - Validation: required fields, max prompt length (4000 chars), no executable code
-- [ ] **18.8** Skill activation in chat
+- [ ] **16.8** Skill activation in chat
   - In the chat empty state (EmptyState component): show active skill name + icon above suggestion chips
   - Suggestion chips change to skill's `examplePrompts` when a skill is active
   - Per-conversation skill selection: store `active_skill_id` in conversations table (new column migration)
-- [ ] **18.9** Verify: skill creation, activation, and import/export
+- [ ] **16.9** Verify: skill creation, activation, and import/export
 
-#### How to Test Sprint 18
+#### How to Test Sprint 16
 ```
 ✅ Built-in skills appear in skill list (Code Reviewer, Research Assistant, etc.)
 ✅ Enable "Code Reviewer" → AI responses focus on code analysis
@@ -1687,16 +1592,16 @@ These are not in scope for the current phase but documented for later (sprints 2
 
 ---
 
-### Sprint 19 — Custom Apps (GPT-like Personas)
+### Sprint 17 — Custom Apps (GPT-like Personas)
 > **Goal:** Users create shareable "apps" — named personas that bundle a skill, model, icon, and conversation defaults. Like ChatGPT's Custom GPTs but local-first.
 > **Duration:** ~6 hours
 
 #### Prerequisites
-- Sprint 13 (rules), Sprint 18 (skills) must be complete
+- Sprint 13 (rules), Sprint 16 (skills) must be complete
 - Skill system, tool registry, and rules injection all working
 
 #### Tasks
-- [ ] **19.1** Define app types (`src/lib/apps/types.ts`)
+- [ ] **17.1** Define app types (`src/lib/apps/types.ts`)
   ```typescript
   interface MedhaApp {
     id: string;
@@ -1704,7 +1609,7 @@ These are not in scope for the current phase but documented for later (sprints 2
     description: string;
     icon: string;                    // lucide icon name
     color?: string;                  // accent color for app card (CSS hsl)
-    skillId?: string;                // linked skill (from Sprint 18)
+    skillId?: string;                // linked skill (from Sprint 16)
     model?: string;                  // pinned model ID (e.g. "claude-sonnet-4-20250514")
     provider?: string;               // pinned provider ID
     rules?: string;                  // app-specific rules (override global)
@@ -1714,7 +1619,7 @@ These are not in scope for the current phase but documented for later (sprints 2
     createdAt: number;
   }
   ```
-- [ ] **19.2** Create apps storage (`src/lib/db/apps.ts`)
+- [ ] **17.2** Create apps storage (`src/lib/db/apps.ts`)
   - SQLite table:
     ```sql
     CREATE TABLE IF NOT EXISTS apps (
@@ -1735,13 +1640,13 @@ These are not in scope for the current phase but documented for later (sprints 2
     );
     ```
   - CRUD: `addApp()`, `getApps()`, `getApp()`, `updateApp()`, `deleteApp()`
-- [ ] **19.3** Seed built-in apps
+- [ ] **17.3** Seed built-in apps
   - "Medha Default" — no pinned model, no skill, default behavior (icon: `Sparkles`)
   - "Code Assistant" — links "Code Reviewer" skill, pins to Claude Sonnet 4 (icon: `Code`, color: `hsl(265, 80%, 60%)`)
   - "Writing Coach" — links "Creative Writer" skill, greeting: "What would you like to write today?" (icon: `Feather`)
   - "Language Tutor" — links "Translator" skill, rules: "Always correct grammar mistakes" (icon: `Languages`)
   - "Research Pro" — links "Research Assistant" skill, pins to GPT-4o via OpenRouter (icon: `Search`)
-- [ ] **19.4** Create app launcher screen (`src/app/apps.tsx`)
+- [ ] **17.4** Create app launcher screen (`src/app/apps.tsx`)
   - Grid layout (2 columns) of app cards
   - Each card: colored icon circle + name + description (2 lines max)
   - Card style: `bg-surface-container-low`, `border-outline-variant/10`, rounded-2xl, shadow
@@ -1749,26 +1654,26 @@ These are not in scope for the current phase but documented for later (sprints 2
   - Long-press → edit/delete (custom apps only), share
   - "Create App" card at end: dashed border + `lucide Plus` icon
   - Header: "Apps" + search icon (filters by name)
-- [ ] **19.5** Wire app activation into conversation creation
+- [ ] **17.5** Wire app activation into conversation creation
   - When user taps an app:
     1. Create new conversation with `model`, `provider`, `system_prompt` (from linked skill), `rules` pre-set
     2. If `greeting` is set, insert it as first assistant message
     3. Navigate to `chat/[id]` with app's `examplePrompts` as suggestion chips
     4. Store `app_id` on conversation (new column migration)
   - Active app shown in chat top bar: app icon + name (replaces or sits next to ModelPill)
-- [ ] **19.6** Create app editor (`src/app/apps/create.tsx`)
+- [ ] **17.6** Create app editor (`src/app/apps/create.tsx`)
   - Full-screen wizard flow (3 steps):
     1. **Identity**: name, description, icon picker (lucide grid), color picker (preset palette of 8 colors)
-    2. **Behavior**: skill selector (dropdown from Sprint 18 skills), custom rules (multiline), greeting message
+    2. **Behavior**: skill selector (dropdown from Sprint 16 skills), custom rules (multiline), greeting message
     3. **Model**: provider picker, model picker (from that provider), or "Any model" (user's default)
   - "Preview" step: shows how the app card will look + test conversation
   - "Save" button → inserts into SQLite
   - Edit mode: pre-fills all fields from existing app
-- [ ] **19.7** Add app launcher to drawer
+- [ ] **17.7** Add app launcher to drawer
   - New section in ConversationDrawer: "Apps" row with `lucide Grid3X3` icon
   - Tap → navigates to app launcher screen
   - Alternatively: horizontal scroll of app icons at top of drawer (quick access)
-- [ ] **19.8** Import/export apps as JSON
+- [ ] **17.8** Import/export apps as JSON
   - Export: bundles app + linked skill into single `.app.json` file
     ```json
     {
@@ -1777,7 +1682,7 @@ These are not in scope for the current phase but documented for later (sprints 2
       "description": "...",
       "icon": "Code",
       "color": "hsl(265, 80%, 60%)",
-      "skill": { /* embedded skill JSON from Sprint 18 */ },
+      "skill": { /* embedded skill JSON from Sprint 16 */ },
       "model": "claude-sonnet-4-20250514",
       "provider": "anthropic",
       "rules": "...",
@@ -1787,12 +1692,12 @@ These are not in scope for the current phase but documented for later (sprints 2
     ```
   - Import: parse JSON → create skill (if embedded) → create app → link
   - Share via `expo-sharing`
-- [ ] **19.9** App-scoped conversation history
+- [ ] **17.9** App-scoped conversation history
   - In drawer: filter conversations by app (show app icon badge on each conversation)
   - App launcher cards show conversation count: "12 chats" subtitle
-- [ ] **19.10** Verify: app creation, activation, sharing, and conversation flow
+- [ ] **17.10** Verify: app creation, activation, sharing, and conversation flow
 
-#### How to Test Sprint 19
+#### How to Test Sprint 17
 ```
 ✅ App launcher shows grid of built-in apps (Medha Default, Code Assistant, etc.)
 ✅ Tap "Code Assistant" → new chat with Code Reviewer skill active + Claude pinned
@@ -1823,25 +1728,140 @@ These are not in scope for the current phase but documented for later (sprints 2
 - Model pinning is a preference, not a requirement — if user doesn't have the API key, show a warning but allow model switch
 - `.app.json` embeds the full skill — no external references that could break on import
 
-### Data & Export (Sprints 20–21)
+---
 
-- **Sprint 20**: Backup & restore (~3h)
+### Sprint 18 — Token & Cost Estimator
+> **Goal:** Users see estimated token counts before sending, per-message token usage after responses, per-conversation cost tracking, and a usage dashboard. Tracks all token usage including tool calls and MCP tool execution.
+> **Duration:** ~3 hours
+
+#### Tasks
+- [ ] **18.1** Create tokenizer utility (`src/lib/tokens/estimator.ts`)
+  - **Do NOT bundle a full tokenizer** (tiktoken WASM is 4MB+ and breaks RN)
+  - Use a simple heuristic estimator: `estimateTokens(text: string) → number`
+    - English: ~4 chars per token (GPT) or ~3.5 chars per token (Claude/Gemini)
+    - Formula: `Math.ceil(text.length / 3.75)` (averaged across providers)
+  - Also export `estimateMessageTokens(messages: Message[], systemPrompt?: string) → number` — sums all message content + system prompt
+  - Accurate enough for cost estimation (within ~15% of real tokenizer)
+- [ ] **18.2** Create model pricing data (`src/lib/tokens/pricing.ts`)
+  - Static pricing map keyed by model ID (or prefix pattern):
+    ```typescript
+    interface ModelPricing {
+      promptPer1M: number;      // USD per 1M input tokens
+      completionPer1M: number;  // USD per 1M output tokens
+    }
+    ```
+  - Populate from OpenRouter/Anthropic/Google pricing pages
+  - Fallback: use pricing from OpenRouter `listModels()` response (already parsed in `Model.pricing`)
+  - `getModelPricing(modelId: string) → ModelPricing | null`
+  - Cache pricing from API responses in MMKV
+- [ ] **18.3** Add live token counter to InputBar (`src/components/chat/InputBar.tsx`)
+  - Small token count badge below the text input (right-aligned)
+  - Shows: `~{n} tokens` in `text-muted-foreground` (12sp)
+  - Updates on text change (debounced 300ms via `useMemo` or `useCallback`)
+  - Includes: system prompt tokens + memory tokens + all message history tokens + current input
+  - Color coding: normal (muted) → yellow (>75% of model context window) → red (>90%)
+  - Tap → shows breakdown tooltip: "Input: ~X | History: ~Y | System: ~Z"
+- [ ] **18.4** Add per-message token display to MessageBubble (`src/components/chat/MessageBubble.tsx`)
+  - Below each assistant message: small muted text showing token usage
+  - Format: `~{input}↑ ~{output}↓` (estimated input/output tokens)
+  - For messages with `tokens_used` from API → show actual count instead of estimate
+  - Only visible on tap (or always visible as a user preference toggle)
+- [ ] **18.5** Extract actual token usage from API responses
+  - Update `streamCompletion()` to capture `usage` object from the final SSE event
+  - OpenAI/OpenRouter: `usage.prompt_tokens`, `usage.completion_tokens` in final chunk
+  - Anthropic: `message_delta` event contains `usage.output_tokens`
+  - Google AI: `usageMetadata.promptTokenCount`, `usageMetadata.candidatesTokenCount`
+  - Pass back via new callback: `onUsage?: (usage: { prompt: number; completion: number }) => void`
+  - Save to `messages.tokens_used` as JSON string: `{"prompt": N, "completion": M}`
+  - **Note**: also track tokens from tool call rounds (Sprint 12) — sum across all rounds per response
+- [ ] **18.6** Add per-conversation cost tracking
+  - Create `token_usage` table in SQLite:
+    ```sql
+    CREATE TABLE IF NOT EXISTS token_usage (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      model TEXT NOT NULL,
+      prompt_tokens INTEGER NOT NULL,
+      completion_tokens INTEGER NOT NULL,
+      cost_usd REAL,                    -- estimated cost in USD
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+      FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_token_usage_conv ON token_usage(conversation_id);
+    CREATE INDEX IF NOT EXISTS idx_token_usage_date ON token_usage(created_at);
+    ```
+  - After each completed response: insert usage record with estimated cost
+  - `getConversationCost(convId) → { totalTokens: number, estimatedCost: number }`
+- [ ] **18.7** Show conversation cost in drawer
+  - In `ConversationDrawer.tsx`: show small cost badge per conversation
+  - Format: `$0.003` or `<$0.01` for very cheap conversations
+  - Only show if cost > 0 (skip free models)
+- [ ] **18.8** Create usage dashboard screen (`src/app/settings/usage.tsx`)
+  - Header: ArrowLeft + "Usage & Costs"
+  - Summary cards at top:
+    - "Today": total tokens + cost
+    - "This Week": total tokens + cost
+    - "This Month": total tokens + cost
+  - Bar chart showing daily usage for last 7 days (simple View-based bars, no charting lib needed)
+    - Each bar: `bg-foreground` with height proportional to token count
+    - Day labels below (Mon, Tue, etc.)
+  - Breakdown by provider: list of providers with token count + cost
+  - Breakdown by model: top 5 most-used models with stats
+  - "Reset Usage Data" destructive button at bottom
+- [ ] **18.9** Verify: token counting, cost tracking, and usage dashboard
+
+#### How to Test Sprint 18
+```
+✅ Type in input bar → token count badge shows estimated tokens
+✅ Token count updates as text changes (debounced)
+✅ Send message → assistant response shows token usage below bubble
+✅ Conversation in drawer shows cost badge (e.g., "$0.01")
+✅ Usage dashboard shows today/week/month summaries
+✅ Bar chart renders daily usage for last 7 days
+✅ Provider breakdown shows correct distribution
+✅ Free model conversations show $0.00 or no cost badge
+✅ Usage persists across app restarts
+✅ "Reset Usage Data" clears all tracking data
+✅ Tool call tokens (web search, MCP) included in usage tracking
+```
+
+#### 📗 Things Learned
+- (fill after completing)
+
+#### 📕 Mistakes Made
+- (fill after completing)
+
+#### 📘 Things to Remember
+- Do NOT use tiktoken/WASM tokenizer — too heavy for RN, heuristic is good enough for cost estimation
+- Token estimation formula: `Math.ceil(text.length / 3.75)` — averaged across GPT/Claude/Gemini
+- OpenRouter returns pricing in `Model.pricing` — cache and use for cost calculation
+- Anthropic doesn't return usage in SSE stream by default — check `stream_options` or final event
+- Cost display: always show as USD with 3 decimal places for sub-cent amounts
+- Bar chart: use simple View heights — no need for `react-native-chart-kit` or similar
+- `tokens_used` column already exists on messages table — change from `INTEGER` to `TEXT` to store JSON `{"prompt": N, "completion": M}`
+- Track tool call round tokens too — a single user message may trigger multiple API calls via tool loop
+
+### Data & Export (Sprints 19–20)
+
+- **Sprint 19**: Backup & restore (~3h)
   - Export all conversations as JSON (with attachments as base64)
   - Import conversations from JSON
   - Export/import settings (API keys optionally excluded for security)
   - Share individual conversations as Markdown
-- **Sprint 21**: Cloud sync (Google Drive / local backup) (~4h)
+- **Sprint 20**: Cloud sync (Google Drive / local backup) (~4h)
 
-### Polish & Platform (Sprints 22–25)
+### Polish & Platform (Sprints 21–24)
 
-- **Sprint 22**: TTS + response actions (~3h)
+- **Sprint 21**: TTS + response actions (~3h)
   - Text-to-speech via `expo-speech` (per-message speaker icon, auto-play option)
   - Copy code block button in markdown renderer
   - Re-generate last response button (retry with same prompt)
   - Undo snackbar for conversation/message deletions
-- **Sprint 23**: Swipe to branch (alternate response timelines)
-- **Sprint 24**: Multi-model compare (side-by-side responses from different models)
-- **Sprint 25**: Widgets (Android home screen — quick chat, continue conversation)
+- **Sprint 22**: Swipe to branch (alternate response timelines)
+- **Sprint 23**: Multi-model compare (side-by-side responses from different models)
+- **Sprint 24**: Widgets (Android home screen — quick chat, continue conversation)
 
 ---
 
