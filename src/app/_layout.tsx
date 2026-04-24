@@ -131,15 +131,27 @@ function AppContent() {
     router.push('/search' as any);
   }, [closeDrawer, router]);
 
+  const handleOpenRules = useCallback(
+    (conversationId: string) => {
+      closeDrawer();
+      router.push({
+        pathname: '/settings/rules',
+        params: { conversationId },
+      } as any);
+    },
+    [closeDrawer, router]
+  );
+
   const renderDrawerContent = useCallback(
     () => (
-      <ConversationDrawer
+        <ConversationDrawer
         conversations={conversations}
         activeConversationId={activeConversationId}
         onSelectConversation={handleSelectConversation}
         onNewChat={handleNewChat}
         onOpenSearch={handleOpenSearch}
         onOpenSettings={handleOpenSettings}
+        onOpenRules={handleOpenRules}
         onRefresh={refreshConversations}
       />
     ),
@@ -150,6 +162,7 @@ function AppContent() {
       handleNewChat,
       handleOpenSearch,
       handleOpenSettings,
+      handleOpenRules,
       refreshConversations,
     ]
   );
@@ -180,6 +193,7 @@ function AppContent() {
             <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="settings/api-keys" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="settings/system-prompts" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="settings/rules" options={{ animation: 'slide_from_right' }} />
           </Stack>
         </DrawerLayout>
         <ModelPicker />

@@ -14,6 +14,7 @@ const KEYS = {
   thinkingMode: 'medha:thinkingMode',
   customCommands: 'medha:customCommands',
   webSearchEnabled: 'medha:webSearchEnabled',
+  globalRules: 'medha:globalRules',
 };
 
 // Theme
@@ -133,6 +134,17 @@ export async function setCustomCommands(commands: StoredCustomCommand[]): Promis
   _customCommands = commands;
 }
 
+// Global rules
+export async function getGlobalRules(): Promise<string> {
+  const value = await AsyncStorage.getItem(KEYS.globalRules);
+  return value ?? '';
+}
+
+export async function setGlobalRules(rules: string): Promise<void> {
+  await AsyncStorage.setItem(KEYS.globalRules, rules);
+  _globalRules = rules;
+}
+
 // Synchronous wrappers for compatibility (read from in-memory cache)
 let _theme: Theme = 'dark';
 let _lastModel: string | null = null;
@@ -142,6 +154,7 @@ let _biometricLockEnabled = false;
 let _thinkingMode: ThinkingMode = 'auto';
 let _customCommands: StoredCustomCommand[] = [];
 let _webSearchEnabled = false;
+let _globalRules = '';
 let _initialized = false;
 
 export function getThemeSync(): Theme {
@@ -176,6 +189,10 @@ export function isWebSearchEnabledSync(): boolean {
   return _webSearchEnabled;
 }
 
+export function getGlobalRulesSync(): string {
+  return _globalRules;
+}
+
 export async function initStorage(): Promise<void> {
   if (_initialized) return;
   const theme = await getTheme();
@@ -186,6 +203,7 @@ export async function initStorage(): Promise<void> {
   const thinking = await getThinkingMode();
   const customCmds = await getCustomCommands();
   const webSearch = await isWebSearchEnabled();
+  const globalRules = await getGlobalRules();
   _theme = theme;
   _lastModel = lastModel;
   _lastProvider = lastProvider;
@@ -194,5 +212,6 @@ export async function initStorage(): Promise<void> {
   _thinkingMode = thinking;
   _customCommands = customCmds;
   _webSearchEnabled = webSearch;
+  _globalRules = globalRules;
   _initialized = true;
 }

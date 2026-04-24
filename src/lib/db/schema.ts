@@ -84,4 +84,11 @@ export function initializeDatabase(): void {
   } catch {
     // Column already exists — ignore
   }
+
+  // Add rules column to conversations (Sprint 13)
+  try {
+    database.runSync('ALTER TABLE conversations ADD COLUMN rules TEXT');
+  } catch {
+    // Column already exists — ignore
+  }
 }

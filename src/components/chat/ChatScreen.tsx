@@ -27,6 +27,7 @@ import { getApiKey } from '@/lib/storage/secure';
 import { getProvider, registerBuiltInProviders, listProviders } from '@/lib/providers/registry';
 import { registerTool, listTools, getOpenAIToolSchemas, getAnthropicToolSchemas, getTool } from '@/lib/tools/registry';
 import { webSearchTool } from '@/lib/tools/web-search';
+import { composeSystemPrompt } from '@/lib/rules/injector';
 import type { AccumulatedToolCall } from '@/lib/streaming/stream';
 import { useRouter } from 'expo-router';
 import type { Message, Attachment } from '@/types';
@@ -154,7 +155,10 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       const model = lastModel || getDefaultModel(providerId);
       const conversation = getConversation(convId);
-      const systemPrompt = conversation?.system_prompt?.trim() || undefined;
+      const systemPrompt = composeSystemPrompt(
+        convId,
+        conversation?.system_prompt
+      );
 
       // Create placeholder assistant message
       const assistantMsgId = addMessage(convId, 'assistant', '', model);

@@ -1146,47 +1146,40 @@ These are not in scope for the current phase but documented for later (sprints 1
 > **Duration:** ~2 hours
 
 #### Tasks
-- [ ] **13.1** Create rules storage (`src/lib/storage/rules.ts`)
-  - Store global rules as a single text blob in MMKV (key: `global_rules`)
-  - `getGlobalRules() → string`
-  - `setGlobalRules(rules: string)`
-  - Per-conversation rules stored in conversations table (new column)
-- [ ] **13.2** Add `rules` column to conversations table (`src/lib/db/schema.ts` — migration)
+- [x] **13.1** Create rules storage in MMKV (`src/lib/storage/mmkv.ts`)
+  - Added `globalRules` key, async `getGlobalRules()`/`setGlobalRules()`, and sync `getGlobalRulesSync()`
+  - Wired into `initStorage()` for hydration at app start
+  - Added `globalRules` state + `setGlobalRules` action to Zustand settings store
+- [x] **13.2** Add `rules` column to conversations table (`src/lib/db/schema.ts` — migration)
   ```sql
   ALTER TABLE conversations ADD COLUMN rules TEXT;
   ```
   - Nullable — `null` means "use global rules only"
-- [ ] **13.3** Create rules injection module (`src/lib/rules/injector.ts`)
-  - `buildRulesContext(conversationId?: string) → string`
+  - Updated `Conversation` TypeScript type in `src/types/index.ts`
+- [x] **13.3** Create rules injection module (`src/lib/rules/injector.ts`)
+  - `buildRulesContext(conversationId?: string | null) → string`
   - Priority order: per-conversation rules (if set) > global rules
-  - Formats as:
-    ```
-    [User Rules]
-    - Always respond in English unless asked otherwise
-    - Be concise, avoid filler
-    [/User Rules]
-    ```
-  - Injected into system prompt BEFORE memory context
-- [ ] **13.4** Wire rules injection into streaming pipeline
-  - In `ChatScreen.streamNewResponse()`: call `buildRulesContext(convId)` 
-  - Compose final system prompt: rules + memory + user's custom system prompt
-  - Order: `[User Rules]\n\n[User Memory]\n\n{custom system prompt}`
-- [ ] **13.5** Create global rules editor screen (`src/app/settings/rules.tsx`)
-  - Header: ArrowLeft + "Rules & Instructions"
+  - Formats as: `[User Rules]\n{rules}\n[/User Rules]`
+  - `composeSystemPrompt(convId, customSystemPrompt?) → string | undefined`
+  - 5 built-in presets: "Be concise", "Always use code examples", "Respond in Hindi", "Explain like I'm 5", "Use formal tone"
+- [x] **13.4** Wire rules injection into streaming pipeline
+  - In `ChatScreen.streamNewResponse()`: replaced raw `conversation?.system_prompt` with `composeSystemPrompt(convId, conversation?.system_prompt)`
+  - Order: `[User Rules] → [Memory (future)] → [User Custom Prompt]`
+- [x] **13.5** Create global rules editor screen (`src/app/settings/rules.tsx`)
+  - Header: ArrowLeft + "Rules & Instructions" + Save button
   - Large multiline text area: `bg-surface-container-low`, `border-outline-variant/20`, rounded-xl
   - Placeholder: "Tell the AI how to behave across all conversations..."
-  - Character count in bottom-right corner (muted)
-  - "Save" button in header (disabled when unchanged)
-  - Rule presets as horizontal scroll pills below the text area:
-    - "Be concise" / "Always use code examples" / "Respond in Hindi" / "Explain like I'm 5" / "Use formal tone"
-  - Tap preset → appends to text area (doesn't replace)
-  - Info text below: "These rules apply to all new conversations"
-- [ ] **13.6** Add per-conversation rules access
-  - In conversation drawer long-press menu: add "Edit Rules" option
-  - Opens a bottom sheet with same text area UI as global rules editor
+  - Character count in bottom-right corner
+  - "Save" button disabled when unchanged (global mode)
+  - Rule presets as horizontal scroll pills — tap appends to text area
+  - Info text with context about scope (global vs per-conversation)
+- [x] **13.6** Add per-conversation rules access
+  - In conversation drawer long-press menu: "Edit Rules" option alongside "Delete"
+  - Rules screen detects `conversationId` param → enters per-conversation mode
   - Toggle: "Use global rules" (default on) / "Custom rules for this chat"
-  - When custom is set, show both global (read-only, dimmed) and custom (editable) sections
-- [ ] **13.7** Verify: rules injection and per-conversation override
+  - When global selected, shows read-only global rules card for reference
+  - Text area editable only when "Use global rules" is OFF
+- [x] **13.7** Verify: TypeScript compiles clean, lint passes (only pre-existing warnings)
 
 #### How to Test Sprint 13
 ```
@@ -1201,10 +1194,15 @@ These are not in scope for the current phase but documented for later (sprints 1
 ```
 
 #### 📗 Things Learned
-- (fill after completing)
+- Reusing the system-prompts screen pattern (header + scroll + text area + presets) saved significant design time
+- The `composeSystemPrompt()` helper cleanly separates injection concerns — rules, memory, and custom prompt are composed independently
+- Using `useLocalSearchParams` from expo-router lets the same screen serve both global and per-conversation modes without prop drilling
+- NativeWind's `opacity-40` class is a quick way to visually indicate disabled Save buttons
 
 #### 📕 Mistakes Made
-- (fill after completing)
+- Initially tried to create a separate `src/lib/storage/rules.ts` file — unnecessary indirection when MMKV already has a clean pattern; folded rules directly into `mmkv.ts`
+- Forgot to add `handleOpenRules` to the `renderDrawerContent` dependency array — caught by TypeScript/react-hooks-exhaustive-deps
+- Accidentally imported `SlidersHorizontal` in `ConversationDrawer` but didn't use it there (it's only used in Settings) — caught by linter
 
 #### 📘 Things to Remember
 - Rules go first in system prompt — they set the tone before memory and custom prompts
@@ -1213,6 +1211,7 @@ These are not in scope for the current phase but documented for later (sprints 1
 - Presets are convenience — user can always type freeform
 - Don't validate rule content — users should write whatever they want
 - Rules + memory + custom system prompt = full system prompt injection chain
+- The `rules` column is nullable: `null` means "use global default", not "no rules"
 
 ---
 

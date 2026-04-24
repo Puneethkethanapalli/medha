@@ -9,6 +9,7 @@ interface SettingsState {
   biometricLockEnabled: boolean;
   thinkingMode: ThinkingMode;
   webSearchEnabled: boolean;
+  globalRules: string;
   isInitialized: boolean;
 }
 
@@ -20,6 +21,7 @@ interface SettingsActions {
   setBiometricLockEnabled: (enabled: boolean) => Promise<void>;
   setThinkingMode: (mode: ThinkingMode) => Promise<void>;
   setWebSearchEnabled: (enabled: boolean) => Promise<void>;
+  setGlobalRules: (rules: string) => Promise<void>;
   validateApiKey: (provider: string, key: string) => Promise<boolean>;
   initialize: () => Promise<void>;
 }
@@ -51,6 +53,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
   biometricLockEnabled: false,
   thinkingMode: 'auto' as ThinkingMode,
   webSearchEnabled: false,
+  globalRules: '',
   isInitialized: false,
 
   // Actions
@@ -96,6 +99,12 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
     set({ webSearchEnabled: enabled });
   },
 
+  setGlobalRules: async (rules) => {
+    await loadModules();
+    await mmkv!.setGlobalRules(rules);
+    set({ globalRules: rules });
+  },
+
   validateApiKey: async (providerId, key) => {
     const provider = getProviderInstance(providerId);
     if (!provider) return false;
@@ -113,6 +122,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
       biometricLockEnabled: mmkv!.isBiometricLockEnabledSync(),
       thinkingMode: mmkv!.getThinkingModeSync(),
       webSearchEnabled: mmkv!.isWebSearchEnabledSync(),
+      globalRules: mmkv!.getGlobalRulesSync(),
       isInitialized: true,
     });
   },

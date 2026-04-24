@@ -5,6 +5,7 @@ export interface Conversation {
   provider: string;
   system_prompt: string | null;
   thinking_mode: string | null;
+  rules: string | null;
   created_at: number;
   updated_at: number;
   pinned: number;

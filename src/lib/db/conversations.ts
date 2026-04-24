@@ -40,7 +40,7 @@ export function getConversation(id: string): Conversation | null {
 
 export function updateConversation(
   id: string,
-  fields: Partial<Pick<Conversation, 'title' | 'model' | 'system_prompt' | 'pinned' | 'thinking_mode'>>
+  fields: Partial<Pick<Conversation, 'title' | 'model' | 'system_prompt' | 'pinned' | 'thinking_mode' | 'rules'>>
 ): void {
   const db = getDatabase();
   const sets: string[] = [];
@@ -65,6 +65,10 @@ export function updateConversation(
   if (fields.thinking_mode !== undefined) {
     sets.push('thinking_mode = ?');
     values.push(fields.thinking_mode ?? null);
+  }
+  if (fields.rules !== undefined) {
+    sets.push('rules = ?');
+    values.push(fields.rules ?? null);
   }
 
   if (sets.length === 0) return;

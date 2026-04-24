@@ -14,6 +14,7 @@ interface ConversationDrawerProps {
   onNewChat: () => void;
   onOpenSearch: () => void;
   onOpenSettings: () => void;
+  onOpenRules: (conversationId: string) => void;
   onRefresh: () => void;
 }
 
@@ -64,19 +65,22 @@ function ConversationItem({
   isActive,
   onPress,
   onDelete,
+  onEditRules,
 }: {
   conversation: Conversation;
   isActive: boolean;
   onPress: () => void;
   onDelete: () => void;
+  onEditRules: () => void;
 }) {
   const handleLongPress = () => {
     Alert.alert(
-      'Delete Conversation',
-      `Delete "${conversation.title}"?`,
+      conversation.title,
+      'Conversation actions',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Edit Rules', onPress: onEditRules },
         { text: 'Delete', style: 'destructive', onPress: onDelete },
+        { text: 'Cancel', style: 'cancel' },
       ]
     );
   };
@@ -119,6 +123,7 @@ export function ConversationDrawer({
   onNewChat,
   onOpenSearch,
   onOpenSettings,
+  onOpenRules,
   onRefresh,
 }: ConversationDrawerProps) {
   const grouped = useMemo(() => groupByDate(conversations), [conversations]);
@@ -200,6 +205,7 @@ export function ConversationDrawer({
               isActive={item.conversation.id === activeConversationId}
               onPress={() => onSelectConversation(item.conversation.id)}
               onDelete={() => handleDelete(item.conversation.id)}
+              onEditRules={() => onOpenRules(item.conversation.id)}
             />
           );
         }}
