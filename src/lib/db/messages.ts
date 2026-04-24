@@ -8,18 +8,19 @@ export function addMessage(
   content: string,
   model?: string,
   attachments?: Attachment[] | null,
-  toolCallId?: string | null
+  toolCallId?: string | null,
+  toolCalls?: string | null
 ): string {
   const db = getDatabase();
   const id = uuidv4();
   const now = Date.now();
 
   db.runSync(
-    `INSERT INTO messages (id, conversation_id, role, content, status, model, attachments, tool_call_id, created_at)
-     VALUES (?, ?, ?, ?, 'complete', ?, ?, ?, ?)`,
+    `INSERT INTO messages (id, conversation_id, role, content, status, model, attachments, tool_call_id, tool_calls, created_at)
+     VALUES (?, ?, ?, ?, 'complete', ?, ?, ?, ?, ?)`,
     [id, conversationId, role, content, model ?? null,
      attachments ? JSON.stringify(attachments) : null,
-     toolCallId ?? null, now]
+     toolCallId ?? null, toolCalls ?? null, now]
   );
 
   return id;

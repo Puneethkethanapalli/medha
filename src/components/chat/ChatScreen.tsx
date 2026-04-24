@@ -271,7 +271,9 @@ export const ChatScreen = React.memo(function ChatScreen({
           try {
             const result = await toolDef.execute(tc.arguments);
             // Save tool result — use raw data for AI context, content for display
-            addMessage(convId, 'tool', result.raw ? String(result.raw) : result.content, model, null, tc.id);
+            // We repurpose the tool_calls column on the tool message to store citations
+            const citationsJson = result.citations ? JSON.stringify(result.citations) : null;
+            addMessage(convId, 'tool', result.raw ? String(result.raw) : result.content, model, null, tc.id, citationsJson);
           } catch (err) {
             const errMsg = err instanceof Error ? err.message : 'Tool execution failed';
             addMessage(convId, 'tool', `Error: ${errMsg}`, model, null, tc.id);

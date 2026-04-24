@@ -9,6 +9,7 @@ import { useUIStore } from '@/stores/ui-store';
 import { ThinkingBlock } from './ThinkingBlock';
 import { MarkdownMessage } from './MarkdownMessage';
 import { StreamingCursor } from './StreamingCursor';
+import { SearchResults } from './SearchResults';
 import type { Message } from '@/types';
 
 const waitingAnimation = require('../../../lottie/glow waiting.json');
@@ -76,8 +77,23 @@ export const MessageBubble = React.memo(function MessageBubble({
   const displayReasoning = isStreaming ? streamingReasoning : message.reasoning;
   const isUser = message.role === 'user';
 
-  // Tool messages are invisible — only used as API context
-  if (message.role === 'tool') return null;
+  // Tool messages render as SearchResults if they contain citations
+  if (message.role === 'tool') {
+    if (!message.tool_calls) return null;
+    try {
+      const citations = JSON.parse(message.tool_calls);
+      if (Array.isArray(citations) && citations.length > 0) {
+        return (
+          <View className={`w-[85%] mb-4 ${dimmed ? 'opacity-40' : ''}`}>
+            <SearchResults citations={citations} />
+          </View>
+        );
+      }
+    } catch {
+      // Ignore parse errors
+    }
+    return null;
+  }
 
   // Edit mode state
   const [editText, setEditText] = useState(message.content);
@@ -212,16 +228,14 @@ export const MessageBubble = React.memo(function MessageBubble({
 
         {/* Content */}
         {(displayContent || !isReasoningOnly) && (
-          <Pressable
-            onLongPress={handleLongPress}
-            delayLongPress={350}
+          <View
             className={`w-full rounded-2xl ${
               highlighted ? 'bg-surface-container-low border border-outline-variant/30 px-3 py-2' : ''
             }`}
           >
             <MarkdownMessage content={displayContent} isStreaming={isStreaming} />
             {isStreaming && !isReasoningOnly && <StreamingCursor />}
-          </Pressable>
+          </View>
         )}
 
         {/* Error state with retry */}
