@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Modal, View, Pressable, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { Modal, View, Pressable, TextInput, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { useUIStore } from '@/stores/ui-store';
 import { useSettingsStore } from '@/stores/settings-store';
@@ -58,6 +58,7 @@ export function ChatSettingsSheet() {
 
   // Save per-conversation rule when closing (if changed)
   const handleClose = useCallback(() => {
+    Keyboard.dismiss();
     const trimmed = convRule.trim();
     if (activeConversationId) {
       // Existing conversation — save to DB
@@ -94,7 +95,7 @@ export function ChatSettingsSheet() {
       statusBarTranslucent
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}
       >
         {/* Tap-to-dismiss backdrop */}
