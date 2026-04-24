@@ -170,6 +170,7 @@ export const ChatScreen = React.memo(function ChatScreen({
         model,
         tokens_used: null,
         tool_call_id: null,
+        tool_calls: null,
         created_at: Date.now(),
       };
 
@@ -256,7 +257,7 @@ export const ChatScreen = React.memo(function ChatScreen({
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantMsgId
-              ? { ...m, content: statusText, reasoning: accumulatedReasoning || null, status: 'complete' }
+              ? { ...m, content: statusText, reasoning: accumulatedReasoning || null, status: 'complete', tool_calls: toolCallsJson }
               : m
           )
         );
@@ -339,6 +340,7 @@ export const ChatScreen = React.memo(function ChatScreen({
         model,
         tokens_used: null,
         tool_call_id: null,
+        tool_calls: null,
         created_at: Date.now(),
       };
 
