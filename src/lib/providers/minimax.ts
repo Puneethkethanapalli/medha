@@ -1,5 +1,5 @@
 import { fetch } from 'expo/fetch';
-import type { AIProvider } from './types';
+import type { AIProvider, StreamConfig } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
 import { buildOpenAIMessages } from '@/lib/attachments/multimodal';
 import type { Message, Model } from '@/types';
@@ -20,13 +20,7 @@ export class MiniMaxProvider implements AIProvider {
 
   stream(
     messages: Message[],
-    config: {
-      model: string;
-      apiKey: string;
-      systemPrompt?: string;
-      temperature?: number;
-      maxTokens?: number;
-    },
+    config: StreamConfig,
     onContent: (token: string) => void,
     onReasoning: (token: string) => void,
     onDone: () => void,
@@ -50,6 +44,12 @@ export class MiniMaxProvider implements AIProvider {
       body.max_tokens = config.maxTokens;
     }
 
+    // MiniMax M1 always returns reasoning — can't disable server-side.
+    // When thinking is off, swallow reasoning tokens client-side.
+    const reasoningHandler = config.thinkingMode === 'off'
+      ? () => {} // no-op
+      : onReasoning;
+
     streamCompletion(
       {
         url: `${MINIMAX_BASE_URL}/chat/completions`,
@@ -61,7 +61,7 @@ export class MiniMaxProvider implements AIProvider {
         signal: abortController.signal,
       },
       onContent,
-      onReasoning,
+      reasoningHandler,
       onDone,
       onError
     );

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Theme } from '@/lib/storage/mmkv';
+import type { Theme, ThinkingMode } from '@/lib/storage/mmkv';
 
 interface SettingsState {
   theme: Theme;
@@ -7,6 +7,7 @@ interface SettingsState {
   lastProvider: string | null;
   onboardingComplete: boolean;
   biometricLockEnabled: boolean;
+  thinkingMode: ThinkingMode;
   isInitialized: boolean;
 }
 
@@ -16,6 +17,7 @@ interface SettingsActions {
   setLastProvider: (provider: string | null) => Promise<void>;
   setOnboardingComplete: (complete: boolean) => Promise<void>;
   setBiometricLockEnabled: (enabled: boolean) => Promise<void>;
+  setThinkingMode: (mode: ThinkingMode) => Promise<void>;
   validateApiKey: (provider: string, key: string) => Promise<boolean>;
   initialize: () => Promise<void>;
 }
@@ -45,6 +47,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
   lastProvider: null,
   onboardingComplete: false,
   biometricLockEnabled: false,
+  thinkingMode: 'auto' as ThinkingMode,
   isInitialized: false,
 
   // Actions
@@ -78,6 +81,12 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
     set({ biometricLockEnabled: enabled });
   },
 
+  setThinkingMode: async (mode) => {
+    await loadModules();
+    await mmkv!.setThinkingMode(mode);
+    set({ thinkingMode: mode });
+  },
+
   validateApiKey: async (providerId, key) => {
     const provider = getProviderInstance(providerId);
     if (!provider) return false;
@@ -93,6 +102,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
       lastProvider: mmkv!.getLastProviderSync(),
       onboardingComplete: mmkv!.isOnboardingCompleteSync(),
       biometricLockEnabled: mmkv!.isBiometricLockEnabledSync(),
+      thinkingMode: mmkv!.getThinkingModeSync(),
       isInitialized: true,
     });
   },

@@ -63,4 +63,11 @@ export function initializeDatabase(): void {
   } catch {
     // Column already exists — ignore
   }
+
+  // Add thinking_mode column to conversations (Sprint 10)
+  try {
+    database.runSync('ALTER TABLE conversations ADD COLUMN thinking_mode TEXT');
+  } catch {
+    // Column already exists — ignore
+  }
 }

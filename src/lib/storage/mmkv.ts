@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type Theme = 'dark' | 'light' | 'oled';
 
+export type ThinkingMode = 'auto' | 'on' | 'off';
+
 const KEYS = {
   theme: 'medha:theme',
   lastModel: 'medha:lastModel',
@@ -9,6 +11,7 @@ const KEYS = {
   cachedModels: 'medha:cachedModels',
   onboardingComplete: 'medha:onboardingComplete',
   biometricLockEnabled: 'medha:biometricLockEnabled',
+  thinkingMode: 'medha:thinkingMode',
 };
 
 // Theme
@@ -79,12 +82,25 @@ export async function setBiometricLockEnabled(enabled: boolean): Promise<void> {
   await AsyncStorage.setItem(KEYS.biometricLockEnabled, String(enabled));
 }
 
+// Thinking mode
+export async function getThinkingMode(): Promise<ThinkingMode> {
+  const value = await AsyncStorage.getItem(KEYS.thinkingMode);
+  if (value === 'on' || value === 'off') return value;
+  return 'auto';
+}
+
+export async function setThinkingMode(mode: ThinkingMode): Promise<void> {
+  await AsyncStorage.setItem(KEYS.thinkingMode, mode);
+  _thinkingMode = mode;
+}
+
 // Synchronous wrappers for compatibility (read from in-memory cache)
 let _theme: Theme = 'dark';
 let _lastModel: string | null = null;
 let _lastProvider: string | null = null;
 let _onboardingComplete = false;
 let _biometricLockEnabled = false;
+let _thinkingMode: ThinkingMode = 'auto';
 let _initialized = false;
 
 export function getThemeSync(): Theme {
@@ -107,6 +123,10 @@ export function isBiometricLockEnabledSync(): boolean {
   return _biometricLockEnabled;
 }
 
+export function getThinkingModeSync(): ThinkingMode {
+  return _thinkingMode;
+}
+
 export async function initStorage(): Promise<void> {
   if (_initialized) return;
   const theme = await getTheme();
@@ -114,10 +134,12 @@ export async function initStorage(): Promise<void> {
   const lastProvider = await getLastProvider();
   const onboarding = await isOnboardingComplete();
   const biometric = await isBiometricLockEnabled();
+  const thinking = await getThinkingMode();
   _theme = theme;
   _lastModel = lastModel;
   _lastProvider = lastProvider;
   _onboardingComplete = onboarding;
   _biometricLockEnabled = biometric;
+  _thinkingMode = thinking;
   _initialized = true;
 }

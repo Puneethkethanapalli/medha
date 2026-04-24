@@ -1,11 +1,14 @@
 import type { Message } from '@/types';
 
+export type ThinkingMode = 'auto' | 'on' | 'off';
+
 export interface StreamConfig {
   model: string;
   apiKey: string;
   systemPrompt?: string;
   temperature?: number;
   maxTokens?: number;
+  thinkingMode?: ThinkingMode;
 }
 
 export interface StreamResponse {

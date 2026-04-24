@@ -1,11 +1,21 @@
 import { fetch } from 'expo/fetch';
-import type { AIProvider } from './types';
+import type { AIProvider, StreamConfig } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
 import { buildAnthropicMessages } from '@/lib/attachments/multimodal';
 import type { Message, Model } from '@/types';
 
 const ANTHROPIC_BASE_URL = 'https://api.anthropic.com/v1';
 const ANTHROPIC_VERSION = '2023-06-01';
+
+// Models that support extended thinking
+const THINKING_CAPABLE_MODELS = [
+  'claude-3-7-sonnet',
+  'claude-sonnet-4',
+];
+
+function isThinkingCapable(model: string): boolean {
+  return THINKING_CAPABLE_MODELS.some(prefix => model.startsWith(prefix));
+}
 
 // Anthropic doesn't have a public model list endpoint
 const ANTHROPIC_MODELS: Model[] = [
@@ -23,13 +33,7 @@ export class AnthropicProvider implements AIProvider {
 
   stream(
     messages: Message[],
-    config: {
-      model: string;
-      apiKey: string;
-      systemPrompt?: string;
-      temperature?: number;
-      maxTokens?: number;
-    },
+    config: StreamConfig,
     onContent: (token: string) => void,
     onReasoning: (token: string) => void,
     onDone: () => void,
@@ -54,6 +58,22 @@ export class AnthropicProvider implements AIProvider {
       body.temperature = config.temperature;
     }
 
+    // Thinking mode for thinking-capable models (Claude 3.7 Sonnet, Claude Sonnet 4)
+    if (config.thinkingMode === 'on' && isThinkingCapable(config.model)) {
+      body.thinking = { type: 'enabled', budget_tokens: 8192 };
+      // Anthropic requires temperature = 1.0 when thinking is enabled
+      body.temperature = 1.0;
+      // Ensure max_tokens is high enough to accommodate thinking + response
+      if ((body.max_tokens as number) < 16384) {
+        body.max_tokens = 16384;
+      }
+    }
+
+    // When thinking is off, swallow reasoning tokens silently
+    const reasoningHandler = config.thinkingMode === 'off'
+      ? () => {} // no-op
+      : onReasoning;
+
     streamCompletion(
       {
         url: `${ANTHROPIC_BASE_URL}/messages`,
@@ -66,7 +86,7 @@ export class AnthropicProvider implements AIProvider {
         signal: abortController.signal,
       },
       onContent,
-      onReasoning,
+      reasoningHandler,
       onDone,
       onError,
       'anthropic',

@@ -1,5 +1,5 @@
 import { fetch } from 'expo/fetch';
-import type { AIProvider } from './types';
+import type { AIProvider, StreamConfig } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
 import { buildOpenAIMessages } from '@/lib/attachments/multimodal';
 import type { Message } from '@/types';
@@ -12,13 +12,7 @@ export class OpenRouterProvider implements AIProvider {
 
   stream(
     messages: Message[],
-    config: {
-      model: string;
-      apiKey: string;
-      systemPrompt?: string;
-      temperature?: number;
-      maxTokens?: number;
-    },
+    config: StreamConfig,
     onContent: (token: string) => void,
     onReasoning: (token: string) => void,
     onDone: () => void,
@@ -43,6 +37,16 @@ export class OpenRouterProvider implements AIProvider {
       body.max_tokens = config.maxTokens;
     }
 
+    // Thinking mode: explicitly request reasoning from thinking-capable models
+    if (config.thinkingMode === 'on') {
+      body.reasoning = { effort: 'high' };
+    }
+
+    // When thinking is off, swallow reasoning tokens silently
+    const reasoningHandler = config.thinkingMode === 'off'
+      ? () => {} // no-op
+      : onReasoning;
+
     streamCompletion(
       {
         url: `${OPENROUTER_BASE_URL}/chat/completions`,
@@ -56,7 +60,7 @@ export class OpenRouterProvider implements AIProvider {
         signal: abortController.signal,
       },
       onContent,
-      onReasoning,
+      reasoningHandler,
       onDone,
       onError
     );

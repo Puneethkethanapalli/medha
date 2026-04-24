@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Menu, PenSquare } from 'lucide-react-native';
 import { ModelPill } from '@/components/chat/ModelPill';
+import { ThinkingToggle } from '@/components/chat/ThinkingToggle';
 import { MessageList } from '@/components/chat/MessageList';
 import { MessageActionsMenu } from '@/components/chat/MessageActionsMenu';
 import { OfflineBanner } from '@/components/chat/OfflineBanner';
@@ -48,6 +49,7 @@ export const ChatScreen = React.memo(function ChatScreen({
   const setEditingMessage = useUIStore((s) => s.setEditingMessage);
   const lastModel = useSettingsStore((s) => s.lastModel);
   const lastProvider = useSettingsStore((s) => s.lastProvider);
+  const thinkingMode = useSettingsStore((s) => s.thinkingMode);
 
   const {
     startStreaming,
@@ -182,7 +184,12 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       const response = provider.stream(
         fullMessages,
-        { model, apiKey, systemPrompt },
+        {
+          model,
+          apiKey,
+          systemPrompt,
+          thinkingMode: (conversation?.thinking_mode as 'auto' | 'on' | 'off') || thinkingMode,
+        },
         (token) => {
           fireFirstTokenHaptic();
           accumulated += token;
@@ -229,7 +236,7 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       abortRef.current = response;
     },
-    [lastModel, lastProvider, startStreaming, appendToken, appendReasoningToken, stopStreaming, setError]
+    [lastModel, lastProvider, thinkingMode, startStreaming, appendToken, appendReasoningToken, stopStreaming, setError]
   );
 
   const handleSend = useCallback(
@@ -419,8 +426,9 @@ export const ChatScreen = React.memo(function ChatScreen({
         <Pressable onPress={openDrawer} className="w-10 h-10 items-center justify-center">
           <Menu size={24} color="hsl(0, 0%, 63%)" />
         </Pressable>
-        <View className="flex-1 items-center px-2">
+        <View className="flex-1 flex-row items-center justify-center gap-2 px-2">
           <ModelPill />
+          <ThinkingToggle />
         </View>
         <Pressable onPress={handleNewChat} className="w-10 h-10 items-center justify-center">
           <PenSquare size={20} color="hsl(0, 0%, 63%)" />

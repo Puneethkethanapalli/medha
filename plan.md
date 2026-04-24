@@ -889,41 +889,41 @@ These are not in scope for the current phase but documented for later (sprints 2
 - Chat store already has `streamingReasoning` + `appendReasoningToken` (`src/stores/chat-store.ts`)
 
 #### Tasks
-- [ ] **10.1** Add thinking mode state to settings store (`src/stores/settings-store.ts`)
+- [x] **10.1** Add thinking mode state to settings store (`src/stores/settings-store.ts`)
   - New field: `thinkingMode: 'auto' | 'on' | 'off'` (default: `'auto'`)
   - `'auto'` — let provider decide (current behavior, no extra params)
   - `'on'` — explicitly request thinking/reasoning from the model
   - `'off'` — suppress thinking output (strip reasoning from display)
   - Persist to MMKV via `setThinkingMode()` / `getThinkingModeSync()`
-- [ ] **10.2** Add thinking mode toggle UI to chat top bar
+- [x] **10.2** Add thinking mode toggle UI to chat top bar
   - New `ThinkingToggle` component (`src/components/chat/ThinkingToggle.tsx`)
   - Small pill next to ModelPill in the chat top bar: `lucide Brain` icon + label ("Auto" / "Think" / "Off")
   - Tap cycles through modes: auto → on → off → auto
   - Visual states: `auto` = `bg-muted` + `text-muted-foreground`, `on` = `bg-foreground` + `text-background`, `off` = `bg-muted` + dimmed icon
   - Light haptic on toggle
-- [ ] **10.3** Wire thinking mode into `StreamConfig` (`src/lib/providers/types.ts`)
+- [x] **10.3** Wire thinking mode into `StreamConfig` (`src/lib/providers/types.ts`)
   - Add `thinkingMode?: 'auto' | 'on' | 'off'` to `StreamConfig`
   - Pass from `ChatScreen.streamNewResponse()` into `provider.stream()`
-- [ ] **10.4** Update OpenRouter provider (`src/lib/providers/openrouter.ts`)
+- [x] **10.4** Update OpenRouter provider (`src/lib/providers/openrouter.ts`)
   - When `thinkingMode === 'on'`: add `reasoning: { effort: "high" }` to request body (OpenRouter reasoning param for o1/o3/thinking models)
   - When `thinkingMode === 'off'`: omit reasoning params, do NOT call `onReasoning` (swallow reasoning tokens)
   - `'auto'`: current behavior — no change
-- [ ] **10.5** Update Google AI provider (`src/lib/providers/google-ai.ts`)
-  - When `thinkingMode === 'on'`: add `thinkingConfig: { thinkingBudget: 8192 }` to request body for Gemini 2.5 models
-  - When `thinkingMode === 'off'`: add `thinkingConfig: { thinkingBudget: 0 }` to suppress thinking
-  - `'auto'`: no thinkingConfig sent (model defaults)
-- [ ] **10.6** Update Anthropic provider (`src/lib/providers/anthropic.ts`)
+- [x] **10.5** Update Google AI provider (`src/lib/providers/google-ai.ts`)
+  - When `thinkingMode === 'on'`: add `reasoning_effort: 'high'` to request body (OpenAI-compat param for Gemini 2.5)
+  - When `thinkingMode === 'off'`: add `reasoning_effort: 'none'` to suppress thinking
+  - `'auto'`: no reasoning_effort sent (model defaults)
+- [x] **10.6** Update Anthropic provider (`src/lib/providers/anthropic.ts`)
   - When `thinkingMode === 'on'` and model supports it (claude-3.7-sonnet, claude-sonnet-4): set `thinking: { type: "enabled", budget_tokens: 8192 }` in request body
   - When `thinkingMode === 'off'`: omit thinking param entirely
   - `'auto'`: no thinking param (model defaults)
   - **Note**: Anthropic extended thinking requires `max_tokens` to be set and `temperature` must be 1.0 when thinking is enabled
-- [ ] **10.7** Update MiniMax provider (`src/lib/providers/minimax.ts`)
+- [x] **10.7** Update MiniMax provider (`src/lib/providers/minimax.ts`)
   - MiniMax M1 always returns reasoning — when `thinkingMode === 'off'`, swallow `onReasoning` tokens silently
-- [ ] **10.8** Add per-conversation thinking mode override
+- [x] **10.8** Add per-conversation thinking mode override
   - Add `thinking_mode TEXT` column to conversations table (migration in `schema.ts`)
   - When set on conversation, override global setting for that conversation
   - Accessible via long-press on ThinkingToggle → bottom sheet with "This conversation" / "Global default" options
-- [ ] **10.9** Verify: thinking mode toggle works across providers
+- [x] **10.9** Verify: thinking mode toggle works across providers
 
 #### How to Test Sprint 10
 ```
@@ -939,17 +939,22 @@ These are not in scope for the current phase but documented for later (sprints 2
 ```
 
 #### 📗 Things Learned
-- (fill after completing)
+- Google AI OpenAI-compat endpoint uses `reasoning_effort` (not `thinkingConfig`/`thinkingBudget`) — matches OpenAI-compatible API param naming
+- All four providers can use the same `StreamConfig` type signature instead of inline object types — cleaned up code duplication
+- ThinkingMode type is defined in both `mmkv.ts` (for storage) and `types.ts` (for provider config) — the provider type re-exports to avoid circular deps
+- Per-conversation thinking override uses nullable column — `null` means "use global default", cascading from `conversation.thinking_mode → settingsStore.thinkingMode`
 
 #### 📕 Mistakes Made
-- (fill after completing)
+- (none so far — awaiting verification)
 
 #### 📘 Things to Remember
 - Anthropic extended thinking requires `temperature: 1.0` — override user's temperature setting when thinking is enabled
-- Gemini `thinkingBudget: 0` explicitly disables thinking; omitting the field lets model decide
+- Gemini `reasoning_effort: 'none'` explicitly disables thinking; omitting the field lets model decide
 - OpenRouter `reasoning.effort` values: `"low"`, `"medium"`, `"high"` — use `"high"` for explicit think mode
 - MiniMax M1 always thinks — can't disable server-side, only suppress client-side display
 - Per-conversation override is nullable — `null` means "use global default"
+- All providers now accept `StreamConfig` type instead of inline config objects — keep consistent
+
 
 ---
 

@@ -1,5 +1,5 @@
 import { fetch } from 'expo/fetch';
-import type { AIProvider } from './types';
+import type { AIProvider, StreamConfig } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
 import { buildOpenAIMessages } from '@/lib/attachments/multimodal';
 import type { Message, Model } from '@/types';
@@ -13,13 +13,7 @@ export class GoogleAIProvider implements AIProvider {
 
   stream(
     messages: Message[],
-    config: {
-      model: string;
-      apiKey: string;
-      systemPrompt?: string;
-      temperature?: number;
-      maxTokens?: number;
-    },
+    config: StreamConfig,
     onContent: (token: string) => void,
     onReasoning: (token: string) => void,
     onDone: () => void,
@@ -43,6 +37,21 @@ export class GoogleAIProvider implements AIProvider {
       body.max_tokens = config.maxTokens;
     }
 
+    // Thinking mode — only for thinking-capable models (Gemini 2.5+, 3.x)
+    const isThinkingModel = /gemini-(2\.5|3)/.test(config.model);
+    if (isThinkingModel) {
+      if (config.thinkingMode === 'on') {
+        body.reasoning_effort = 'high';
+      } else if (config.thinkingMode === 'off') {
+        body.reasoning_effort = 'none';
+      }
+    }
+
+    // When thinking is off, swallow reasoning tokens silently
+    const reasoningHandler = config.thinkingMode === 'off'
+      ? () => {} // no-op
+      : onReasoning;
+
     streamCompletion(
       {
         url: `${OPENAI_COMPAT_BASE}/chat/completions`,
@@ -54,7 +63,7 @@ export class GoogleAIProvider implements AIProvider {
         signal: abortController.signal,
       },
       onContent,
-      onReasoning,
+      reasoningHandler,
       onDone,
       onError
     );
