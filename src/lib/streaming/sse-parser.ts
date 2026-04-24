@@ -20,9 +20,17 @@ export interface SSEEvent {
   id?: string;
 }
 
+export interface ToolCallDelta {
+  index: number;
+  id?: string;
+  name?: string;
+  arguments?: string;
+}
+
 export interface TokenContent {
   content?: string;
   reasoning?: string;
+  toolCalls?: ToolCallDelta[];
 }
 
 // ─── SSEParser ──────────────────────────────────────────────────────────
@@ -299,6 +307,22 @@ export function extractTokens(
     }
   }
 
+  // --- Tool call extraction (OpenAI/OpenRouter/Google AI) ---
+  if (delta?.tool_calls && Array.isArray(delta.tool_calls)) {
+    const toolCalls: ToolCallDelta[] = [];
+    for (const tc of delta.tool_calls) {
+      toolCalls.push({
+        index: tc.index ?? 0,
+        id: tc.id,
+        name: tc.function?.name,
+        arguments: tc.function?.arguments,
+      });
+    }
+    if (toolCalls.length > 0) {
+      result.toolCalls = toolCalls;
+    }
+  }
+
   // Anthropic native: content_block_delta
   if (parsed.type === 'content_block_delta') {
     const adelta = parsed.delta as Record<string, unknown> | undefined;
@@ -307,6 +331,63 @@ export function extractTokens(
     }
     if (adelta?.type === 'thinking_delta' && adelta?.thinking) {
       result.reasoning = (result.reasoning || '') + (adelta.thinking as string);
+    }
+    // Anthropic tool call arguments delta
+    if (adelta?.type === 'input_json_delta' && adelta?.partial_json) {
+      result.toolCalls = [{
+        index: (parsed.index as number) ?? 0,
+        arguments: adelta.partial_json as string,
+      }];
+    }
+  }
+
+  // Anthropic native: content_block_start with tool_use type
+  if (parsed.type === 'content_block_start') {
+    const block = parsed.content_block as Record<string, unknown> | undefined;
+    if (block?.type === 'tool_use') {
+      result.toolCalls = [{
+        index: (parsed.index as number) ?? 0,
+        id: block.id as string,
+        name: block.name as string,
+      }];
+    }
+  }
+
+  return (result.content || result.reasoning || result.toolCalls) ? result : null;
+}
+
+/**
+ * Extract tokens from native Gemini streamGenerateContent SSE chunks.
+ * Format: { candidates: [{ content: { parts: [{ text }], role: 'model' } }] }
+ *
+ * Used when Google AI provider switches to native endpoint (e.g. for google_search grounding).
+ */
+export function extractGeminiNativeTokens(data: string): TokenContent | null {
+  if (data === '[DONE]') return null;
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(data);
+  } catch {
+    return null;
+  }
+
+  const result: TokenContent = {};
+
+  const candidates = parsed.candidates as any[];
+  if (!candidates || !candidates[0]) return null;
+
+  const candidate = candidates[0];
+  const parts = candidate.content?.parts as any[];
+  if (parts) {
+    for (const part of parts) {
+      if (part.text && typeof part.text === 'string') {
+        result.content = (result.content || '') + part.text;
+      }
+      // Thinking/reasoning in native format
+      if (part.thought && typeof part.thought === 'string') {
+        result.reasoning = (result.reasoning || '') + part.thought;
+      }
     }
   }
 

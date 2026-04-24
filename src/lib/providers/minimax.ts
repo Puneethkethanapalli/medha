@@ -1,6 +1,7 @@
 import { fetch } from 'expo/fetch';
 import type { AIProvider, StreamConfig } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
+import type { AccumulatedToolCall } from '@/lib/streaming/stream';
 import { buildOpenAIMessages } from '@/lib/attachments/multimodal';
 import type { Message, Model } from '@/types';
 
@@ -24,7 +25,8 @@ export class MiniMaxProvider implements AIProvider {
     onContent: (token: string) => void,
     onReasoning: (token: string) => void,
     onDone: () => void,
-    onError: (error: Error) => void
+    onError: (error: Error) => void,
+    onToolCalls?: (toolCalls: AccumulatedToolCall[]) => void
   ) {
     const abortController = new AbortController();
 
@@ -42,6 +44,11 @@ export class MiniMaxProvider implements AIProvider {
     }
     if (config.maxTokens !== undefined) {
       body.max_tokens = config.maxTokens;
+    }
+
+    // Tool schemas (OpenAI format)
+    if (config.tools && config.tools.length > 0) {
+      body.tools = config.tools;
     }
 
     // MiniMax M1 always returns reasoning — can't disable server-side.
@@ -63,7 +70,9 @@ export class MiniMaxProvider implements AIProvider {
       onContent,
       reasoningHandler,
       onDone,
-      onError
+      onError,
+      'openai',
+      onToolCalls
     );
 
     return {

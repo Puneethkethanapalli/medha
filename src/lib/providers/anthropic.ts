@@ -1,6 +1,7 @@
 import { fetch } from 'expo/fetch';
 import type { AIProvider, StreamConfig } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
+import type { AccumulatedToolCall } from '@/lib/streaming/stream';
 import { buildAnthropicMessages } from '@/lib/attachments/multimodal';
 import type { Message, Model } from '@/types';
 
@@ -37,7 +38,8 @@ export class AnthropicProvider implements AIProvider {
     onContent: (token: string) => void,
     onReasoning: (token: string) => void,
     onDone: () => void,
-    onError: (error: Error) => void
+    onError: (error: Error) => void,
+    onToolCalls?: (toolCalls: AccumulatedToolCall[]) => void
   ) {
     const abortController = new AbortController();
 
@@ -69,6 +71,12 @@ export class AnthropicProvider implements AIProvider {
       }
     }
 
+    // Native web search — uses Anthropic's built-in server-side search
+    // Claude decides when to search, results come as text with citations
+    if (config.anthropicTools && config.anthropicTools.length > 0) {
+      body.tools = [{ name: 'web_search', type: 'web_search_20260209' }];
+    }
+
     // When thinking is off, swallow reasoning tokens silently
     const reasoningHandler = config.thinkingMode === 'off'
       ? () => {} // no-op
@@ -90,6 +98,7 @@ export class AnthropicProvider implements AIProvider {
       onDone,
       onError,
       'anthropic',
+      onToolCalls
     );
 
     return {

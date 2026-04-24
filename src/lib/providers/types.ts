@@ -1,4 +1,6 @@
 import type { Message } from '@/types';
+import type { OpenAIToolSchema } from '@/lib/tools/types';
+import type { AccumulatedToolCall } from '@/lib/streaming/stream';
 
 export type ThinkingMode = 'auto' | 'on' | 'off';
 
@@ -9,6 +11,10 @@ export interface StreamConfig {
   temperature?: number;
   maxTokens?: number;
   thinkingMode?: ThinkingMode;
+  /** Tool schemas to send with the request (OpenAI format) */
+  tools?: OpenAIToolSchema[];
+  /** Anthropic-format tool schemas (set by Anthropic provider internally) */
+  anthropicTools?: { name: string; description: string; input_schema: Record<string, unknown> }[];
 }
 
 export interface StreamResponse {
@@ -28,7 +34,8 @@ export interface AIProvider {
     onContent: (token: string) => void,
     onReasoning: (token: string) => void,
     onDone: () => void,
-    onError: (error: Error) => void
+    onError: (error: Error) => void,
+    onToolCalls?: (toolCalls: AccumulatedToolCall[]) => void
   ): ReasoningStreamResponse;
   listModels(apiKey: string): Promise<import('@/types').Model[]>;
   validateKey(apiKey: string): Promise<boolean>;

@@ -1045,7 +1045,7 @@ These are not in scope for the current phase but documented for later (sprints 1
 > **Duration:** ~4 hours
 
 #### Tasks
-- [ ] **12.1** Define tool system types (`src/lib/tools/types.ts`)
+- [x] **12.1** Define tool system types (`src/lib/tools/types.ts`)
   ```typescript
   interface ToolDefinition {
     name: string;
@@ -1066,22 +1066,22 @@ These are not in scope for the current phase but documented for later (sprints 1
   }
   interface Citation { title: string; url: string; snippet?: string; }
   ```
-- [ ] **12.2** Create tool registry (`src/lib/tools/registry.ts`)
+- [x] **12.2** Create tool registry (`src/lib/tools/registry.ts`)
   - `registerTool(tool: ToolDefinition)`
   - `getTool(name: string) → ToolDefinition | null`
   - `listTools() → ToolDefinition[]`
   - `getToolSchemas() → OpenAI-format tool schemas` — converts to `{ type: 'function', function: { name, description, parameters } }[]`
-- [ ] **12.3** Implement web search tool (`src/lib/tools/web-search.ts`)
+- [x] **12.3** Implement web search tool (`src/lib/tools/web-search.ts`)
   - Uses DuckDuckGo HTML search (no API key needed) OR Serper API (if key configured)
   - Tool name: `web_search`, params: `{ query: string, num_results?: number }`
   - Parses HTML results into `Citation[]` with title, URL, snippet
   - Returns markdown-formatted results: numbered list with `[Title](url)` + snippet
   - Fallback: if DuckDuckGo blocked, use Serper (user provides key in settings)
-- [ ] **12.4** Add web search API key to settings (`src/app/settings/api-keys.tsx`)
+- [x] **12.4** Add web search API key to settings (`src/app/settings/api-keys.tsx`)
   - Optional Serper API key field (free tier: 2500 queries/month)
   - Label: "Web Search (Serper)" — below existing provider keys
   - Stored in SecureStore like other API keys
-- [ ] **12.5** Wire tool calling into provider layer (`src/lib/providers/types.ts`)
+- [x] **12.5** Wire tool calling into provider layer (`src/lib/providers/types.ts`)
   - Add `tools?: ToolDefinition[]` to `StreamConfig`
   - Add new callbacks to `AIProvider.stream()`:
     - `onToolCall?: (name: string, args: Record<string, unknown>) => void`
@@ -1089,7 +1089,7 @@ These are not in scope for the current phase but documented for later (sprints 1
     - OpenRouter/OpenAI: `tools` array with `type: 'function'`
     - Anthropic: `tools` array with `input_schema`
     - Google AI: `tools` with `functionDeclarations`
-- [ ] **12.6** Implement tool call loop in ChatScreen (`src/components/chat/ChatScreen.tsx`)
+- [x] **12.6** Implement tool call loop in ChatScreen (`src/components/chat/ChatScreen.tsx`)
   - When AI returns a `tool_calls` response instead of content:
     1. Display a "Searching..." status indicator in the assistant bubble
     2. Execute tool via `registry.getTool(name).execute(args)`
@@ -1097,16 +1097,16 @@ These are not in scope for the current phase but documented for later (sprints 1
     4. Re-stream to get AI's final response incorporating tool results
   - Max tool call rounds: 3 (prevent infinite loops)
   - Add `role: 'tool'` to Message type union
-- [ ] **12.7** Update SSE parser to detect tool call chunks (`src/lib/streaming/sse-parser.ts`)
+- [x] **12.7** Update SSE parser to detect tool call chunks (`src/lib/streaming/sse-parser.ts`)
   - OpenAI/OpenRouter: `delta.tool_calls[0].function.name` + `delta.tool_calls[0].function.arguments`
   - Anthropic: `content_block_start` with `type: 'tool_use'` + `content_block_delta` with `input_json_delta`
   - Accumulate tool call arguments across chunks (arguments stream as partial JSON)
-- [ ] **12.8** Create search results display component (`src/components/chat/SearchResults.tsx`)
+- [x] **12.8** Create search results display component (`src/components/chat/SearchResults.tsx`)
   - Renders inline in assistant bubble when tool result contains citations
   - Each citation: favicon placeholder + title (link) + snippet (muted)
   - `bg-surface-container-low`, rounded-lg, compact layout
   - Tap link → opens in system browser via `Linking.openURL()`
-- [ ] **12.9** Add tool toggle in chat UI
+- [x] **12.9** Add tool toggle in chat UI
   - Small `lucide Globe` pill next to ThinkingToggle in top bar
   - Tap → enables/disables web search for this conversation
   - When enabled, tool schemas sent with every request

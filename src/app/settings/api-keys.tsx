@@ -7,7 +7,7 @@ import { ArrowLeft, Plus, Bolt, Trash2, Shield, X, Check } from 'lucide-react-na
 import { cn } from '@/lib/utils';
 import { useSettingsStore, hasProviderKey, deleteProviderKey, maskKey } from '@/stores/settings-store';
 
-type ProviderId = 'openrouter' | 'google-ai' | 'anthropic' | 'minimax';
+type ProviderId = 'openrouter' | 'google-ai' | 'anthropic' | 'minimax' | 'tavily';
 
 interface ProviderConfig {
   id: ProviderId;
@@ -20,6 +20,7 @@ const PROVIDERS: ProviderConfig[] = [
   { id: 'google-ai', name: 'Google AI', description: 'Gemini models via Google AI Studio' },
   { id: 'anthropic', name: 'Anthropic', description: 'Claude models via Anthropic API' },
   { id: 'minimax', name: 'MiniMax', description: 'MiniMax M2.7 and M1 models' },
+  { id: 'tavily', name: 'Web Search (Tavily)', description: 'Enable AI web search — free tier: 1000/mo' },
 ];
 
 export default function ApiKeysScreen() {
@@ -33,6 +34,7 @@ export default function ApiKeysScreen() {
     'google-ai': '',
     anthropic: '',
     minimax: '',
+    tavily: '',
   });
   const [testingProvider, setTestingProvider] = useState<ProviderId | null>(null);
   const [isAddingKey, setIsAddingKey] = useState<ProviderId | null>(null);
@@ -102,6 +104,17 @@ export default function ApiKeysScreen() {
 
     setIsValidating(true);
     try {
+      // Tavily is not an AI provider — save directly without validation
+      if (provider.id === 'tavily') {
+        const { saveProviderKey } = await import('@/stores/settings-store');
+        await saveProviderKey(provider.id, key.trim());
+        setConnectedProviders(prev => new Set([...prev, provider.id]));
+        setIsAddingKey(null);
+        setKeys(prev => ({ ...prev, [provider.id]: '' }));
+        Alert.alert('Success', `${provider.name} key saved successfully!`);
+        return;
+      }
+
       const isValid = await validateApiKey(provider.id, key.trim());
       if (isValid) {
         const { saveProviderKey } = await import('@/stores/settings-store');

@@ -76,6 +76,9 @@ export const MessageBubble = React.memo(function MessageBubble({
   const displayReasoning = isStreaming ? streamingReasoning : message.reasoning;
   const isUser = message.role === 'user';
 
+  // Tool messages are invisible — only used as API context
+  if (message.role === 'tool') return null;
+
   // Edit mode state
   const [editText, setEditText] = useState(message.content);
 

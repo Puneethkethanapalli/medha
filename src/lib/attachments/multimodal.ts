@@ -28,6 +28,16 @@ export function buildOpenAIMessages(
   }
 
   for (const msg of messages) {
+    // Tool result messages (OpenAI format: role='tool', tool_call_id set)
+    if (msg.role === 'tool') {
+      result.push({
+        role: 'tool',
+        content: msg.content,
+        ...(msg.tool_call_id ? { tool_call_id: msg.tool_call_id } : {}),
+      } as OpenAIMessage & { tool_call_id?: string });
+      continue;
+    }
+
     const attachments = msg.attachments || [];
     const imageAttachments = attachments.filter((a) => a.type === 'image');
     const docAttachments = attachments.filter((a) => a.type === 'document');
@@ -38,6 +48,34 @@ export function buildOpenAIMessages(
       const docText = readDocumentText(doc);
       if (docText) {
         textContent += `\n\n--- Attached file: ${doc.name} ---\n${docText}`;
+      }
+    }
+
+    // Assistant message with tool_calls — reconstruct for API
+    if (msg.role === 'assistant' && msg.tool_calls) {
+      try {
+        const toolCalls = JSON.parse(msg.tool_calls) as Array<{
+          id: string;
+          name: string;
+          arguments: Record<string, unknown>;
+        }>;
+        const apiToolCalls = toolCalls.map((tc, index) => ({
+          id: tc.id,
+          type: 'function' as const,
+          index,
+          function: {
+            name: tc.name,
+            arguments: JSON.stringify(tc.arguments),
+          },
+        }));
+        result.push({
+          role: 'assistant',
+          content: textContent || null,
+          tool_calls: apiToolCalls,
+        } as any);
+        continue;
+      } catch {
+        // Malformed tool_calls JSON — fall through to normal handling
       }
     }
 
@@ -92,6 +130,19 @@ export function buildAnthropicMessages(messages: Message[]): AnthropicMessage[] 
 
   for (const msg of messages) {
     if (msg.role === 'system') continue;
+
+    // Tool result messages (Anthropic format: role='user' with tool_result content block)
+    if (msg.role === 'tool') {
+      result.push({
+        role: 'user',
+        content: [{
+          type: 'tool_result',
+          tool_use_id: msg.tool_call_id || '',
+          content: msg.content,
+        }] as unknown as string,
+      });
+      continue;
+    }
 
     const attachments = msg.attachments || [];
     const imageAttachments = attachments.filter((a) => a.type === 'image');

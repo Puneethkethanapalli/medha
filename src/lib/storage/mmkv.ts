@@ -13,6 +13,7 @@ const KEYS = {
   biometricLockEnabled: 'medha:biometricLockEnabled',
   thinkingMode: 'medha:thinkingMode',
   customCommands: 'medha:customCommands',
+  webSearchEnabled: 'medha:webSearchEnabled',
 };
 
 // Theme
@@ -95,6 +96,17 @@ export async function setThinkingMode(mode: ThinkingMode): Promise<void> {
   _thinkingMode = mode;
 }
 
+// Web search enabled
+export async function isWebSearchEnabled(): Promise<boolean> {
+  const value = await AsyncStorage.getItem(KEYS.webSearchEnabled);
+  return value === 'true';
+}
+
+export async function setWebSearchEnabled(enabled: boolean): Promise<void> {
+  await AsyncStorage.setItem(KEYS.webSearchEnabled, String(enabled));
+  _webSearchEnabled = enabled;
+}
+
 // Custom slash commands
 export interface StoredCustomCommand {
   id: string;
@@ -129,6 +141,7 @@ let _onboardingComplete = false;
 let _biometricLockEnabled = false;
 let _thinkingMode: ThinkingMode = 'auto';
 let _customCommands: StoredCustomCommand[] = [];
+let _webSearchEnabled = false;
 let _initialized = false;
 
 export function getThemeSync(): Theme {
@@ -159,6 +172,10 @@ export function getCustomCommandsSync(): StoredCustomCommand[] {
   return _customCommands;
 }
 
+export function isWebSearchEnabledSync(): boolean {
+  return _webSearchEnabled;
+}
+
 export async function initStorage(): Promise<void> {
   if (_initialized) return;
   const theme = await getTheme();
@@ -168,6 +185,7 @@ export async function initStorage(): Promise<void> {
   const biometric = await isBiometricLockEnabled();
   const thinking = await getThinkingMode();
   const customCmds = await getCustomCommands();
+  const webSearch = await isWebSearchEnabled();
   _theme = theme;
   _lastModel = lastModel;
   _lastProvider = lastProvider;
@@ -175,5 +193,6 @@ export async function initStorage(): Promise<void> {
   _biometricLockEnabled = biometric;
   _thinkingMode = thinking;
   _customCommands = customCmds;
+  _webSearchEnabled = webSearch;
   _initialized = true;
 }

@@ -1,5 +1,5 @@
 import { fetch } from 'expo/fetch';
-import { SSEParser, ThinkTagSeparator, extractTokens } from './sse-parser';
+import { SSEParser, ThinkTagSeparator, extractTokens, extractGeminiNativeTokens, type ToolCallDelta } from './sse-parser';
 
 // ─── Public types ───────────────────────────────────────────────────────
 
@@ -14,6 +14,62 @@ export type ContentTokenHandler = (token: string) => void;
 export type ReasoningTokenHandler = (token: string) => void;
 export type DoneHandler = () => void;
 export type ErrorHandler = (error: Error) => void;
+export type ToolCallHandler = (toolCalls: AccumulatedToolCall[]) => void;
+
+/** A fully-accumulated tool call, ready for execution. */
+export interface AccumulatedToolCall {
+  id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+}
+
+/**
+ * Accumulates tool call data across streaming chunks.
+ * Tool call arguments arrive as partial JSON fragments.
+ */
+class ToolCallAccumulator {
+  private calls = new Map<number, { id: string; name: string; args: string }>();
+
+  push(deltas: ToolCallDelta[]): void {
+    for (const d of deltas) {
+      const existing = this.calls.get(d.index);
+      if (existing) {
+        if (d.arguments) existing.args += d.arguments;
+        if (d.id) existing.id = d.id;
+        if (d.name) existing.name = d.name;
+      } else {
+        this.calls.set(d.index, {
+          id: d.id || '',
+          name: d.name || '',
+          args: d.arguments || '',
+        });
+      }
+    }
+  }
+
+  hasToolCalls(): boolean {
+    return this.calls.size > 0;
+  }
+
+  finalize(): AccumulatedToolCall[] {
+    const result: AccumulatedToolCall[] = [];
+    for (const [, call] of this.calls) {
+      if (!call.name) continue;
+      let args: Record<string, unknown> = {};
+      try {
+        args = call.args ? JSON.parse(call.args) : {};
+      } catch {
+        // Partial JSON — best-effort parse failed
+      }
+      result.push({ id: call.id, name: call.name, arguments: args });
+    }
+    return result;
+  }
+
+  reset(): void {
+    this.calls.clear();
+  }
+}
 
 // ─── Streaming entry point ──────────────────────────────────────────────
 
@@ -36,11 +92,13 @@ export async function streamCompletion(
   onReasoning: ReasoningTokenHandler,
   onDone: DoneHandler,
   onError: ErrorHandler,
-  format: 'openai' | 'anthropic' = 'openai',
+  format: 'openai' | 'anthropic' | 'gemini-native' = 'openai',
+  onToolCalls?: ToolCallHandler,
 ): Promise<void> {
   const { url, headers, body, signal } = options;
   const sseParser = new SSEParser();
   const thinkSep = new ThinkTagSeparator();
+  const toolAccum = new ToolCallAccumulator();
 
   // ── 1. Fetch ──────────────────────────────────────────────────────────
 
@@ -77,9 +135,13 @@ export async function streamCompletion(
         onError(new Error('Empty response body'));
         return;
       }
-      processEvents(sseParser.feed(text), thinkSep, onContent, onReasoning, format);
-      processEvents(sseParser.flush(), thinkSep, onContent, onReasoning, format);
-      onDone();
+      processEvents(sseParser.feed(text), thinkSep, onContent, onReasoning, format, toolAccum);
+      processEvents(sseParser.flush(), thinkSep, onContent, onReasoning, format, toolAccum);
+      if (toolAccum.hasToolCalls() && onToolCalls) {
+        onToolCalls(toolAccum.finalize());
+      } else {
+        onDone();
+      }
     } catch (err) {
       if (!isAbort(err)) {
         onError(toError(err, 'Failed to read response'));
@@ -100,9 +162,13 @@ export async function streamCompletion(
       const chunk = decoder.decode(value, { stream: true });
       const events = sseParser.feed(chunk);
 
-      if (processEvents(events, thinkSep, onContent, onReasoning, format)) {
+      if (processEvents(events, thinkSep, onContent, onReasoning, format, toolAccum)) {
         // [DONE] sentinel received
-        onDone();
+        if (toolAccum.hasToolCalls() && onToolCalls) {
+          onToolCalls(toolAccum.finalize());
+        } else {
+          onDone();
+        }
         return;
       }
     }
@@ -111,14 +177,18 @@ export async function streamCompletion(
     const trailing = decoder.decode();
     if (trailing) {
       const events = sseParser.feed(trailing);
-      processEvents(events, thinkSep, onContent, onReasoning, format);
+      processEvents(events, thinkSep, onContent, onReasoning, format, toolAccum);
     }
 
     // Flush parser for any buffered partial event
     const remaining = sseParser.flush();
-    processEvents(remaining, thinkSep, onContent, onReasoning, format);
+    processEvents(remaining, thinkSep, onContent, onReasoning, format, toolAccum);
 
-    onDone();
+    if (toolAccum.hasToolCalls() && onToolCalls) {
+      onToolCalls(toolAccum.finalize());
+    } else {
+      onDone();
+    }
   } catch (err) {
     if (!isAbort(err)) {
       onError(toError(err, 'Stream error'));
@@ -139,7 +209,8 @@ function processEvents(
   thinkSep: ThinkTagSeparator,
   onContent: ContentTokenHandler,
   onReasoning: ReasoningTokenHandler,
-  format: 'openai' | 'anthropic',
+  format: 'openai' | 'anthropic' | 'gemini-native',
+  toolAccum: ToolCallAccumulator,
 ): boolean {
   for (const event of events) {
     const data = event.data.trim();
@@ -150,10 +221,21 @@ function processEvents(
     // Anthropic message_stop event
     if (format === 'anthropic' && event.event === 'message_stop') return true;
 
-    const tokens = extractTokens(data, thinkSep);
-    if (tokens) {
-      if (tokens.content) onContent(tokens.content);
-      if (tokens.reasoning) onReasoning(tokens.reasoning);
+    if (format === 'gemini-native') {
+      // Native Gemini format — different structure, no tool call accumulation needed
+      // (google_search is handled server-side, results come as text)
+      const tokens = extractGeminiNativeTokens(data);
+      if (tokens) {
+        if (tokens.content) onContent(tokens.content);
+        if (tokens.reasoning) onReasoning(tokens.reasoning);
+      }
+    } else {
+      const tokens = extractTokens(data, thinkSep);
+      if (tokens) {
+        if (tokens.content) onContent(tokens.content);
+        if (tokens.reasoning) onReasoning(tokens.reasoning);
+        if (tokens.toolCalls) toolAccum.push(tokens.toolCalls);
+      }
     }
   }
   return false;

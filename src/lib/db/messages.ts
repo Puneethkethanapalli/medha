@@ -4,20 +4,22 @@ import type { Message, Attachment, MessageSearchResult } from '../../types';
 
 export function addMessage(
   conversationId: string,
-  role: 'user' | 'assistant' | 'system',
+  role: 'user' | 'assistant' | 'system' | 'tool',
   content: string,
   model?: string,
-  attachments?: Attachment[] | null
+  attachments?: Attachment[] | null,
+  toolCallId?: string | null
 ): string {
   const db = getDatabase();
   const id = uuidv4();
   const now = Date.now();
 
   db.runSync(
-    `INSERT INTO messages (id, conversation_id, role, content, status, model, attachments, created_at)
-     VALUES (?, ?, ?, ?, 'complete', ?, ?, ?)`,
+    `INSERT INTO messages (id, conversation_id, role, content, status, model, attachments, tool_call_id, created_at)
+     VALUES (?, ?, ?, ?, 'complete', ?, ?, ?, ?)`,
     [id, conversationId, role, content, model ?? null,
-     attachments ? JSON.stringify(attachments) : null, now]
+     attachments ? JSON.stringify(attachments) : null,
+     toolCallId ?? null, now]
   );
 
   return id;
@@ -32,12 +34,14 @@ export function getMessages(conversationId: string): Message[] {
   return rows.map((row) => ({
     ...row,
     attachments: row.attachments ? JSON.parse(row.attachments) : null,
+    tool_call_id: row.tool_call_id ?? null,
+    tool_calls: row.tool_calls ?? null,
   }));
 }
 
 export function updateMessage(
   id: string,
-  fields: Partial<Pick<Message, 'content' | 'status' | 'tokens_used' | 'reasoning' | 'attachments'>>
+  fields: Partial<Pick<Message, 'content' | 'status' | 'tokens_used' | 'reasoning' | 'attachments' | 'tool_calls'>>
 ): void {
   const db = getDatabase();
   const sets: string[] = [];
@@ -62,6 +66,10 @@ export function updateMessage(
   if (fields.attachments !== undefined) {
     sets.push('attachments = ?');
     values.push(fields.attachments ? JSON.stringify(fields.attachments) : null);
+  }
+  if (fields.tool_calls !== undefined) {
+    sets.push('tool_calls = ?');
+    values.push(fields.tool_calls);
   }
 
   if (sets.length === 0) return;

@@ -1,6 +1,7 @@
 import { fetch } from 'expo/fetch';
 import type { AIProvider, StreamConfig } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
+import type { AccumulatedToolCall } from '@/lib/streaming/stream';
 import { buildOpenAIMessages } from '@/lib/attachments/multimodal';
 import type { Message } from '@/types';
 
@@ -16,7 +17,8 @@ export class OpenRouterProvider implements AIProvider {
     onContent: (token: string) => void,
     onReasoning: (token: string) => void,
     onDone: () => void,
-    onError: (error: Error) => void
+    onError: (error: Error) => void,
+    onToolCalls?: (toolCalls: AccumulatedToolCall[]) => void
   ) {
     const abortController = new AbortController();
 
@@ -42,6 +44,12 @@ export class OpenRouterProvider implements AIProvider {
       body.reasoning = { effort: 'high' };
     }
 
+    // Native web search — uses OpenRouter's built-in web plugin
+    // Handles search server-side (Exa for most models, native for Anthropic/OpenAI/Perplexity)
+    if (config.tools && config.tools.length > 0) {
+      body.plugins = [{ id: 'web' }];
+    }
+
     // When thinking is off, swallow reasoning tokens silently
     const reasoningHandler = config.thinkingMode === 'off'
       ? () => {} // no-op
@@ -62,7 +70,9 @@ export class OpenRouterProvider implements AIProvider {
       onContent,
       reasoningHandler,
       onDone,
-      onError
+      onError,
+      'openai',
+      onToolCalls
     );
 
     let reasoningContent = '';

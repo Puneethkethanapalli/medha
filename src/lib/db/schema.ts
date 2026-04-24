@@ -70,4 +70,18 @@ export function initializeDatabase(): void {
   } catch {
     // Column already exists — ignore
   }
+
+  // Add tool_call_id column to messages (Sprint 12)
+  try {
+    database.runSync('ALTER TABLE messages ADD COLUMN tool_call_id TEXT');
+  } catch {
+    // Column already exists — ignore
+  }
+
+  // Add tool_calls column to messages (Sprint 12 — stores assistant's tool call requests)
+  try {
+    database.runSync('ALTER TABLE messages ADD COLUMN tool_calls TEXT');
+  } catch {
+    // Column already exists — ignore
+  }
 }

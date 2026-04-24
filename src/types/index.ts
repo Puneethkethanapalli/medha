@@ -22,13 +22,17 @@ export interface Attachment {
 export interface Message {
   id: string;
   conversation_id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
   reasoning: string | null;
   attachments: Attachment[] | null;
   status: 'complete' | 'streaming' | 'cancelled' | 'error';
   model: string | null;
   tokens_used: number | null;
+  /** Tool call ID — set when role is 'tool' to correlate result with the call */
+  tool_call_id: string | null;
+  /** JSON-serialized tool calls — set on assistant messages that triggered tool execution */
+  tool_calls: string | null;
   created_at: number;
 }
 

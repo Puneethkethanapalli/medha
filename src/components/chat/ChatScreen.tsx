@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { Menu, PenSquare } from 'lucide-react-native';
 import { ModelPill } from '@/components/chat/ModelPill';
 import { ThinkingToggle } from '@/components/chat/ThinkingToggle';
+import { WebSearchToggle } from '@/components/chat/WebSearchToggle';
 import { MessageList } from '@/components/chat/MessageList';
 import { MessageActionsMenu } from '@/components/chat/MessageActionsMenu';
 import { OfflineBanner } from '@/components/chat/OfflineBanner';
@@ -24,8 +25,13 @@ import {
 } from '@/lib/db/conversations';
 import { getApiKey } from '@/lib/storage/secure';
 import { getProvider, registerBuiltInProviders, listProviders } from '@/lib/providers/registry';
+import { registerTool, listTools, getOpenAIToolSchemas, getAnthropicToolSchemas, getTool } from '@/lib/tools/registry';
+import { webSearchTool } from '@/lib/tools/web-search';
+import type { AccumulatedToolCall } from '@/lib/streaming/stream';
 import { useRouter } from 'expo-router';
 import type { Message, Attachment } from '@/types';
+
+const MAX_TOOL_ROUNDS = 3;
 
 interface ChatScreenProps {
   conversationId: string | null;
@@ -50,6 +56,7 @@ export const ChatScreen = React.memo(function ChatScreen({
   const lastModel = useSettingsStore((s) => s.lastModel);
   const lastProvider = useSettingsStore((s) => s.lastProvider);
   const thinkingMode = useSettingsStore((s) => s.thinkingMode);
+  const webSearchEnabled = useSettingsStore((s) => s.webSearchEnabled);
 
   const {
     startStreaming,
@@ -59,10 +66,14 @@ export const ChatScreen = React.memo(function ChatScreen({
     setError,
   } = useChatStore();
 
-  // Ensure providers are registered
+  // Ensure providers and tools are registered
   useEffect(() => {
     if (listProviders().length === 0) {
       registerBuiltInProviders();
+    }
+    // Register built-in tools
+    if (listTools().length === 0) {
+      registerTool(webSearchTool);
     }
   }, []);
 
@@ -71,7 +82,6 @@ export const ChatScreen = React.memo(function ChatScreen({
     let lastState: AppStateStatus = 'active';
     const handleAppStateChange = (nextState: AppStateStatus) => {
       if (lastState === 'active' && nextState === 'background') {
-        // App just went to background while possibly streaming
         if (abortRef.current) {
           abortRef.current.abort();
           abortRef.current = null;
@@ -99,7 +109,7 @@ export const ChatScreen = React.memo(function ChatScreen({
     return () => subscription.remove();
   }, [stopStreaming]);
 
-  // Sync internal state when prop changes (e.g. navigating to a different conversation)
+  // Sync internal state when prop changes
   useEffect(() => {
     setCurrentConvId(conversationId);
   }, [conversationId]);
@@ -132,9 +142,9 @@ export const ChatScreen = React.memo(function ChatScreen({
     return () => clearTimeout(timeout);
   }, [focusMessageId, focusRequestKey]);
 
-  // ─── Core streaming logic (no user message creation) ────────────────
+  // ─── Core streaming logic (with tool call loop) ─────────────────────
   const streamNewResponse = useCallback(
-    async (convId: string) => {
+    async (convId: string, toolRound = 0) => {
       const providerId = lastProvider || 'openrouter';
       const apiKey = await getApiKey(providerId);
       if (!apiKey) return;
@@ -159,6 +169,7 @@ export const ChatScreen = React.memo(function ChatScreen({
         status: 'streaming',
         model,
         tokens_used: null,
+        tool_call_id: null,
         created_at: Date.now(),
       };
 
@@ -169,6 +180,15 @@ export const ChatScreen = React.memo(function ChatScreen({
       const fullMessages = getMessages(convId).filter(
         (m) => m.role !== 'system' && m.id !== assistantMsgId
       );
+
+      // Build tool config — only when web search is enabled
+      const useTools = webSearchEnabled && listTools().length > 0;
+      const toolConfig = useTools
+        ? {
+            tools: getOpenAIToolSchemas(),
+            anthropicTools: providerId === 'anthropic' ? getAnthropicToolSchemas() : undefined,
+          }
+        : {};
 
       // Start streaming
       let accumulated = '';
@@ -182,6 +202,87 @@ export const ChatScreen = React.memo(function ChatScreen({
         }
       };
 
+      const handleDone = () => {
+        updateMessage(assistantMsgId, {
+          content: accumulated,
+          reasoning: accumulatedReasoning || null,
+          status: 'complete',
+        });
+        touchConversation(convId);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantMsgId
+              ? { ...m, content: accumulated, reasoning: accumulatedReasoning || null, status: 'complete' }
+              : m
+          )
+        );
+        stopStreaming();
+      };
+
+      const handleError = (error: Error) => {
+        updateMessage(assistantMsgId, {
+          content: accumulated || 'Error: ' + error.message,
+          reasoning: accumulatedReasoning || null,
+          status: 'error',
+        });
+        touchConversation(convId);
+        setError(error.message);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantMsgId
+              ? { ...m, content: accumulated || error.message, reasoning: accumulatedReasoning || null, status: 'error' }
+              : m
+          )
+        );
+      };
+
+      const handleToolCalls = async (toolCalls: AccumulatedToolCall[]) => {
+        if (toolRound >= MAX_TOOL_ROUNDS) {
+          // Max rounds reached — finalize with whatever content we have
+          handleDone();
+          return;
+        }
+
+        // Update the assistant message to show tool usage status + save tool_calls metadata
+        const toolNames = toolCalls.map((tc) => tc.name).join(', ');
+        const statusText = accumulated || `Using ${toolNames}...`;
+        const toolCallsJson = JSON.stringify(toolCalls);
+        updateMessage(assistantMsgId, {
+          content: statusText,
+          reasoning: accumulatedReasoning || null,
+          status: 'complete',
+          tool_calls: toolCallsJson,
+        });
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantMsgId
+              ? { ...m, content: statusText, reasoning: accumulatedReasoning || null, status: 'complete' }
+              : m
+          )
+        );
+        stopStreaming();
+
+        // Execute each tool and save results as tool messages
+        for (const tc of toolCalls) {
+          const toolDef = getTool(tc.name);
+          if (!toolDef) continue;
+
+          try {
+            const result = await toolDef.execute(tc.arguments);
+            // Save tool result — use raw data for AI context, content for display
+            addMessage(convId, 'tool', result.raw ? String(result.raw) : result.content, model, null, tc.id);
+          } catch (err) {
+            const errMsg = err instanceof Error ? err.message : 'Tool execution failed';
+            addMessage(convId, 'tool', `Error: ${errMsg}`, model, null, tc.id);
+          }
+        }
+
+        // Reload messages to include tool results, then re-stream for final response
+        const updatedMessages = getMessages(convId);
+        setMessages(updatedMessages);
+        await streamNewResponse(convId, toolRound + 1);
+      };
+
       const response = provider.stream(
         fullMessages,
         {
@@ -189,6 +290,7 @@ export const ChatScreen = React.memo(function ChatScreen({
           apiKey,
           systemPrompt,
           thinkingMode: (conversation?.thinking_mode as 'auto' | 'on' | 'off') || thinkingMode,
+          ...toolConfig,
         },
         (token) => {
           fireFirstTokenHaptic();
@@ -200,43 +302,14 @@ export const ChatScreen = React.memo(function ChatScreen({
           accumulatedReasoning += reasoningToken;
           appendReasoningToken(reasoningToken);
         },
-        () => {
-          updateMessage(assistantMsgId, {
-            content: accumulated,
-            reasoning: accumulatedReasoning || null,
-            status: 'complete',
-          });
-          touchConversation(convId);
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantMsgId
-                ? { ...m, content: accumulated, reasoning: accumulatedReasoning || null, status: 'complete' }
-                : m
-            )
-          );
-          stopStreaming();
-        },
-        (error) => {
-          updateMessage(assistantMsgId, {
-            content: accumulated || 'Error: ' + error.message,
-            reasoning: accumulatedReasoning || null,
-            status: 'error',
-          });
-          touchConversation(convId);
-          setError(error.message);
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantMsgId
-                ? { ...m, content: accumulated || error.message, reasoning: accumulatedReasoning || null, status: 'error' }
-                : m
-            )
-          );
-        }
+        handleDone,
+        handleError,
+        useTools ? handleToolCalls : undefined
       );
 
       abortRef.current = response;
     },
-    [lastModel, lastProvider, thinkingMode, startStreaming, appendToken, appendReasoningToken, stopStreaming, setError]
+    [lastModel, lastProvider, thinkingMode, webSearchEnabled, startStreaming, appendToken, appendReasoningToken, stopStreaming, setError]
   );
 
   const handleSend = useCallback(
@@ -265,6 +338,7 @@ export const ChatScreen = React.memo(function ChatScreen({
         status: 'complete',
         model,
         tokens_used: null,
+        tool_call_id: null,
         created_at: Date.now(),
       };
 
@@ -429,6 +503,7 @@ export const ChatScreen = React.memo(function ChatScreen({
         <View className="flex-1 flex-row items-center justify-center gap-2 px-2">
           <ModelPill />
           <ThinkingToggle />
+          <WebSearchToggle />
         </View>
         <Pressable onPress={handleNewChat} className="w-10 h-10 items-center justify-center">
           <PenSquare size={20} color="hsl(0, 0%, 63%)" />
