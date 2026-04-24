@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Theme, ThinkingMode } from '@/lib/storage/mmkv';
+import type { Theme, ThinkingMode, RuleItem } from '@/lib/storage/mmkv';
 
 interface SettingsState {
   theme: Theme;
@@ -9,7 +9,7 @@ interface SettingsState {
   biometricLockEnabled: boolean;
   thinkingMode: ThinkingMode;
   webSearchEnabled: boolean;
-  globalRules: string;
+  globalRules: RuleItem[];
   isInitialized: boolean;
 }
 
@@ -21,7 +21,7 @@ interface SettingsActions {
   setBiometricLockEnabled: (enabled: boolean) => Promise<void>;
   setThinkingMode: (mode: ThinkingMode) => Promise<void>;
   setWebSearchEnabled: (enabled: boolean) => Promise<void>;
-  setGlobalRules: (rules: string) => Promise<void>;
+  setGlobalRules: (rules: RuleItem[]) => Promise<void>;
   validateApiKey: (provider: string, key: string) => Promise<boolean>;
   initialize: () => Promise<void>;
 }
@@ -53,7 +53,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
   biometricLockEnabled: false,
   thinkingMode: 'auto' as ThinkingMode,
   webSearchEnabled: false,
-  globalRules: '',
+  globalRules: [],
   isInitialized: false,
 
   // Actions

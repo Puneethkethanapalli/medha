@@ -4,6 +4,7 @@ import type { Attachment, Message } from '@/types';
 interface UIState {
   drawerOpen: boolean;
   modelPickerOpen: boolean;
+  chatSettingsOpen: boolean;
   themePickerOpen: boolean;
   attachmentSheetOpen: boolean;
   onAttachCallback: ((attachments: Attachment[]) => void) | null;
@@ -16,6 +17,8 @@ interface UIState {
   actionsMenuMessage: Message | null;
   // Edit mode
   editingMessageId: string | null;
+  // Pending per-conversation rule (before conversation is created)
+  pendingConversationRule: string | null;
 }
 
 interface UIActions {
@@ -24,6 +27,8 @@ interface UIActions {
   toggleDrawer: () => void;
   openModelPicker: () => void;
   closeModelPicker: () => void;
+  openChatSettings: () => void;
+  closeChatSettings: () => void;
   openAttachmentSheet: (onAttach: (attachments: Attachment[]) => void) => void;
   closeAttachmentSheet: () => void;
   openThemePicker: () => void;
@@ -34,11 +39,13 @@ interface UIActions {
   showActionsMenu: (message: Message) => void;
   hideActionsMenu: () => void;
   setEditingMessage: (id: string | null) => void;
+  setPendingConversationRule: (rule: string | null) => void;
 }
 
 export const useUIStore = create<UIState & UIActions>((set) => ({
   drawerOpen: false,
   modelPickerOpen: false,
+  chatSettingsOpen: false,
   themePickerOpen: false,
   attachmentSheetOpen: false,
   onAttachCallback: null,
@@ -46,12 +53,15 @@ export const useUIStore = create<UIState & UIActions>((set) => ({
   toast: null,
   actionsMenuMessage: null,
   editingMessageId: null,
+  pendingConversationRule: null,
 
   openDrawer: () => set({ drawerOpen: true }),
   closeDrawer: () => set({ drawerOpen: false }),
   toggleDrawer: () => set((s) => ({ drawerOpen: !s.drawerOpen })),
   openModelPicker: () => set({ modelPickerOpen: true }),
   closeModelPicker: () => set({ modelPickerOpen: false }),
+  openChatSettings: () => set({ chatSettingsOpen: true }),
+  closeChatSettings: () => set({ chatSettingsOpen: false }),
   openAttachmentSheet: (onAttach) => set({ attachmentSheetOpen: true, onAttachCallback: onAttach }),
   closeAttachmentSheet: () => set({ attachmentSheetOpen: false, onAttachCallback: null }),
   openThemePicker: () => set({ themePickerOpen: true }),
@@ -62,4 +72,5 @@ export const useUIStore = create<UIState & UIActions>((set) => ({
   showActionsMenu: (message) => set({ actionsMenuMessage: message }),
   hideActionsMenu: () => set({ actionsMenuMessage: null }),
   setEditingMessage: (id) => set({ editingMessageId: id }),
+  setPendingConversationRule: (rule) => set({ pendingConversationRule: rule }),
 }));

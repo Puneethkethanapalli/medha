@@ -6,40 +6,50 @@
  */
 
 import { getConversation } from '@/lib/db/conversations';
-import { getGlobalRulesSync } from '@/lib/storage/mmkv';
+import { getGlobalRulesSync, type RuleItem, DEFAULT_RULES } from '@/lib/storage/mmkv';
 
-const RULE_PRESETS: Record<string, string> = {
-  'Be concise': 'Always be concise and avoid filler words. Get straight to the point.',
-  'Always use code examples': 'Whenever explaining technical concepts, include a practical code example.',
-  'Respond in Hindi': 'Always respond in Hindi unless explicitly asked otherwise.',
-  'Explain like I\'m 5': 'Explain everything as if I am 5 years old. Use simple analogies and avoid jargon.',
-  'Use formal tone': 'Always use a formal, professional tone. Avoid slang and contractions.',
-};
+/** Parse a rules JSON string into RuleItem array. Falls back to defaults. */
+function parseRules(json: string | null): RuleItem[] {
+  if (!json) return DEFAULT_RULES.map((r) => ({ ...r }));
+  try {
+    const parsed = JSON.parse(json) as RuleItem[];
+    if (Array.isArray(parsed)) return parsed;
+    return DEFAULT_RULES.map((r) => ({ ...r }));
+  } catch {
+    return DEFAULT_RULES.map((r) => ({ ...r }));
+  }
+}
+
+/** Build a plain-text rules block from enabled RuleItems */
+function rulesToText(rules: RuleItem[]): string {
+  const enabled = rules.filter((r) => r.enabled);
+  if (enabled.length === 0) return '';
+  const lines = enabled.map((r) => `- ${r.description}`);
+  return `[User Rules]\n${lines.join('\n')}\n[/User Rules]`;
+}
 
 /**
  * Build the rules context for a given conversation.
- * Returns empty string if no rules are set.
+ * Returns empty string if no enabled rules.
  *
  * Priority: per-conversation rules (if non-null) > global rules
  */
 export function buildRulesContext(conversationId?: string | null): string {
-  let rules = '';
+  let rules: RuleItem[] | null = null;
 
   if (conversationId) {
     const conversation = getConversation(conversationId);
     if (conversation?.rules) {
-      rules = conversation.rules.trim();
+      rules = parseRules(conversation.rules);
     }
   }
 
   // If no per-conversation rules, fall back to global
   if (!rules) {
-    rules = getGlobalRulesSync().trim();
+    rules = getGlobalRulesSync();
   }
 
-  if (!rules) return '';
-
-  return `[User Rules]\n${rules}\n[/User Rules]`;
+  return rulesToText(rules);
 }
 
 /**
@@ -67,12 +77,6 @@ export function composeSystemPrompt(
   return parts.join('\n\n');
 }
 
-/** Get the raw text for a named rule preset */
-export function getRulePreset(name: string): string | undefined {
-  return RULE_PRESETS[name];
-}
-
-/** List available rule preset names */
-export function listRulePresets(): string[] {
-  return Object.keys(RULE_PRESETS);
-}
+/** Export default rules for UI initialization */
+export { DEFAULT_RULES };
+export type { RuleItem };

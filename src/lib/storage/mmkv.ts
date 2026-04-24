@@ -134,14 +134,38 @@ export async function setCustomCommands(commands: StoredCustomCommand[]): Promis
   _customCommands = commands;
 }
 
-// Global rules
-export async function getGlobalRules(): Promise<string> {
-  const value = await AsyncStorage.getItem(KEYS.globalRules);
-  return value ?? '';
+export interface RuleItem {
+  id: string;
+  label: string;
+  description: string;
+  enabled: boolean;
+  isCustom: boolean;
 }
 
-export async function setGlobalRules(rules: string): Promise<void> {
-  await AsyncStorage.setItem(KEYS.globalRules, rules);
+/** Default built-in rule presets */
+export const DEFAULT_RULES: RuleItem[] = [
+  { id: 'preset-concise', label: 'Be concise', description: 'Always be concise and avoid filler words. Get straight to the point.', enabled: false, isCustom: false },
+  { id: 'preset-code', label: 'Always use code examples', description: 'Whenever explaining technical concepts, include a practical code example.', enabled: false, isCustom: false },
+  { id: 'preset-hindi', label: 'Respond in Hindi', description: 'Always respond in Hindi unless explicitly asked otherwise.', enabled: false, isCustom: false },
+  { id: 'preset-el15', label: 'Explain like I\'m 5', description: 'Explain everything as if I am 5 years old. Use simple analogies and avoid jargon.', enabled: false, isCustom: false },
+  { id: 'preset-formal', label: 'Use formal tone', description: 'Always use a formal, professional tone. Avoid slang and contractions.', enabled: false, isCustom: false },
+];
+
+// Global rules (stored as JSON array of RuleItem)
+export async function getGlobalRules(): Promise<RuleItem[]> {
+  const value = await AsyncStorage.getItem(KEYS.globalRules);
+  if (!value) return DEFAULT_RULES.map((r) => ({ ...r }));
+  try {
+    const parsed = JSON.parse(value) as RuleItem[];
+    if (Array.isArray(parsed)) return parsed;
+    return DEFAULT_RULES.map((r) => ({ ...r }));
+  } catch {
+    return DEFAULT_RULES.map((r) => ({ ...r }));
+  }
+}
+
+export async function setGlobalRules(rules: RuleItem[]): Promise<void> {
+  await AsyncStorage.setItem(KEYS.globalRules, JSON.stringify(rules));
   _globalRules = rules;
 }
 
@@ -154,7 +178,7 @@ let _biometricLockEnabled = false;
 let _thinkingMode: ThinkingMode = 'auto';
 let _customCommands: StoredCustomCommand[] = [];
 let _webSearchEnabled = false;
-let _globalRules = '';
+let _globalRules: RuleItem[] = DEFAULT_RULES.map((r) => ({ ...r }));
 let _initialized = false;
 
 export function getThemeSync(): Theme {
@@ -189,7 +213,7 @@ export function isWebSearchEnabledSync(): boolean {
   return _webSearchEnabled;
 }
 
-export function getGlobalRulesSync(): string {
+export function getGlobalRulesSync(): RuleItem[] {
   return _globalRules;
 }
 

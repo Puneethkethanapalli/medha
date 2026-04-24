@@ -5,8 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Menu, PenSquare } from 'lucide-react-native';
 import { ModelPill } from '@/components/chat/ModelPill';
-import { ThinkingToggle } from '@/components/chat/ThinkingToggle';
-import { WebSearchToggle } from '@/components/chat/WebSearchToggle';
+import { ChatSettingsButton } from '@/components/chat/ChatSettingsButton';
 import { MessageList } from '@/components/chat/MessageList';
 import { MessageActionsMenu } from '@/components/chat/MessageActionsMenu';
 import { OfflineBanner } from '@/components/chat/OfflineBanner';
@@ -54,6 +53,8 @@ export const ChatScreen = React.memo(function ChatScreen({
   const openDrawer = useUIStore((s) => s.openDrawer);
   const setActiveConversation = useUIStore((s) => s.setActiveConversation);
   const setEditingMessage = useUIStore((s) => s.setEditingMessage);
+  const pendingConversationRule = useUIStore((s) => s.pendingConversationRule);
+  const setPendingConversationRule = useUIStore((s) => s.setPendingConversationRule);
   const lastModel = useSettingsStore((s) => s.lastModel);
   const lastProvider = useSettingsStore((s) => s.lastProvider);
   const thinkingMode = useSettingsStore((s) => s.thinkingMode);
@@ -328,9 +329,11 @@ export const ChatScreen = React.memo(function ChatScreen({
       // Create new conversation if needed
       if (!convId) {
         const title = text.replace(/\n/g, ' ').slice(0, 50);
-        convId = createConversation(title, model);
+        convId = createConversation(title, model, pendingConversationRule ?? undefined);
         setCurrentConvId(convId);
         setActiveConversation(convId);
+        // Clear pending rule now that it's been applied
+        if (pendingConversationRule) setPendingConversationRule(null);
       }
 
       // Save user message to SQLite
@@ -363,7 +366,7 @@ export const ChatScreen = React.memo(function ChatScreen({
       // Stream assistant response
       await streamNewResponse(convId);
     },
-    [currentConvId, lastModel, lastProvider, setActiveConversation, streamNewResponse]
+    [currentConvId, lastModel, lastProvider, setActiveConversation, streamNewResponse, pendingConversationRule, setPendingConversationRule]
   );
 
   const handleStop = useCallback(() => {
@@ -400,11 +403,12 @@ export const ChatScreen = React.memo(function ChatScreen({
     setMessages([]);
     setCurrentConvId(null);
     setActiveConversation(null);
+    setPendingConversationRule(null);
     if (router.canDismiss()) {
       router.dismissAll();
     }
     router.replace('/');
-  }, [router, setActiveConversation, setEditingMessage]);
+  }, [router, setActiveConversation, setEditingMessage, setPendingConversationRule]);
 
   // ─── Edit & Resend ──────────────────────────────────────────────────
 
@@ -510,8 +514,7 @@ export const ChatScreen = React.memo(function ChatScreen({
         </Pressable>
         <View className="flex-1 flex-row items-center justify-center gap-2 px-2">
           <ModelPill />
-          <ThinkingToggle />
-          <WebSearchToggle />
+          <ChatSettingsButton />
         </View>
         <Pressable onPress={handleNewChat} className="w-10 h-10 items-center justify-center">
           <PenSquare size={20} color="hsl(0, 0%, 63%)" />

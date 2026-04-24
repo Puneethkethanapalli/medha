@@ -70,3 +70,12 @@ export interface MessageSearchResult {
   match_start: number;
   match_end: number;
 }
+
+/** A single toggleable rule/instruction for the AI */
+export interface RuleItem {
+  id: string;
+  label: string;
+  description: string;
+  enabled: boolean;
+  isCustom: boolean;
+}

@@ -18,6 +18,7 @@ import { ConversationDrawer } from '@/components/navigation/ConversationDrawer';
 import { ModelPicker } from '@/components/chat/ModelPicker';
 import { AttachmentSheet } from '@/components/chat/AttachmentSheet';
 import { ThemePicker } from '@/components/chat/ThemePicker';
+import { ChatSettingsSheet } from '@/components/chat/ChatSettingsSheet';
 import { getConversations } from '@/lib/db/conversations';
 import { initializeDatabase } from '@/lib/db/schema';
 import type { Conversation } from '@/types';
@@ -66,6 +67,8 @@ function AppContent() {
 
   const modelPickerOpen = useUIStore((s) => s.modelPickerOpen);
   const closeModelPicker = useUIStore((s) => s.closeModelPicker);
+  const chatSettingsOpen = useUIStore((s) => s.chatSettingsOpen);
+  const closeChatSettings = useUIStore((s) => s.closeChatSettings);
   const themePickerOpen = useUIStore((s) => s.themePickerOpen);
   const closeThemePicker = useUIStore((s) => s.closeThemePicker);
   const actionsMenuMessage = useUIStore((s) => s.actionsMenuMessage);
@@ -84,6 +87,10 @@ function AppContent() {
         closeAttachmentSheet();
         return true;
       }
+      if (chatSettingsOpen) {
+        closeChatSettings();
+        return true;
+      }
       if (themePickerOpen) {
         closeThemePicker();
         return true;
@@ -99,7 +106,7 @@ function AppContent() {
       return false;
     });
     return () => handler.remove();
-  }, [drawerOpen, closeDrawer, modelPickerOpen, closeModelPicker, themePickerOpen, closeThemePicker, actionsMenuMessage, hideActionsMenu, attachmentSheetOpen, closeAttachmentSheet]);
+  }, [drawerOpen, closeDrawer, modelPickerOpen, closeModelPicker, chatSettingsOpen, closeChatSettings, themePickerOpen, closeThemePicker, actionsMenuMessage, hideActionsMenu, attachmentSheetOpen, closeAttachmentSheet]);
 
   const handleSelectConversation = useCallback(
     (id: string) => {
@@ -199,6 +206,7 @@ function AppContent() {
         <ModelPicker />
         <AttachmentSheet />
         <ThemePicker />
+        <ChatSettingsSheet />
         <PortalHost />
       </ThemeProvider>
     </View>

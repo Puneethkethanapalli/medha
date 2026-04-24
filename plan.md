@@ -1147,81 +1147,78 @@ These are not in scope for the current phase but documented for later (sprints 1
 
 #### Tasks
 - [x] **13.1** Create rules storage in MMKV (`src/lib/storage/mmkv.ts`)
-  - Added `globalRules` key, async `getGlobalRules()`/`setGlobalRules()`, and sync `getGlobalRulesSync()`
+  - Rules stored as **JSON array of `RuleItem`** objects, not a plain text blob
+  - `RuleItem = { id, label, description, enabled, isCustom }`
+  - `DEFAULT_RULES`: 5 built-in presets (all default to `enabled: false`)
+  - Async `getGlobalRules()`/`setGlobalRules()` + sync `getGlobalRulesSync()`
   - Wired into `initStorage()` for hydration at app start
-  - Added `globalRules` state + `setGlobalRules` action to Zustand settings store
 - [x] **13.2** Add `rules` column to conversations table (`src/lib/db/schema.ts` — migration)
-  ```sql
-  ALTER TABLE conversations ADD COLUMN rules TEXT;
-  ```
-  - Nullable — `null` means "use global rules only"
-  - Updated `Conversation` TypeScript type in `src/types/index.ts`
+  - `ALTER TABLE conversations ADD COLUMN rules TEXT;`
+  - Stores **JSON string** of `RuleItem[]` for per-conversation overrides
+  - `null` means "inherit global rules"
+  - Updated `Conversation` type and `updateConversation` CRUD
 - [x] **13.3** Create rules injection module (`src/lib/rules/injector.ts`)
-  - `buildRulesContext(conversationId?: string | null) → string`
-  - Priority order: per-conversation rules (if set) > global rules
-  - Formats as: `[User Rules]\n{rules}\n[/User Rules]`
-  - `composeSystemPrompt(convId, customSystemPrompt?) → string | undefined`
-  - 5 built-in presets: "Be concise", "Always use code examples", "Respond in Hindi", "Explain like I'm 5", "Use formal tone"
+  - `buildRulesContext(conversationId?) → string`
+  - Priority: per-conversation JSON rules > global rules
+  - Only **enabled** rules are injected, formatted as bullet list inside `[User Rules]...[/User Rules]`
+  - `composeSystemPrompt()` composes rules + memory (future) + custom system prompt
 - [x] **13.4** Wire rules injection into streaming pipeline
-  - In `ChatScreen.streamNewResponse()`: replaced raw `conversation?.system_prompt` with `composeSystemPrompt(convId, conversation?.system_prompt)`
-  - Order: `[User Rules] → [Memory (future)] → [User Custom Prompt]`
-- [x] **13.5** Create global rules editor screen (`src/app/settings/rules.tsx`)
-  - Header: ArrowLeft + "Rules & Instructions" + Save button
-  - Large multiline text area: `bg-surface-container-low`, `border-outline-variant/20`, rounded-xl
-  - Placeholder: "Tell the AI how to behave across all conversations..."
-  - Character count in bottom-right corner
-  - "Save" button disabled when unchanged (global mode)
-  - Rule presets as horizontal scroll pills — tap appends to text area
-  - Info text with context about scope (global vs per-conversation)
-- [x] **13.6** Add per-conversation rules access
-  - In conversation drawer long-press menu: "Edit Rules" option alongside "Delete"
-  - Rules screen detects `conversationId` param → enters per-conversation mode
-  - Toggle: "Use global rules" (default on) / "Custom rules for this chat"
-  - When global selected, shows read-only global rules card for reference
-  - Text area editable only when "Use global rules" is OFF
-- [x] **13.7** Verify: TypeScript compiles clean, lint passes (only pre-existing warnings)
+  - `ChatScreen.tsx` uses `composeSystemPrompt(convId, conversation?.system_prompt)`
+  - Order: `[User Rules] → [Memory] → [User Custom Prompt]`
+- [x] **13.5** Create global rules editor screen (`src/app/settings/rules.tsx`) — **redesigned for clarity**
+  - **Vertical toggle cards** instead of freeform text area — each rule is a card with label, description, and toggle switch
+  - "Built-in" section + "Your Rules" section for custom user rules
+  - Active rule count badge at top: "3 rules active"
+  - "Add Custom Rule" button with modal (label + description inputs)
+  - Custom rules can be deleted with trash icon
+  - Save button disabled when no changes
+- [x] **13.6** Add per-conversation rules access — **redesigned for clarity**
+  - Drawer long-press menu → "Edit Rules"
+  - Big friendly toggle at top: **"Use my global rules"** (default ON)
+  - When ON: shows read-only list of currently enabled global rules
+  - When OFF: shows editable toggle list for this conversation only
+  - "Reset to global rules" link when in custom mode
+  - Subtitle in header clearly shows "For this conversation" vs "For all conversations"
+- [x] **13.7** Verify: TypeScript compiles clean
 
 #### How to Test Sprint 13
 ```
-✅ Set global rule "Be concise" → AI responses across all conversations are shorter
-✅ Rules editor shows character count, presets scroll horizontally
-✅ Tap preset → appends to text area
+✅ Open Settings → Custom Instructions → see 5 built-in rule cards (all off by default)
+✅ Toggle "Be concise" ON → card highlights, count badge shows "1 rule active"
+✅ Add custom rule "Be funny" → appears in "Your Rules" section
 ✅ Save → persists across app restarts
-✅ Set per-conversation rule → overrides global for that conversation only
-✅ Other conversations still use global rules
-✅ Toggle "Use global rules" off → custom rules used instead
+✅ Start chat → AI responses are concise
+✅ Long-press conversation in drawer → "Edit Rules"
+✅ Per-conversation screen shows "Use my global rules" toggle (ON by default)
+✅ Turn OFF → can toggle individual rules for this chat only
+✅ Turn back ON → inherits global rules again
 ✅ System prompt order: [Rules] → [Memory] → [User Custom Prompt]
 ```
 
 #### 📗 Things Learned
-- Reusing the system-prompts screen pattern (header + scroll + text area + presets) saved significant design time
+- **Array-based rules are far more user-friendly** than freeform text — users just flip toggles instead of writing prompts
 - The `composeSystemPrompt()` helper cleanly separates injection concerns — rules, memory, and custom prompt are composed independently
 - Using `useLocalSearchParams` from expo-router lets the same screen serve both global and per-conversation modes without prop drilling
-- NativeWind's `opacity-40` class is a quick way to visually indicate disabled Save buttons
+- Deep-copying arrays (`rules.map(r => ({...r}))`) is critical when deriving local state from global store to avoid accidental mutation
+- A simple custom `<Toggle>` built with `Pressable` + `View` + `translate-x` is cleaner than importing a full switch component
 
 #### 📕 Mistakes Made
-- Initially tried to create a separate `src/lib/storage/rules.ts` file — unnecessary indirection when MMKV already has a clean pattern; folded rules directly into `mmkv.ts`
-- Forgot to add `handleOpenRules` to the `renderDrawerContent` dependency array — caught by TypeScript/react-hooks-exhaustive-deps
-- Accidentally imported `SlidersHorizontal` in `ConversationDrawer` but didn't use it there (it's only used in Settings) — caught by linter
+- **First design was too engineering-focused** — a text area with presets was overwhelming for average users. Redesigned to toggle cards after user feedback
+- Initially tried to create a separate `src/lib/storage/rules.ts` file — unnecessary indirection; folded directly into `mmkv.ts`
+- Forgot to add `handleOpenRules` to the `renderDrawerContent` dependency array — caught by TypeScript
+- Accidentally imported `SlidersHorizontal` in `ConversationDrawer` but didn't use it there — caught by linter
 
 #### 📘 Things to Remember
 - Rules go first in system prompt — they set the tone before memory and custom prompts
-- Per-conversation rules REPLACE global rules (not append) — simpler mental model for users
+- Per-conversation rules REPLACE global rules (not append) — simpler mental model
 - Keep rules concise — they eat into context window on every request
-- Presets are convenience — user can always type freeform
-- Don't validate rule content — users should write whatever they want
-- Rules + memory + custom system prompt = full system prompt injection chain
-- The `rules` column is nullable: `null` means "use global default", not "no rules"
+- The `rules` column stores JSON: `null` = inherit global, array = custom override
+- Enabled rules are injected as bullet list: `[User Rules]\n- rule 1\n- rule 2\n[/User Rules]`
+- Toggle cards with visual state (highlighted when ON, dimmed when OFF) make the UI feel responsive
+- "Add Custom Rule" modal should be simple: just a name + description — no need for complexity
 
 ---
 
-### Provider & Reliability (deferred)
-
-- **Multi-service fallback chain** (~3h) — _skipped for now, not priority_
-  - Ordered provider priority list in settings (drag to reorder)
-  - Auto-retry on next provider when primary fails (rate limit, timeout, auth error)
-  - Visual indicator showing which provider served the response
-  - Configurable timeout + error classification
 
 ---
 
@@ -1918,3 +1915,14 @@ These are not in scope for the current phase but documented for later (sprints 1
 
 > **Note**: Use `npx expo install` for expo packages to get compatible versions.
 > Use `npm install` for non-expo packages.
+
+
+
+
+### Provider & Reliability (deferred)
+
+- **Multi-service fallback chain** (~3h) — _skipped for now, not priority_
+  - Ordered provider priority list in settings (drag to reorder)
+  - Auto-retry on next provider when primary fails (rate limit, timeout, auth error)
+  - Visual indicator showing which provider served the response
+  - Configurable timeout + error classification
