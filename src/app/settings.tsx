@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Pressable, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
-import { ArrowLeft, Key, MessageSquare, Palette } from 'lucide-react-native';
+import { ArrowLeft, Key, MessageSquare, Palette, Zap } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useUIStore } from '@/stores/ui-store';
 
@@ -27,6 +27,12 @@ export default function SettingsScreen() {
             ? ({ pathname: '/settings/system-prompts', params: { conversationId: activeConversationId } } as any)
             : ('/settings/system-prompts' as any)
         ),
+    },
+    {
+      icon: Zap,
+      label: 'Slash Commands',
+      description: 'Create and manage custom / commands',
+      onPress: () => router.push('/settings/slash-commands' as any),
     },
     {
       icon: Palette,

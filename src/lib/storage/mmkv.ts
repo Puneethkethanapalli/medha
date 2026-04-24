@@ -12,6 +12,7 @@ const KEYS = {
   onboardingComplete: 'medha:onboardingComplete',
   biometricLockEnabled: 'medha:biometricLockEnabled',
   thinkingMode: 'medha:thinkingMode',
+  customCommands: 'medha:customCommands',
 };
 
 // Theme
@@ -94,6 +95,32 @@ export async function setThinkingMode(mode: ThinkingMode): Promise<void> {
   _thinkingMode = mode;
 }
 
+// Custom slash commands
+export interface StoredCustomCommand {
+  id: string;
+  name: string;
+  label: string;
+  description: string;
+  template: string;
+  action: 'prepend' | 'wrap' | 'standalone';
+  enabled: boolean;
+}
+
+export async function getCustomCommands(): Promise<StoredCustomCommand[]> {
+  const value = await AsyncStorage.getItem(KEYS.customCommands);
+  if (!value) return [];
+  try {
+    return JSON.parse(value);
+  } catch {
+    return [];
+  }
+}
+
+export async function setCustomCommands(commands: StoredCustomCommand[]): Promise<void> {
+  await AsyncStorage.setItem(KEYS.customCommands, JSON.stringify(commands));
+  _customCommands = commands;
+}
+
 // Synchronous wrappers for compatibility (read from in-memory cache)
 let _theme: Theme = 'dark';
 let _lastModel: string | null = null;
@@ -101,6 +128,7 @@ let _lastProvider: string | null = null;
 let _onboardingComplete = false;
 let _biometricLockEnabled = false;
 let _thinkingMode: ThinkingMode = 'auto';
+let _customCommands: StoredCustomCommand[] = [];
 let _initialized = false;
 
 export function getThemeSync(): Theme {
@@ -127,6 +155,10 @@ export function getThinkingModeSync(): ThinkingMode {
   return _thinkingMode;
 }
 
+export function getCustomCommandsSync(): StoredCustomCommand[] {
+  return _customCommands;
+}
+
 export async function initStorage(): Promise<void> {
   if (_initialized) return;
   const theme = await getTheme();
@@ -135,11 +167,13 @@ export async function initStorage(): Promise<void> {
   const onboarding = await isOnboardingComplete();
   const biometric = await isBiometricLockEnabled();
   const thinking = await getThinkingMode();
+  const customCmds = await getCustomCommands();
   _theme = theme;
   _lastModel = lastModel;
   _lastProvider = lastProvider;
   _onboardingComplete = onboarding;
   _biometricLockEnabled = biometric;
   _thinkingMode = thinking;
+  _customCommands = customCmds;
   _initialized = true;
 }

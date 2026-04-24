@@ -963,7 +963,7 @@ These are not in scope for the current phase but documented for later (sprints 2
 > **Duration:** ~2 hours
 
 #### Tasks
-- [ ] **11.1** Define slash command registry (`src/lib/commands/registry.ts`)
+- [x] **11.1** Define slash command registry (`src/lib/commands/registry.ts`)
   - Command interface:
     ```typescript
     interface SlashCommand {
@@ -984,29 +984,32 @@ These are not in scope for the current phase but documented for later (sprints 2
     - `/fix` — "Fix the errors in this code: {user input}" (prepend)
     - `/longer` — "Expand on your last response with more detail" (standalone)
     - `/shorter` — "Make your last response more concise" (standalone)
-- [ ] **11.2** Create slash command picker (`src/components/chat/SlashCommandPicker.tsx`)
+- [x] **11.2** Create slash command picker (`src/components/chat/SlashCommandPicker.tsx`)
   - Appears as a floating list above InputBar when user types `/` as first character
   - Filters commands as user types (e.g., `/sum` filters to "Summarize")
   - Each row: `lucide` icon + command name (bold) + description (muted)
   - `bg-surface-container-low`, `border-outline-variant/20`, rounded-xl, max 5 visible rows
   - Tap command → auto-fill or execute
   - Dismiss: tap outside, backspace past `/`, or press escape
-- [ ] **11.3** Integrate picker with InputBar (`src/components/chat/InputBar.tsx`)
+- [x] **11.3** Integrate picker with InputBar (`src/components/chat/InputBar.tsx`)
   - Detect `/` as first character in input → show SlashCommandPicker
   - On command select:
     - `'standalone'`: send template as message immediately, clear input
     - `'prepend'`: replace `/command` with template prefix, let user type the rest
     - `'wrap'`: wrap current input text with template
   - Filter commands by typing: `/su` → shows only "Summarize"
-- [ ] **11.4** Wire command execution into ChatScreen
+- [x] **11.4** Wire command execution into ChatScreen
   - Commands that reference "last response" pull `messages[messages.length - 1].content`
   - `/translate [lang]` extracts language arg from user input
   - Standalone commands skip the input bar and call `handleSend()` directly
-- [ ] **11.5** Custom slash commands (stretch goal)
-  - Allow users to create custom commands from settings
-  - Store in MMKV as JSON array
-  - Each custom command: name, description, template, action type
-- [ ] **11.6** Verify: slash commands work end-to-end
+- [x] **11.5** Custom slash commands
+  - Settings screen: `src/app/settings/slash-commands.tsx`
+  - Add custom commands with name, description, template, and behavior (standalone/prepend)
+  - Enable/disable toggle per command (disabled commands hidden from picker)
+  - Delete with confirmation dialog
+  - Stored in AsyncStorage as JSON array (`StoredCustomCommand[]` in `mmkv.ts`)
+  - Custom commands use `Zap` icon in picker; merged into registry via `listCommands()`
+- [x] **11.6** Verify: slash commands work end-to-end
 
 #### How to Test Sprint 11
 ```
@@ -1021,10 +1024,13 @@ These are not in scope for the current phase but documented for later (sprints 2
 ```
 
 #### 📗 Things Learned
-- (fill after completing)
+- Slash commands don't need their own execution path — they just transform text and call the same `onSend()` that InputBar already uses
+- `parseSlashInput()` + `filterCommands()` + `resolveCommandText()` give clean separation: detection → filtering → resolution
+- The picker dismisses naturally when the user types a space after a valid command (moves to arg-input mode) — no explicit dismiss logic needed for that case
+- `keyboardShouldPersistTaps="always"` on the picker's ScrollView is critical — without it, tapping a command row dismisses the keyboard instead of triggering onPress
 
 #### 📕 Mistakes Made
-- (fill after completing)
+- (none — implementation was straightforward)
 
 #### 📘 Things to Remember
 - Slash commands are a UX convenience — they just prepend/transform text before sending to the same streaming pipeline

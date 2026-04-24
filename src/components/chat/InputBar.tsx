@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { View, TextInput, Pressable, Animated, Easing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -7,7 +7,10 @@ import { useChatStore } from '@/stores/chat-store';
 import { VoiceInput } from '@/components/chat/VoiceInput';
 import { AttachmentTray } from '@/components/chat/AttachmentTray';
 import { AttachmentButton } from '@/components/chat/AttachmentButton';
+import { SlashCommandPicker } from '@/components/chat/SlashCommandPicker';
 import { deleteAttachmentFile } from '@/lib/attachments/storage';
+import { filterCommands, parseSlashInput, resolveCommandText } from '@/lib/commands/registry';
+import type { SlashCommand } from '@/lib/commands/registry';
 import type { Attachment } from '@/types';
 
 interface InputBarProps {
@@ -25,12 +28,43 @@ export function InputBar({ onSend, onStop }: InputBarProps) {
 
   const canSend = text.trim().length > 0 || attachments.length > 0;
 
+  // Slash command detection
+  const slashState = useMemo(() => parseSlashInput(text), [text]);
+  const matchedCommands = useMemo(
+    () => (slashState ? filterCommands(slashState.commandQuery) : []),
+    [slashState]
+  );
+  const showPicker = slashState !== null && matchedCommands.length > 0 && !slashState.arg;
+
   const handleSend = useCallback(() => {
     const trimmed = text.trim();
     if (!trimmed && attachments.length === 0) return;
     if (isStreaming) return;
 
+    // Check if we're sending a command with an arg (e.g. "/translate Hindi")
+    if (slashState && slashState.arg) {
+      const exactMatch = matchedCommands.find((c) => c.name === slashState.commandQuery);
+      if (exactMatch) {
+        const resolved = resolveCommandText(exactMatch, slashState.arg);
+        // Button press animation
+        animateSendButton();
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onSend(resolved, attachments.length > 0 ? attachments : undefined);
+        setText('');
+        setAttachments([]);
+        return;
+      }
+    }
+
     // Button press animation
+    animateSendButton();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onSend(trimmed, attachments.length > 0 ? attachments : undefined);
+    setText('');
+    setAttachments([]);
+  }, [text, attachments, isStreaming, slashState, matchedCommands, onSend, scaleAnim]);
+
+  const animateSendButton = useCallback(() => {
     Animated.sequence([
       Animated.timing(scaleAnim, {
         toValue: 0.9,
@@ -45,12 +79,24 @@ export function InputBar({ onSend, onStop }: InputBarProps) {
         useNativeDriver: true,
       }),
     ]).start();
+  }, [scaleAnim]);
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onSend(trimmed, attachments.length > 0 ? attachments : undefined);
-    setText('');
-    setAttachments([]);
-  }, [text, attachments, isStreaming, onSend, scaleAnim]);
+  const handleSlashCommandSelect = useCallback(
+    (command: SlashCommand) => {
+      if (command.action === 'standalone' && command.id !== 'translate') {
+        // Send immediately
+        const resolved = resolveCommandText(command, '');
+        onSend(resolved);
+        setText('');
+      } else {
+        // Prepend, wrap, or translate: set text to "/command " so user types the argument
+        // The template expansion happens on send via resolveCommandText()
+        setText(`/${command.name} `);
+        inputRef.current?.focus();
+      }
+    },
+    [onSend]
+  );
 
   const handleAttach = useCallback((newAttachments: Attachment[]) => {
     setAttachments((prev) => [...prev, ...newAttachments].slice(0, 10)); // max 10
@@ -90,71 +136,81 @@ export function InputBar({ onSend, onStop }: InputBarProps) {
           onCancel={handleVoiceCancel}
         />
       ) : (
-        <View className="bg-surface-container-low border border-outline-variant/20 rounded-2xl p-2">
-          {/* Attachment preview tray */}
-          <AttachmentTray
-            attachments={attachments}
-            onRemove={handleRemoveAttachment}
-          />
+        <>
+          {/* Slash command picker — floats above input */}
+          {showPicker && (
+            <SlashCommandPicker
+              commands={matchedCommands}
+              onSelect={handleSlashCommandSelect}
+            />
+          )}
 
-          {/* Input row */}
-          <View className="flex-row items-end gap-2">
-            {/* Attachment button */}
-            <AttachmentButton
-              onAttach={handleAttach}
-              disabled={isStreaming}
+          <View className="bg-surface-container-low border border-outline-variant/20 rounded-2xl p-2">
+            {/* Attachment preview tray */}
+            <AttachmentTray
+              attachments={attachments}
+              onRemove={handleRemoveAttachment}
             />
 
-            {/* Text input */}
-            <TextInput
-              ref={inputRef}
-              value={text}
-              onChangeText={setText}
-              placeholder="Message Medha..."
-              placeholderTextColor="hsl(0, 0%, 44%)"
-              multiline
-              maxLength={10000}
-              className="flex-1 text-foreground text-[14px] px-2 py-2 max-h-32"
-              style={{ minHeight: 36 }}
-              onSubmitEditing={handleSend}
-              blurOnSubmit={false}
-              editable={!isStreaming}
-            />
+            {/* Input row */}
+            <View className="flex-row items-end gap-2">
+              {/* Attachment button */}
+              <AttachmentButton
+                onAttach={handleAttach}
+                disabled={isStreaming}
+              />
 
-            {/* Mic button — only when no text, no attachments, not streaming */}
-            {!canSend && !isStreaming && (
-              <Pressable
-                onPress={handleMicPress}
-                className="w-8 h-8 rounded-full bg-muted items-center justify-center mb-1 active:scale-95"
-              >
-                <Mic size={16} color="hsl(0, 0%, 63%)" />
-              </Pressable>
-            )}
+              {/* Text input */}
+              <TextInput
+                ref={inputRef}
+                value={text}
+                onChangeText={setText}
+                placeholder="Message Medha..."
+                placeholderTextColor="hsl(0, 0%, 44%)"
+                multiline
+                maxLength={10000}
+                className="flex-1 text-foreground text-[14px] px-2 py-2 max-h-32"
+                style={{ minHeight: 36 }}
+                onSubmitEditing={handleSend}
+                blurOnSubmit={false}
+                editable={!isStreaming}
+              />
 
-            {/* Send / Stop button */}
-            {isStreaming ? (
-              <Pressable
-                onPress={onStop}
-                className="w-8 h-8 rounded-full bg-foreground items-center justify-center mb-1 active:scale-95"
-              >
-                <Square size={14} color="hsl(240, 3.7%, 7.5%)" fill="hsl(240, 3.7%, 7.5%)" />
-              </Pressable>
-            ) : canSend ? (
-              <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+              {/* Mic button — only when no text, no attachments, not streaming */}
+              {!canSend && !isStreaming && (
                 <Pressable
-                  onPress={handleSend}
-                  className="w-8 h-8 rounded-full bg-foreground items-center justify-center mb-1"
+                  onPress={handleMicPress}
+                  className="w-8 h-8 rounded-full bg-muted items-center justify-center mb-1 active:scale-95"
                 >
-                  <ArrowUp
-                    size={18}
-                    color="hsl(240, 3.7%, 7.5%)"
-                    strokeWidth={2.5}
-                  />
+                  <Mic size={16} color="hsl(0, 0%, 63%)" />
                 </Pressable>
-              </Animated.View>
-            ) : null}
+              )}
+
+              {/* Send / Stop button */}
+              {isStreaming ? (
+                <Pressable
+                  onPress={onStop}
+                  className="w-8 h-8 rounded-full bg-foreground items-center justify-center mb-1 active:scale-95"
+                >
+                  <Square size={14} color="hsl(240, 3.7%, 7.5%)" fill="hsl(240, 3.7%, 7.5%)" />
+                </Pressable>
+              ) : canSend ? (
+                <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+                  <Pressable
+                    onPress={handleSend}
+                    className="w-8 h-8 rounded-full bg-foreground items-center justify-center mb-1"
+                  >
+                    <ArrowUp
+                      size={18}
+                      color="hsl(240, 3.7%, 7.5%)"
+                      strokeWidth={2.5}
+                    />
+                  </Pressable>
+                </Animated.View>
+              ) : null}
+            </View>
           </View>
-        </View>
+        </>
       )}
     </View>
   );
