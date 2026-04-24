@@ -864,14 +864,18 @@ CREATE INDEX idx_conversations_updated ON conversations(updated_at DESC);
 | **13** | Rules & instructions | ~2h | 43h |
 | ~~14~~ | ~~Multi-service fallback~~ _(deferred)_ | — | — |
 | **15** | Token & cost estimator | ~3h | 46h |
+| **16** | Web search tool | ~4h | 50h |
+| **17** | MCP server support | ~6h | 56h |
+| **18** | Skills system | ~4h | 60h |
+| **19** | Custom apps (GPT-like personas) | ~6h | 66h |
 
-**Total: ~46 hours** (MVP at 24h + post-MVP features at 22h)
+**Total: ~66 hours** (MVP at 24h + post-MVP features at 42h)
 
 ---
 
-## 🔮 Future Sprints (Post-Sprint 15, Cool/Nice features)
+## 🔮 Future Sprints (Post-Sprint 19, Cool/Nice features)
 
-These are not in scope for the current phase but documented for later (sprints 16+). Sprints 10–15 are fully detailed below.
+These are not in scope for the current phase but documented for later (sprints 20+). Sprints 10–19 are fully detailed below.
 
 ---
 
@@ -1320,33 +1324,493 @@ These are not in scope for the current phase but documented for later (sprints 1
 - Bar chart: use simple View heights — no need for `react-native-chart-kit` or similar
 - `tokens_used` column already exists on messages table — change from `INTEGER` to `TEXT` to store JSON `{"prompt": N, "completion": M}`
 
-### Tools & Extensibility (Sprints 16–18)
+### Sprint 16 — Web Search Tool
+> **Goal:** First tool integration. AI can search the web via function calling, display results inline, and cite sources. Establishes the tool architecture used by Sprint 17 (MCP) and Sprint 18 (Skills).
+> **Duration:** ~4 hours
 
-- **Sprint 16**: Web search tool (~4h)
-  - First "tool" integration — web search via Serper/Tavily/DuckDuckGo API
-  - Tool-use protocol compatible with OpenAI/Anthropic/Gemini function calling
-  - Display search results inline in chat with source links
-  - Foundation architecture for future tools
-- **Sprint 17**: MCP server support (~6h)
-  - Implement MCP (Model Context Protocol) client
-  - Add MCP server config UI in settings (endpoint URL + optional auth headers)
-  - Curated list of popular free MCP servers (web search, weather, calculator)
-  - Auto-reconnect on app startup
-  - Tool results rendered inline in chat
-- **Sprint 18**: Skills system (~4h)
-  - Downloadable/shareable skill packs (bundles of system prompt + tools + rules)
-  - Skill marketplace or import from URL/file
-  - Examples: "Code Reviewer", "Travel Planner", "Fitness Coach"
-  - Each skill defines: name, icon, system prompt, allowed tools, example prompts
+#### Tasks
+- [ ] **16.1** Define tool system types (`src/lib/tools/types.ts`)
+  ```typescript
+  interface ToolDefinition {
+    name: string;
+    description: string;
+    parameters: Record<string, ToolParameter>;  // JSON Schema subset
+    execute: (args: Record<string, unknown>) => Promise<ToolResult>;
+  }
+  interface ToolParameter {
+    type: 'string' | 'number' | 'boolean';
+    description: string;
+    required?: boolean;
+    enum?: string[];
+  }
+  interface ToolResult {
+    content: string;           // markdown-formatted result for display
+    raw?: unknown;             // raw data for AI context
+    citations?: Citation[];    // source URLs
+  }
+  interface Citation { title: string; url: string; snippet?: string; }
+  ```
+- [ ] **16.2** Create tool registry (`src/lib/tools/registry.ts`)
+  - `registerTool(tool: ToolDefinition)`
+  - `getTool(name: string) → ToolDefinition | null`
+  - `listTools() → ToolDefinition[]`
+  - `getToolSchemas() → OpenAI-format tool schemas` — converts to `{ type: 'function', function: { name, description, parameters } }[]`
+- [ ] **16.3** Implement web search tool (`src/lib/tools/web-search.ts`)
+  - Uses DuckDuckGo HTML search (no API key needed) OR Serper API (if key configured)
+  - Tool name: `web_search`, params: `{ query: string, num_results?: number }`
+  - Parses HTML results into `Citation[]` with title, URL, snippet
+  - Returns markdown-formatted results: numbered list with `[Title](url)` + snippet
+  - Fallback: if DuckDuckGo blocked, use Serper (user provides key in settings)
+- [ ] **16.4** Add web search API key to settings (`src/app/settings/api-keys.tsx`)
+  - Optional Serper API key field (free tier: 2500 queries/month)
+  - Label: "Web Search (Serper)" — below existing provider keys
+  - Stored in SecureStore like other API keys
+- [ ] **16.5** Wire tool calling into provider layer (`src/lib/providers/types.ts`)
+  - Add `tools?: ToolDefinition[]` to `StreamConfig`
+  - Add new callbacks to `AIProvider.stream()`:
+    - `onToolCall?: (name: string, args: Record<string, unknown>) => void`
+  - Each provider converts `ToolDefinition[]` to its native format:
+    - OpenRouter/OpenAI: `tools` array with `type: 'function'`
+    - Anthropic: `tools` array with `input_schema`
+    - Google AI: `tools` with `functionDeclarations`
+- [ ] **16.6** Implement tool call loop in ChatScreen (`src/components/chat/ChatScreen.tsx`)
+  - When AI returns a `tool_calls` response instead of content:
+    1. Display a "Searching..." status indicator in the assistant bubble
+    2. Execute tool via `registry.getTool(name).execute(args)`
+    3. Append tool result as a new message with `role: 'tool'` (or provider equivalent)
+    4. Re-stream to get AI's final response incorporating tool results
+  - Max tool call rounds: 3 (prevent infinite loops)
+  - Add `role: 'tool'` to Message type union
+- [ ] **16.7** Update SSE parser to detect tool call chunks (`src/lib/streaming/sse-parser.ts`)
+  - OpenAI/OpenRouter: `delta.tool_calls[0].function.name` + `delta.tool_calls[0].function.arguments`
+  - Anthropic: `content_block_start` with `type: 'tool_use'` + `content_block_delta` with `input_json_delta`
+  - Accumulate tool call arguments across chunks (arguments stream as partial JSON)
+- [ ] **16.8** Create search results display component (`src/components/chat/SearchResults.tsx`)
+  - Renders inline in assistant bubble when tool result contains citations
+  - Each citation: favicon placeholder + title (link) + snippet (muted)
+  - `bg-surface-container-low`, rounded-lg, compact layout
+  - Tap link → opens in system browser via `Linking.openURL()`
+- [ ] **16.9** Add tool toggle in chat UI
+  - Small `lucide Globe` pill next to ThinkingToggle in top bar
+  - Tap → enables/disables web search for this conversation
+  - When enabled, tool schemas sent with every request
+- [ ] **16.10** Verify: web search end-to-end
 
-### Apps & Personas (Sprint 19)
+#### How to Test Sprint 16
+```
+✅ Ask "What's the weather in Tokyo today?" with search enabled → AI searches, cites sources
+✅ Search results render inline with clickable links
+✅ Tap link → opens in browser
+✅ Ask factual question → AI includes [Source](url) citations in response
+✅ Search disabled → AI responds without tool calls (normal behavior)
+✅ Multiple search rounds: AI searches, reads results, searches again if needed (max 3)
+✅ No Serper key → falls back to DuckDuckGo
+✅ Works with OpenRouter, Google AI, and Anthropic providers
+```
 
-- **Sprint 19**: Custom Apps — like ChatGPT's Custom GPTs (~6h)
-  - Create shareable "apps" that combine: name, icon, description, system prompt, skills, rules, pinned model
-  - App launcher screen (grid of created apps)
-  - "Create App" wizard — guided flow to define persona, behavior, and capabilities
-  - Share apps as JSON files (import/export)
-  - Preset apps: "Medha Default", "Code Assistant", "Writing Coach", "Language Tutor"
+#### 📗 Things Learned
+- (fill after completing)
+
+#### 📕 Mistakes Made
+- (fill after completing)
+
+#### 📘 Things to Remember
+- Tool call arguments stream as partial JSON — accumulate across chunks before parsing
+- Anthropic tool format differs from OpenAI — `input_schema` vs `parameters`, `tool_use` content blocks
+- Google AI uses `functionDeclarations` inside a `tools` array — different structure
+- DuckDuckGo HTML scraping may be unreliable — Serper is the reliable fallback
+- Max 3 tool rounds to prevent infinite loops (AI calls tool → gets result → calls tool again...)
+- Tool results go as `role: 'tool'` in OpenAI format, `tool_result` in Anthropic format
+- Don't send tool schemas when tools are disabled — wastes tokens
+
+---
+
+### Sprint 17 — MCP Server Support
+> **Goal:** Implement an MCP (Model Context Protocol) client so users can connect to external tool servers. Extends the Sprint 16 tool architecture with remote tool discovery and execution.
+> **Duration:** ~6 hours
+
+#### Prerequisites
+- Sprint 16 tool system (types, registry, tool call loop) must be complete
+- Tool rendering and SSE tool call parsing already implemented
+
+#### Tasks
+- [ ] **17.1** Create MCP client module (`src/lib/mcp/client.ts`)
+  - Implements MCP client protocol over HTTP+SSE (Streamable HTTP transport)
+  - `MCPClient` class:
+    - `connect(serverUrl: string, headers?: Record<string, string>) → Promise<void>`
+    - `disconnect() → void`
+    - `listTools() → Promise<MCPToolSchema[]>`
+    - `callTool(name: string, args: Record<string, unknown>) → Promise<MCPToolResult>`
+    - `isConnected() → boolean`
+  - MCP transport: HTTP POST for requests, SSE for streaming responses
+  - Handles `initialize` → `initialized` handshake
+  - Protocol version: `2025-03-26` (latest stable)
+- [ ] **17.2** Create MCP-to-tool bridge (`src/lib/mcp/bridge.ts`)
+  - Converts `MCPToolSchema` (MCP format) → `ToolDefinition` (Sprint 16 format)
+  - Wraps `MCPClient.callTool()` as `ToolDefinition.execute()`
+  - Auto-registers MCP tools into the tool registry from Sprint 16
+  - Handles tool name conflicts: prefix with server name (e.g., `weather.get_forecast`)
+- [ ] **17.3** Create MCP server config storage (`src/lib/mcp/config.ts`)
+  - Store server configs in SQLite:
+    ```sql
+    CREATE TABLE IF NOT EXISTS mcp_servers (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      url TEXT NOT NULL,
+      headers TEXT,              -- JSON: optional auth headers
+      enabled INTEGER DEFAULT 1,
+      auto_connect INTEGER DEFAULT 1,
+      created_at INTEGER NOT NULL
+    );
+    ```
+  - CRUD: `addServer()`, `getServers()`, `updateServer()`, `deleteServer()`, `toggleServer()`
+- [ ] **17.4** Create MCP connection manager (`src/lib/mcp/manager.ts`)
+  - Manages multiple MCPClient instances (one per configured server)
+  - `connectAll()` — connects to all enabled servers with `auto_connect = 1`
+  - `disconnectAll()` — cleanup on app background/exit
+  - Connection state tracking per server: `connecting | connected | error | disconnected`
+  - Auto-reconnect with exponential backoff on connection loss
+  - Emits state changes via Zustand store
+- [ ] **17.5** Create MCP store (`src/stores/mcp-store.ts`)
+  - Zustand store for MCP state:
+    ```typescript
+    interface MCPState {
+      servers: MCPServerConfig[];
+      connectionStates: Record<string, 'connecting' | 'connected' | 'error' | 'disconnected'>;
+      availableTools: ToolDefinition[];  // aggregated from all connected servers
+      initialize: () => Promise<void>;
+      addServer: (name: string, url: string, headers?: Record<string, string>) => Promise<void>;
+      removeServer: (id: string) => Promise<void>;
+      toggleServer: (id: string) => Promise<void>;
+      reconnect: (id: string) => Promise<void>;
+    }
+    ```
+- [ ] **17.6** Create MCP server management screen (`src/app/settings/mcp-servers.tsx`)
+  - Header: ArrowLeft + "MCP Servers" + `lucide Plus` add button
+  - Server list, each card showing:
+    - Server name (14sp bold) + URL (12sp muted, truncated)
+    - Connection status indicator: green dot (connected), yellow dot (connecting), red dot (error), gray dot (disabled)
+    - Tool count badge: "3 tools" in `bg-muted` pill
+    - Toggle switch: enable/disable
+    - Swipe-to-delete with confirmation
+  - "Add Server" bottom sheet:
+    - Name input, URL input, optional headers (key-value pairs)
+    - "Test Connection" button → attempts connect, shows tool count on success
+    - "Save" button
+  - Curated server list section ("Popular Servers"):
+    - Pre-filled entries user can one-tap add:
+      - "Brave Search" — `https://mcp.bravesearch.com/sse`
+      - "Calculator" — basic math MCP server
+    - Each with description + "Add" button
+  - Empty state: `lucide Plug` icon + "Connect to MCP servers to extend AI capabilities"
+- [ ] **17.7** Wire MCP tools into ChatScreen tool loop
+  - On app startup: `MCPManager.connectAll()` → discover tools → register in tool registry
+  - MCP tools appear alongside built-in tools (web search) in tool schemas sent to AI
+  - Tool call flow: AI requests tool → registry resolves → if MCP tool, routes through MCPClient
+  - Tool result rendering: same `SearchResults`/inline display as Sprint 16
+- [ ] **17.8** Add MCP tool indicator to chat UI
+  - When MCP tools are active, show `lucide Plug` badge in top bar (next to search globe)
+  - Tap → shows list of connected servers + available tools
+  - During tool execution: show server name in "Running tool..." indicator
+- [ ] **17.9** Handle MCP errors gracefully
+  - Server unreachable → show error in server card, skip its tools (don't block chat)
+  - Tool execution timeout (30s) → cancel and show error in chat
+  - Invalid tool result → show raw error to user, continue conversation
+  - Server disconnects mid-conversation → toast notification, remove its tools from active set
+- [ ] **17.10** Verify: MCP server connection, tool discovery, and execution
+
+#### How to Test Sprint 17
+```
+✅ Add MCP server via URL → connects, shows tool count
+✅ Server card shows green dot when connected
+✅ AI can call MCP tools during conversation
+✅ Tool results render inline in chat
+✅ Disable server → its tools no longer available to AI
+✅ Delete server → removed from list and disconnected
+✅ Server goes down → error state shown, chat continues without its tools
+✅ App restart → auto-connects to enabled servers
+✅ "Test Connection" verifies server before saving
+✅ Multiple servers work simultaneously
+```
+
+#### 📗 Things Learned
+- (fill after completing)
+
+#### 📕 Mistakes Made
+- (fill after completing)
+
+#### 📘 Things to Remember
+- MCP uses Streamable HTTP transport (HTTP+SSE) — NOT WebSocket (deprecated in 2025-03-26 spec)
+- MCP handshake: client sends `initialize` → server responds with capabilities → client sends `initialized`
+- Tool name conflicts across servers: prefix with server name to disambiguate
+- Connection manager must handle app backgrounding — disconnect on background, reconnect on foreground
+- Auto-reconnect uses exponential backoff: 1s → 2s → 4s → 8s → max 30s
+- MCP server auth: optional Bearer token or custom headers — stored in SQLite (NOT SecureStore, these aren't user API keys)
+- Don't block the chat if an MCP server fails — gracefully degrade
+---
+
+### Sprint 18 — Skills System
+> **Goal:** Users can install, create, and share "skill packs" — bundles of system prompt + tool config + rules that create specialized AI personas. Foundation for Sprint 19 (Custom Apps).
+> **Duration:** ~4 hours
+
+#### Prerequisites
+- Sprint 12 (memory), Sprint 13 (rules), Sprint 16 (tools) must be complete
+- Tool registry and rules injection already working
+
+#### Tasks
+- [ ] **18.1** Define skill types (`src/lib/skills/types.ts`)
+  ```typescript
+  interface Skill {
+    id: string;
+    name: string;
+    description: string;
+    icon: string;                    // lucide icon name
+    version: string;                 // semver, e.g. "1.0.0"
+    author?: string;
+    systemPrompt: string;            // injected when skill is active
+    rules?: string;                  // additional rules (appended to user rules)
+    tools?: string[];                // tool names this skill can use (from registry)
+    examplePrompts?: string[];       // suggestion chips when skill is active
+    builtin: boolean;                // shipped with app vs user-created/imported
+    enabled: boolean;
+    createdAt: number;
+  }
+  ```
+- [ ] **18.2** Create skills storage (`src/lib/db/skills.ts`)
+  - SQLite table:
+    ```sql
+    CREATE TABLE IF NOT EXISTS skills (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      icon TEXT DEFAULT 'Sparkles',
+      version TEXT DEFAULT '1.0.0',
+      author TEXT,
+      system_prompt TEXT NOT NULL,
+      rules TEXT,
+      tools TEXT,                 -- JSON array of tool names
+      example_prompts TEXT,       -- JSON array of strings
+      builtin INTEGER DEFAULT 0,
+      enabled INTEGER DEFAULT 1,
+      created_at INTEGER NOT NULL
+    );
+    ```
+  - CRUD: `addSkill()`, `getSkills()`, `getEnabledSkills()`, `updateSkill()`, `deleteSkill()`, `toggleSkill()`
+- [ ] **18.3** Seed built-in skills
+  - "Code Reviewer" — system prompt for code analysis, uses no tools, examples: "Review this function", "Find bugs in..."
+  - "Research Assistant" — system prompt for research, uses `web_search` tool, examples: "Research topic X", "Compare A vs B"
+  - "Creative Writer" — system prompt for creative writing, no tools, examples: "Write a short story about...", "Write a poem..."
+  - "Translator" — system prompt for translation, no tools, examples: "Translate to Hindi: ...", "Translate to Japanese: ..."
+  - "Fitness Coach" — system prompt for fitness advice, no tools, examples: "Create a workout plan", "Meal plan for..."
+  - Built-in skills are read-only — user can disable but not edit or delete
+- [ ] **18.4** Wire skills into system prompt injection
+  - Update `ChatScreen.streamNewResponse()`: compose system prompt as:
+    `[User Rules] → [Active Skill Prompt] → [Active Skill Rules] → [User Memory] → [Custom System Prompt]`
+  - Only inject enabled skills' prompts
+  - If multiple skills enabled, concatenate their prompts (separated by `\n---\n`)
+  - Skill tools: only send tool schemas for tools listed in active skills (scoped tool access)
+- [ ] **18.5** Create skill management screen (`src/app/settings/skills.tsx`)
+  - Header: ArrowLeft + "Skills" + `lucide Plus` add button
+  - Two sections: "Built-in" and "Custom"
+  - Each skill card:
+    - `lucide` icon (from skill.icon) + name (bold) + description (muted)
+    - Toggle switch: enable/disable
+    - Tap card → skill detail bottom sheet (full prompt, rules, tools, examples)
+    - Long-press custom skill → edit/delete options
+  - Empty custom section: "Create or import a skill to customize your AI"
+- [ ] **18.6** Create skill editor (`src/components/skills/SkillEditor.tsx`)
+  - Full-screen modal for creating/editing skills
+  - Fields: name, description, icon picker (grid of common lucide icons), system prompt (multiline), rules (multiline), tool selection (checkboxes from registry), example prompts (tag input)
+  - "Preview" button — shows how the skill's system prompt will look when injected
+  - "Save" button
+- [ ] **18.7** Import/export skills as JSON
+  - Export: `expo-sharing` → share skill as `.skill.json` file
+  - Import: pick JSON file → validate schema → add to custom skills
+  - JSON schema:
+    ```json
+    {
+      "medha_skill": "1.0",
+      "name": "Code Reviewer",
+      "description": "...",
+      "icon": "Code",
+      "systemPrompt": "...",
+      "rules": "...",
+      "tools": ["web_search"],
+      "examplePrompts": ["Review this code", "..."]
+    }
+    ```
+  - Validation: required fields, max prompt length (4000 chars), no executable code
+- [ ] **18.8** Skill activation in chat
+  - In the chat empty state (EmptyState component): show active skill name + icon above suggestion chips
+  - Suggestion chips change to skill's `examplePrompts` when a skill is active
+  - Per-conversation skill selection: store `active_skill_id` in conversations table (new column migration)
+- [ ] **18.9** Verify: skill creation, activation, and import/export
+
+#### How to Test Sprint 18
+```
+✅ Built-in skills appear in skill list (Code Reviewer, Research Assistant, etc.)
+✅ Enable "Code Reviewer" → AI responses focus on code analysis
+✅ Enable "Research Assistant" → AI uses web_search tool automatically
+✅ Create custom skill → appears in custom section
+✅ Edit custom skill → changes reflect in next conversation
+✅ Export skill → generates .skill.json file
+✅ Import .skill.json → skill added to custom list
+✅ Disable skill → its prompt and rules no longer injected
+✅ Skill suggestion chips appear in empty state
+✅ Per-conversation skill persists when reopening chat
+```
+
+#### 📗 Things Learned
+- (fill after completing)
+
+#### 📕 Mistakes Made
+- (fill after completing)
+
+#### 📘 Things to Remember
+- Skills compose with rules and memory — they don't replace them
+- System prompt order: Rules → Skill Prompt → Skill Rules → Memory → Custom System Prompt
+- Scoped tools: skill declares which tools it uses — only those schemas are sent to AI when skill is active
+- Built-in skills are seed data — insert on first run, don't overwrite if user disabled them
+- Import validation: reject skills with suspiciously long prompts (>4000 chars) or unknown tool names
+- `.skill.json` files are shareable — users can distribute via messaging apps or file sharing
+
+---
+
+### Sprint 19 — Custom Apps (GPT-like Personas)
+> **Goal:** Users create shareable "apps" — named personas that bundle a skill, model, icon, and conversation defaults. Like ChatGPT's Custom GPTs but local-first.
+> **Duration:** ~6 hours
+
+#### Prerequisites
+- Sprint 13 (rules), Sprint 18 (skills) must be complete
+- Skill system, tool registry, and rules injection all working
+
+#### Tasks
+- [ ] **19.1** Define app types (`src/lib/apps/types.ts`)
+  ```typescript
+  interface MedhaApp {
+    id: string;
+    name: string;
+    description: string;
+    icon: string;                    // lucide icon name
+    color?: string;                  // accent color for app card (CSS hsl)
+    skillId?: string;                // linked skill (from Sprint 18)
+    model?: string;                  // pinned model ID (e.g. "claude-sonnet-4-20250514")
+    provider?: string;               // pinned provider ID
+    rules?: string;                  // app-specific rules (override global)
+    greeting?: string;               // first message shown when app opens
+    examplePrompts?: string[];       // suggestion chips
+    builtin: boolean;
+    createdAt: number;
+  }
+  ```
+- [ ] **19.2** Create apps storage (`src/lib/db/apps.ts`)
+  - SQLite table:
+    ```sql
+    CREATE TABLE IF NOT EXISTS apps (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      icon TEXT DEFAULT 'Bot',
+      color TEXT,
+      skill_id TEXT,
+      model TEXT,
+      provider TEXT,
+      rules TEXT,
+      greeting TEXT,
+      example_prompts TEXT,       -- JSON array
+      builtin INTEGER DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (skill_id) REFERENCES skills(id) ON DELETE SET NULL
+    );
+    ```
+  - CRUD: `addApp()`, `getApps()`, `getApp()`, `updateApp()`, `deleteApp()`
+- [ ] **19.3** Seed built-in apps
+  - "Medha Default" — no pinned model, no skill, default behavior (icon: `Sparkles`)
+  - "Code Assistant" — links "Code Reviewer" skill, pins to Claude Sonnet 4 (icon: `Code`, color: `hsl(265, 80%, 60%)`)
+  - "Writing Coach" — links "Creative Writer" skill, greeting: "What would you like to write today?" (icon: `Feather`)
+  - "Language Tutor" — links "Translator" skill, rules: "Always correct grammar mistakes" (icon: `Languages`)
+  - "Research Pro" — links "Research Assistant" skill, pins to GPT-4o via OpenRouter (icon: `Search`)
+- [ ] **19.4** Create app launcher screen (`src/app/apps.tsx`)
+  - Grid layout (2 columns) of app cards
+  - Each card: colored icon circle + name + description (2 lines max)
+  - Card style: `bg-surface-container-low`, `border-outline-variant/10`, rounded-2xl, shadow
+  - Tap card → creates new conversation with app's config applied
+  - Long-press → edit/delete (custom apps only), share
+  - "Create App" card at end: dashed border + `lucide Plus` icon
+  - Header: "Apps" + search icon (filters by name)
+- [ ] **19.5** Wire app activation into conversation creation
+  - When user taps an app:
+    1. Create new conversation with `model`, `provider`, `system_prompt` (from linked skill), `rules` pre-set
+    2. If `greeting` is set, insert it as first assistant message
+    3. Navigate to `chat/[id]` with app's `examplePrompts` as suggestion chips
+    4. Store `app_id` on conversation (new column migration)
+  - Active app shown in chat top bar: app icon + name (replaces or sits next to ModelPill)
+- [ ] **19.6** Create app editor (`src/app/apps/create.tsx`)
+  - Full-screen wizard flow (3 steps):
+    1. **Identity**: name, description, icon picker (lucide grid), color picker (preset palette of 8 colors)
+    2. **Behavior**: skill selector (dropdown from Sprint 18 skills), custom rules (multiline), greeting message
+    3. **Model**: provider picker, model picker (from that provider), or "Any model" (user's default)
+  - "Preview" step: shows how the app card will look + test conversation
+  - "Save" button → inserts into SQLite
+  - Edit mode: pre-fills all fields from existing app
+- [ ] **19.7** Add app launcher to drawer
+  - New section in ConversationDrawer: "Apps" row with `lucide Grid3X3` icon
+  - Tap → navigates to app launcher screen
+  - Alternatively: horizontal scroll of app icons at top of drawer (quick access)
+- [ ] **19.8** Import/export apps as JSON
+  - Export: bundles app + linked skill into single `.app.json` file
+    ```json
+    {
+      "medha_app": "1.0",
+      "name": "Code Assistant",
+      "description": "...",
+      "icon": "Code",
+      "color": "hsl(265, 80%, 60%)",
+      "skill": { /* embedded skill JSON from Sprint 18 */ },
+      "model": "claude-sonnet-4-20250514",
+      "provider": "anthropic",
+      "rules": "...",
+      "greeting": "...",
+      "examplePrompts": ["..."]
+    }
+    ```
+  - Import: parse JSON → create skill (if embedded) → create app → link
+  - Share via `expo-sharing`
+- [ ] **19.9** App-scoped conversation history
+  - In drawer: filter conversations by app (show app icon badge on each conversation)
+  - App launcher cards show conversation count: "12 chats" subtitle
+- [ ] **19.10** Verify: app creation, activation, sharing, and conversation flow
+
+#### How to Test Sprint 19
+```
+✅ App launcher shows grid of built-in apps (Medha Default, Code Assistant, etc.)
+✅ Tap "Code Assistant" → new chat with Code Reviewer skill active + Claude pinned
+✅ Greeting message appears as first assistant message
+✅ Suggestion chips show app's example prompts
+✅ App icon + name visible in chat top bar
+✅ Create custom app via wizard → appears in launcher grid
+✅ Edit custom app → changes apply to new conversations (not existing ones)
+✅ Export app → .app.json file with embedded skill
+✅ Import .app.json → app + skill created
+✅ Long-press built-in app → no edit/delete (read-only)
+✅ Drawer shows "Apps" row → navigates to launcher
+✅ Conversations show app badge in drawer list
+```
+
+#### 📗 Things Learned
+- (fill after completing)
+
+#### 📕 Mistakes Made
+- (fill after completing)
+
+#### 📘 Things to Remember
+- Apps are a composition layer — they combine skills, rules, and model preferences into a named persona
+- App ≠ Skill: skill is the behavior (prompt + tools), app is the UX wrapper (icon, greeting, model, skill)
+- Built-in apps reference built-in skills by ID — if skill deleted, app still works but without skill's prompt
+- Greeting is a fake assistant message — it's stored in DB as a regular message, not re-injected on each open
+- App-specific rules override global rules (same as per-conversation rules from Sprint 13)
+- Model pinning is a preference, not a requirement — if user doesn't have the API key, show a warning but allow model switch
+- `.app.json` embeds the full skill — no external references that could break on import
 
 ### Data & Export (Sprints 20–21)
 
