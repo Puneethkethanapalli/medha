@@ -134,8 +134,9 @@ export default function SlashCommandsScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Info */}
-        <Text className="text-on-surface-variant text-[13px] mb-4 px-1">
-          Custom commands appear when you type "/" in the chat input. Built-in commands like /summarize, /code, etc. are always available.
+        <Text className="text-on-surface-variant text-[13px] mb-4 px-1 leading-5">
+          Custom commands appear when you type "/" in the chat input. Built-in commands like /summarize, /code, etc. are always available.{'\n\n'}
+          Slash commands are a UX convenience — they just prepend/transform text before sending to the same streaming pipeline.
         </Text>
 
         {/* Existing custom commands */}

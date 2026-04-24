@@ -128,8 +128,10 @@ export function resolveCommandText(command: SlashCommand, arg: string): string {
         return command.template.replace('{lang}', arg.trim());
       }
       return command.template;
-    case 'prepend':
-      return command.template + arg;
+    case 'prepend': {
+      const needsSpace = !command.template.match(/\s$/);
+      return command.template + (needsSpace ? ' ' : '') + arg;
+    }
     case 'wrap':
       return command.template.replace('{input}', arg);
     default:
