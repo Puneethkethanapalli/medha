@@ -15,6 +15,7 @@ const KEYS = {
   customCommands: 'medha:customCommands',
   webSearchEnabled: 'medha:webSearchEnabled',
   globalRules: 'medha:globalRules',
+  memoryEnabled: 'medha:memoryEnabled',
 };
 
 // Theme
@@ -151,6 +152,17 @@ export const DEFAULT_RULES: RuleItem[] = [
   { id: 'preset-formal', label: 'Use formal tone', description: 'Always use a formal, professional tone. Avoid slang and contractions.', enabled: false, isCustom: false },
 ];
 
+// Memory enabled
+export async function isMemoryEnabled(): Promise<boolean> {
+  const value = await AsyncStorage.getItem(KEYS.memoryEnabled);
+  return value === 'true';
+}
+
+export async function setMemoryEnabled(enabled: boolean): Promise<void> {
+  await AsyncStorage.setItem(KEYS.memoryEnabled, String(enabled));
+  _memoryEnabled = enabled;
+}
+
 // Global rules (stored as JSON array of RuleItem)
 export async function getGlobalRules(): Promise<RuleItem[]> {
   const value = await AsyncStorage.getItem(KEYS.globalRules);
@@ -179,6 +191,7 @@ let _thinkingMode: ThinkingMode = 'auto';
 let _customCommands: StoredCustomCommand[] = [];
 let _webSearchEnabled = false;
 let _globalRules: RuleItem[] = DEFAULT_RULES.map((r) => ({ ...r }));
+let _memoryEnabled = false;
 let _initialized = false;
 
 export function getThemeSync(): Theme {
@@ -217,6 +230,10 @@ export function getGlobalRulesSync(): RuleItem[] {
   return _globalRules;
 }
 
+export function isMemoryEnabledSync(): boolean {
+  return _memoryEnabled;
+}
+
 export async function initStorage(): Promise<void> {
   if (_initialized) return;
   const theme = await getTheme();
@@ -228,6 +245,7 @@ export async function initStorage(): Promise<void> {
   const customCmds = await getCustomCommands();
   const webSearch = await isWebSearchEnabled();
   const globalRules = await getGlobalRules();
+  const memoryEnabled = await isMemoryEnabled();
   _theme = theme;
   _lastModel = lastModel;
   _lastProvider = lastProvider;
@@ -237,5 +255,6 @@ export async function initStorage(): Promise<void> {
   _customCommands = customCmds;
   _webSearchEnabled = webSearch;
   _globalRules = globalRules;
+  _memoryEnabled = memoryEnabled;
   _initialized = true;
 }

@@ -6,7 +6,8 @@
  */
 
 import { getConversation } from '@/lib/db/conversations';
-import { getGlobalRulesSync, type RuleItem, DEFAULT_RULES } from '@/lib/storage/mmkv';
+import { getGlobalRulesSync, type RuleItem, DEFAULT_RULES, isMemoryEnabledSync } from '@/lib/storage/mmkv';
+import { buildMemoryContext } from '@/lib/memory/injector';
 
 /** Parse a rules JSON string into RuleItem array. Falls back to defaults. */
 function parseRules(json: string | null): RuleItem[] {
@@ -54,7 +55,7 @@ export function buildRulesContext(conversationId?: string | null): string {
 
 /**
  * Compose the full system prompt from multiple sources.
- * Order: Rules → Memory (future Sprint 14) → User's custom system prompt
+ * Order: Rules → Memory → User's custom system prompt
  */
 export function composeSystemPrompt(
   conversationId: string | null,
@@ -65,9 +66,11 @@ export function composeSystemPrompt(
   const rules = buildRulesContext(conversationId);
   if (rules) parts.push(rules);
 
-  // Future: memory injection (Sprint 14) goes here
-  // const memory = buildMemoryContext(messages);
-  // if (memory) parts.push(memory);
+  // Memory injection (Sprint 14)
+  if (isMemoryEnabledSync()) {
+    const memory = buildMemoryContext();
+    if (memory) parts.push(memory);
+  }
 
   const custom = customSystemPrompt?.trim();
   if (custom) parts.push(custom);

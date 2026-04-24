@@ -1230,7 +1230,7 @@ These are not in scope for the current phase but documented for later (sprints 1
 - Sprint 12 (tool calling architecture) must be complete — memory uses `save_memory` and `forget_memory` as registered tools
 
 #### Tasks
-- [ ] **14.1** Create memories SQLite table (`src/lib/db/schema.ts` — new migration)
+- [x] **14.1** Create memories SQLite table (`src/lib/db/schema.ts` — new migration)
   ```sql
   CREATE TABLE IF NOT EXISTS memories (
     id TEXT PRIMARY KEY,
@@ -1245,7 +1245,7 @@ These are not in scope for the current phase but documented for later (sprints 1
   CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category);
   CREATE INDEX IF NOT EXISTS idx_memories_hits ON memories(hit_count DESC);
   ```
-- [ ] **14.2** Create memory CRUD (`src/lib/db/memories.ts`)
+- [x] **14.2** Create memory CRUD (`src/lib/db/memories.ts`)
   - `addMemory(content, category?, source?) → id`
   - `getMemories(limit?) → Memory[]` (ordered by hit_count DESC, then updated_at DESC)
   - `getMemoriesByCategory(category) → Memory[]`
@@ -1254,7 +1254,7 @@ These are not in scope for the current phase but documented for later (sprints 1
   - `incrementHitCount(id)` — bumps hit_count + updated_at
   - `searchMemories(query) → Memory[]` — LIKE search on content
   - `getPinnedMemories() → Memory[]`
-- [ ] **14.3** Create memory injection module (`src/lib/memory/injector.ts`)
+- [x] **14.3** Create memory injection module (`src/lib/memory/injector.ts`)
   - `buildMemoryContext(conversationMessages: Message[]) → string`
   - Selects top-N relevant memories (pinned first, then by hit_count, max ~500 tokens worth)
   - Formats as a structured block:
@@ -1267,7 +1267,7 @@ These are not in scope for the current phase but documented for later (sprints 1
     ```
   - Increments `hit_count` for each memory used
   - Injected into system prompt (before user's custom system prompt)
-- [ ] **14.4** Register memory tools in tool registry (`src/lib/tools/memory-tools.ts`)
+- [x] **14.4** Register memory tools in tool registry (`src/lib/tools/memory-tools.ts`)
   - `save_memory` tool:
     - Params: `{ content: string, category?: 'preference' | 'fact' | 'instruction' | 'general' }`
     - Description: "Save a user fact, preference, or instruction for future conversations"
@@ -1277,16 +1277,16 @@ These are not in scope for the current phase but documented for later (sprints 1
     - Description: "Remove a previously saved memory matching the query"
     - Execute: searches memories by query, deletes best match, returns confirmation
   - Register both in `src/lib/tools/registry.ts` alongside `web_search`
-- [ ] **14.5** Add memory instruction to system prompt
+- [x] **14.5** Add memory instruction to system prompt
   - Append to system prompt: "You have access to memory tools. When the user shares a personal preference, fact about themselves, or instruction for future conversations, use the save_memory tool to remember it. When they ask you to forget something, use the forget_memory tool."
   - This replaces the old regex-based detection — the AI decides when to save memories naturally
   - Memory tools are always available (not gated by the search toggle)
-- [ ] **14.6** Wire memory injection into streaming pipeline (`src/components/chat/ChatScreen.tsx`)
+- [x] **14.6** Wire memory injection into streaming pipeline (`src/components/chat/ChatScreen.tsx`)
   - In `streamNewResponse()`: call `buildMemoryContext()` before building the request
   - Prepend memory context to `systemPrompt` in `StreamConfig`
   - Only inject if user has memories (skip empty)
   - Memory tools included in tool schemas for every request (when memory is enabled)
-- [ ] **14.7** Create memory management screen (`src/app/settings/memories.tsx`)
+- [x] **14.7** Create memory management screen (`src/app/settings/memories.tsx`)
   - New route accessible from Settings drawer item
   - Header: ArrowLeft + "Memories" + memory count badge
   - List of memory cards, each showing:
@@ -1298,10 +1298,10 @@ These are not in scope for the current phase but documented for later (sprints 1
   - "Add Memory" FAB → modal with text input + category picker
   - Search bar at top (filters memories by content)
   - Empty state: `lucide Brain` icon + "No memories yet" + description text
-- [ ] **14.8** Add memory toggle to settings
+- [x] **14.8** Add memory toggle to settings
   - Global toggle in settings: "Memory" on/off (persisted in MMKV)
   - When off, `buildMemoryContext()` returns empty string and memory tools are not registered
-- [ ] **14.9** Verify: memory creation via tool calling, injection, and management
+- [x] **14.9** Verify: memory creation via tool calling, injection, and management
 
 #### How to Test Sprint 14
 ```
@@ -1320,10 +1320,16 @@ These are not in scope for the current phase but documented for later (sprints 1
 ```
 
 #### 📗 Things Learned
-- (fill after completing)
+- **Tool-based memory is elegant** — no regex, no heuristics, no fragile parsing. The AI itself decides what's worth remembering using the same tool architecture as web search.
+- **Scoped tool schemas prevent token waste** — by passing `activeToolNames` to `getOpenAIToolSchemas()`, only the relevant tools are sent to the API. When memory is off, `save_memory`/`forget_memory` aren't in the request at all.
+- **Order in system prompt matters** — `[User Rules] → [User Memory] → [Custom Prompt]` is the right hierarchy. Rules set behavior, memory provides context, custom prompt is the fine-tuning.
+- **Pinned + hit_count ranking is simple but effective** — no need for embeddings or vector search at this scale. For <1000 memories, SQLite + simple heuristics work perfectly.
+- **Conditional tool registration avoids side effects** — memory tools are registered at app startup but only included in API calls when `memoryEnabled` is true. This lets us toggle without re-registering.
 
 #### 📕 Mistakes Made
-- (fill after completing)
+- **Initially forgot to update `initStorage()` to hydrate `memoryEnabled`** — the sync value was always `false` on first render until the settings store initialize ran. Fixed by adding `isMemoryEnabled()` call in `initStorage()`.
+- **Forgot to add `memoryEnabled` to the `streamNewResponse` dependency array** — React warned about stale closures. Added to the `useCallback` deps.
+- **Had to redesign the tool config to support selective tool inclusion** — originally `getOpenAIToolSchemas()` returned ALL registered tools, but that would send memory tools even when memory was disabled. Updated to accept optional `toolNames` parameter.
 
 #### 📘 Things to Remember
 - Memory tools use the same tool architecture as web search (Sprint 12) — no special plumbing needed
@@ -1332,8 +1338,9 @@ These are not in scope for the current phase but documented for later (sprints 1
 - Keep total injected memory under ~500 tokens to avoid eating context window
 - Hit count is a proxy for relevance — higher hit = more useful = inject first
 - Pinned memories bypass hit_count ranking — always injected
-- Memory tools are always active (not behind search toggle) — they're a core feature
+- Memory tools are always registered at startup but only sent to API when enabled
 - SQLite LIKE search is fine for <1000 memories — upgrade to FTS5 only if needed
+- `activeToolNames` filtering in `getOpenAIToolSchemas()` prevents sending disabled tools to the API
 
 ---
 

@@ -91,4 +91,20 @@ export function initializeDatabase(): void {
   } catch {
     // Column already exists — ignore
   }
+
+  // Create memories table (Sprint 14)
+  database.runSync(`
+    CREATE TABLE IF NOT EXISTS memories (
+      id TEXT PRIMARY KEY,
+      content TEXT NOT NULL,
+      category TEXT DEFAULT 'general',
+      source TEXT,
+      hit_count INTEGER DEFAULT 0,
+      pinned INTEGER DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )
+  `);
+  database.runSync('CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category)');
+  database.runSync('CREATE INDEX IF NOT EXISTS idx_memories_hits ON memories(hit_count DESC)');
 }

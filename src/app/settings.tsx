@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Pressable, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
-import { ArrowLeft, Key, MessageSquare, Palette, Zap, SlidersHorizontal } from 'lucide-react-native';
+import { ArrowLeft, Key, MessageSquare, Palette, Zap, SlidersHorizontal, Brain } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useUIStore } from '@/stores/ui-store';
 
@@ -39,6 +39,12 @@ export default function SettingsScreen() {
       label: 'Rules & Instructions',
       description: 'Custom instructions for the AI',
       onPress: () => router.push('/settings/rules' as any),
+    },
+    {
+      icon: Brain,
+      label: 'Memories',
+      description: 'Manage what the AI remembers',
+      onPress: () => router.push('/settings/memories' as any),
     },
     {
       icon: Palette,

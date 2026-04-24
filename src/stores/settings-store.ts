@@ -10,6 +10,7 @@ interface SettingsState {
   thinkingMode: ThinkingMode;
   webSearchEnabled: boolean;
   globalRules: RuleItem[];
+  memoryEnabled: boolean;
   isInitialized: boolean;
 }
 
@@ -22,6 +23,7 @@ interface SettingsActions {
   setThinkingMode: (mode: ThinkingMode) => Promise<void>;
   setWebSearchEnabled: (enabled: boolean) => Promise<void>;
   setGlobalRules: (rules: RuleItem[]) => Promise<void>;
+  setMemoryEnabled: (enabled: boolean) => Promise<void>;
   validateApiKey: (provider: string, key: string) => Promise<boolean>;
   initialize: () => Promise<void>;
 }
@@ -54,6 +56,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
   thinkingMode: 'auto' as ThinkingMode,
   webSearchEnabled: false,
   globalRules: [],
+  memoryEnabled: false,
   isInitialized: false,
 
   // Actions
@@ -105,6 +108,12 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
     set({ globalRules: rules });
   },
 
+  setMemoryEnabled: async (enabled) => {
+    await loadModules();
+    await mmkv!.setMemoryEnabled(enabled);
+    set({ memoryEnabled: enabled });
+  },
+
   validateApiKey: async (providerId, key) => {
     const provider = getProviderInstance(providerId);
     if (!provider) return false;
@@ -123,6 +132,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
       thinkingMode: mmkv!.getThinkingModeSync(),
       webSearchEnabled: mmkv!.isWebSearchEnabledSync(),
       globalRules: mmkv!.getGlobalRulesSync(),
+      memoryEnabled: mmkv!.isMemoryEnabledSync(),
       isInitialized: true,
     });
   },

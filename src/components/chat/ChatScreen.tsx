@@ -26,6 +26,7 @@ import { getApiKey } from '@/lib/storage/secure';
 import { getProvider, registerBuiltInProviders, listProviders } from '@/lib/providers/registry';
 import { registerTool, listTools, getOpenAIToolSchemas, getAnthropicToolSchemas, getTool } from '@/lib/tools/registry';
 import { webSearchTool } from '@/lib/tools/web-search';
+import { saveMemoryTool, forgetMemoryTool } from '@/lib/tools/memory-tools';
 import { composeSystemPrompt } from '@/lib/rules/injector';
 import type { AccumulatedToolCall } from '@/lib/streaming/stream';
 import { useRouter } from 'expo-router';
@@ -59,6 +60,7 @@ export const ChatScreen = React.memo(function ChatScreen({
   const lastProvider = useSettingsStore((s) => s.lastProvider);
   const thinkingMode = useSettingsStore((s) => s.thinkingMode);
   const webSearchEnabled = useSettingsStore((s) => s.webSearchEnabled);
+  const memoryEnabled = useSettingsStore((s) => s.memoryEnabled);
 
   const {
     startStreaming,
@@ -76,6 +78,13 @@ export const ChatScreen = React.memo(function ChatScreen({
     // Register built-in tools
     if (listTools().length === 0) {
       registerTool(webSearchTool);
+    }
+    // Memory tools are always registered — they're core functionality
+    if (!getTool('save_memory')) {
+      registerTool(saveMemoryTool);
+    }
+    if (!getTool('forget_memory')) {
+      registerTool(forgetMemoryTool);
     }
   }, []);
 
@@ -156,10 +165,19 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       const model = lastModel || getDefaultModel(providerId);
       const conversation = getConversation(convId);
-      const systemPrompt = composeSystemPrompt(
+      let systemPrompt = composeSystemPrompt(
         convId,
         conversation?.system_prompt
       );
+
+      // Append memory tool instruction when memory is enabled
+      if (memoryEnabled) {
+        const memoryInstruction =
+          'You have access to memory tools. When the user shares a personal preference, fact about themselves, or instruction for future conversations, use the save_memory tool to remember it. When they ask you to forget something, use the forget_memory tool.';
+        systemPrompt = systemPrompt
+          ? `${systemPrompt}\n\n${memoryInstruction}`
+          : memoryInstruction;
+      }
 
       // Create placeholder assistant message
       const assistantMsgId = addMessage(convId, 'assistant', '', model);
@@ -187,12 +205,18 @@ export const ChatScreen = React.memo(function ChatScreen({
         (m) => m.role !== 'system' && m.id !== assistantMsgId
       );
 
-      // Build tool config — only when web search is enabled
-      const useTools = webSearchEnabled && listTools().length > 0;
+      // Build tool config — web search when enabled, memory tools always
+      const useTools = (webSearchEnabled || memoryEnabled) && listTools().length > 0;
+      const activeToolNames: string[] = [];
+      if (webSearchEnabled) activeToolNames.push('web_search');
+      if (memoryEnabled) {
+        activeToolNames.push('save_memory');
+        activeToolNames.push('forget_memory');
+      }
       const toolConfig = useTools
         ? {
-            tools: getOpenAIToolSchemas(),
-            anthropicTools: providerId === 'anthropic' ? getAnthropicToolSchemas() : undefined,
+            tools: getOpenAIToolSchemas(activeToolNames),
+            anthropicTools: providerId === 'anthropic' ? getAnthropicToolSchemas(activeToolNames) : undefined,
           }
         : {};
 
@@ -317,7 +341,7 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       abortRef.current = response;
     },
-    [lastModel, lastProvider, thinkingMode, webSearchEnabled, startStreaming, appendToken, appendReasoningToken, stopStreaming, setError]
+    [lastModel, lastProvider, thinkingMode, webSearchEnabled, memoryEnabled, startStreaming, appendToken, appendReasoningToken, stopStreaming, setError]
   );
 
   const handleSend = useCallback(
