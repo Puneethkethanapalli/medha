@@ -863,13 +863,13 @@ CREATE INDEX idx_conversations_updated ON conversations(updated_at DESC);
 | **12** | Tool calling architecture + web search | ~4h | 41h |
 | **13** | Rules & instructions | ~2h | 43h |
 | **14** | Persistent memory system (tool-based) | ~4h | 47h |
-| **15** | MCP server support | ~6h | 53h |
-| **16** | Skills system | ~4h | 57h |
-| **17** | Custom apps (GPT-like personas) | ~6h | 63h |
-| **18** | Token & cost estimator | ~3h | 66h |
-| **19** | Document intelligence (PDF, DOCX, XLSX) | ~3h | 69h |
-| **20** | Image generation & rich output | ~5h | 74h |
-| **21** | Model capability badges | ~2h | 76h |
+| **15** | Document intelligence (PDF, DOCX, XLSX) | ~3h | 50h |
+| **16** | Image generation & rich output | ~5h | 55h |
+| **17** | Model capability badges | ~2h | 57h |
+| **18** | Token & cost estimator | ~3h | 60h |
+| **19** | Skills system | ~4h | 64h |
+| **20** | Custom apps (GPT-like personas) | ~6h | 70h |
+| **21** | MCP server support | ~6h | 76h |
 
 **Total: ~76 hours** (MVP at 24h + post-MVP features at 52h)
 
@@ -1044,7 +1044,7 @@ These are not in scope for the current phase but documented for later (sprints 2
 ---
 
 ### Sprint 12 — Tool Calling Architecture + Web Search
-> **Goal:** First tool integration. AI can search the web via function calling, display results inline, and cite sources. Establishes the tool architecture used by Sprint 14 (Memory), Sprint 15 (MCP), and Sprint 16 (Skills).
+> **Goal:** First tool integration. AI can search the web via function calling, display results inline, and cite sources. Establishes the tool architecture used by Sprint 14 (Memory), Sprint 19 (Skills), and Sprint 21 (MCP).
 > **Duration:** ~4 hours
 
 #### Tasks
@@ -1347,509 +1347,7 @@ These are not in scope for the current phase but documented for later (sprints 2
 
 ---
 
-### Sprint 15 — MCP Server Support
-> **Goal:** Implement an MCP (Model Context Protocol) client so users can connect to external tool servers. Extends the Sprint 12 tool architecture with remote tool discovery and execution.
-> **Duration:** ~6 hours
-
-#### Prerequisites
-- Sprint 12 tool system (types, registry, tool call loop) must be complete
-- Tool rendering and SSE tool call parsing already implemented
-
-#### Tasks
-- [ ] **15.1** Create MCP client module (`src/lib/mcp/client.ts`)
-  - Implements MCP client protocol over HTTP+SSE (Streamable HTTP transport)
-  - `MCPClient` class:
-    - `connect(serverUrl: string, headers?: Record<string, string>) → Promise<void>`
-    - `disconnect() → void`
-    - `listTools() → Promise<MCPToolSchema[]>`
-    - `callTool(name: string, args: Record<string, unknown>) → Promise<MCPToolResult>`
-    - `isConnected() → boolean`
-  - MCP transport: HTTP POST for requests, SSE for streaming responses
-  - Handles `initialize` → `initialized` handshake
-  - Protocol version: `2025-03-26` (latest stable)
-- [ ] **15.2** Create MCP-to-tool bridge (`src/lib/mcp/bridge.ts`)
-  - Converts `MCPToolSchema` (MCP format) → `ToolDefinition` (Sprint 12 format)
-  - Wraps `MCPClient.callTool()` as `ToolDefinition.execute()`
-  - Auto-registers MCP tools into the tool registry from Sprint 12
-  - Handles tool name conflicts: prefix with server name (e.g., `weather.get_forecast`)
-- [ ] **15.3** Create MCP server config storage (`src/lib/mcp/config.ts`)
-  - Store server configs in SQLite:
-    ```sql
-    CREATE TABLE IF NOT EXISTS mcp_servers (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      url TEXT NOT NULL,
-      headers TEXT,              -- JSON: optional auth headers
-      enabled INTEGER DEFAULT 1,
-      auto_connect INTEGER DEFAULT 1,
-      created_at INTEGER NOT NULL
-    );
-    ```
-  - CRUD: `addServer()`, `getServers()`, `updateServer()`, `deleteServer()`, `toggleServer()`
-- [ ] **15.4** Create MCP connection manager (`src/lib/mcp/manager.ts`)
-  - Manages multiple MCPClient instances (one per configured server)
-  - `connectAll()` — connects to all enabled servers with `auto_connect = 1`
-  - `disconnectAll()` — cleanup on app background/exit
-  - Connection state tracking per server: `connecting | connected | error | disconnected`
-  - Auto-reconnect with exponential backoff on connection loss
-  - Emits state changes via Zustand store
-- [ ] **15.5** Create MCP store (`src/stores/mcp-store.ts`)
-  - Zustand store for MCP state:
-    ```typescript
-    interface MCPState {
-      servers: MCPServerConfig[];
-      connectionStates: Record<string, 'connecting' | 'connected' | 'error' | 'disconnected'>;
-      availableTools: ToolDefinition[];  // aggregated from all connected servers
-      initialize: () => Promise<void>;
-      addServer: (name: string, url: string, headers?: Record<string, string>) => Promise<void>;
-      removeServer: (id: string) => Promise<void>;
-      toggleServer: (id: string) => Promise<void>;
-      reconnect: (id: string) => Promise<void>;
-    }
-    ```
-- [ ] **15.6** Create MCP server management screen (`src/app/settings/mcp-servers.tsx`)
-  - Header: ArrowLeft + "MCP Servers" + `lucide Plus` add button
-  - Server list, each card showing:
-    - Server name (14sp bold) + URL (12sp muted, truncated)
-    - Connection status indicator: green dot (connected), yellow dot (connecting), red dot (error), gray dot (disabled)
-    - Tool count badge: "3 tools" in `bg-muted` pill
-    - Toggle switch: enable/disable
-    - Swipe-to-delete with confirmation
-  - "Add Server" bottom sheet:
-    - Name input, URL input, optional headers (key-value pairs)
-    - "Test Connection" button → attempts connect, shows tool count on success
-    - "Save" button
-  - Curated server list section ("Popular Servers"):
-    - Pre-filled entries user can one-tap add:
-      - "Brave Search" — `https://mcp.bravesearch.com/sse`
-      - "Calculator" — basic math MCP server
-    - Each with description + "Add" button
-  - Empty state: `lucide Plug` icon + "Connect to MCP servers to extend AI capabilities"
-- [ ] **15.7** Wire MCP tools into ChatScreen tool loop
-  - On app startup: `MCPManager.connectAll()` → discover tools → register in tool registry
-  - MCP tools appear alongside built-in tools (web search) in tool schemas sent to AI
-  - Tool call flow: AI requests tool → registry resolves → if MCP tool, routes through MCPClient
-  - Tool result rendering: same `SearchResults`/inline display as Sprint 12
-- [ ] **15.8** Add MCP tool indicator to chat UI
-  - When MCP tools are active, show `lucide Plug` badge in top bar (next to search globe)
-  - Tap → shows list of connected servers + available tools
-  - During tool execution: show server name in "Running tool..." indicator
-- [ ] **15.9** Handle MCP errors gracefully
-  - Server unreachable → show error in server card, skip its tools (don't block chat)
-  - Tool execution timeout (30s) → cancel and show error in chat
-  - Invalid tool result → show raw error to user, continue conversation
-  - Server disconnects mid-conversation → toast notification, remove its tools from active set
-- [ ] **15.10** Verify: MCP server connection, tool discovery, and execution
-
-#### How to Test Sprint 15
-```
-✅ Add MCP server via URL → connects, shows tool count
-✅ Server card shows green dot when connected
-✅ AI can call MCP tools during conversation
-✅ Tool results render inline in chat
-✅ Disable server → its tools no longer available to AI
-✅ Delete server → removed from list and disconnected
-✅ Server goes down → error state shown, chat continues without its tools
-✅ App restart → auto-connects to enabled servers
-✅ "Test Connection" verifies server before saving
-✅ Multiple servers work simultaneously
-```
-
-#### 📗 Things Learned
-- (fill after completing)
-
-#### 📕 Mistakes Made
-- (fill after completing)
-
-#### 📘 Things to Remember
-- MCP uses Streamable HTTP transport (HTTP+SSE) — NOT WebSocket (deprecated in 2025-03-26 spec)
-- MCP handshake: client sends `initialize` → server responds with capabilities → client sends `initialized`
-- Tool name conflicts across servers: prefix with server name to disambiguate
-- Connection manager must handle app backgrounding — disconnect on background, reconnect on foreground
-- Auto-reconnect uses exponential backoff: 1s → 2s → 4s → 8s → max 30s
-- MCP server auth: optional Bearer token or custom headers — stored in SQLite (NOT SecureStore, these aren't user API keys)
-- Don't block the chat if an MCP server fails — gracefully degrade
----
-
-### Sprint 16 — Skills System
-> **Goal:** Users can install, create, and share "skill packs" — bundles of system prompt + tool config + rules that create specialized AI personas. Foundation for Sprint 17 (Custom Apps).
-> **Duration:** ~4 hours
-
-#### Prerequisites
-- Sprint 14 (memory), Sprint 13 (rules), Sprint 12 (tools) must be complete
-- Tool registry and rules injection already working
-
-#### Tasks
-- [ ] **16.1** Define skill types (`src/lib/skills/types.ts`)
-  ```typescript
-  interface Skill {
-    id: string;
-    name: string;
-    description: string;
-    icon: string;                    // lucide icon name
-    version: string;                 // semver, e.g. "1.0.0"
-    author?: string;
-    systemPrompt: string;            // injected when skill is active
-    rules?: string;                  // additional rules (appended to user rules)
-    tools?: string[];                // tool names this skill can use (from registry)
-    examplePrompts?: string[];       // suggestion chips when skill is active
-    builtin: boolean;                // shipped with app vs user-created/imported
-    enabled: boolean;
-    createdAt: number;
-  }
-  ```
-- [ ] **16.2** Create skills storage (`src/lib/db/skills.ts`)
-  - SQLite table:
-    ```sql
-    CREATE TABLE IF NOT EXISTS skills (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      description TEXT,
-      icon TEXT DEFAULT 'Sparkles',
-      version TEXT DEFAULT '1.0.0',
-      author TEXT,
-      system_prompt TEXT NOT NULL,
-      rules TEXT,
-      tools TEXT,                 -- JSON array of tool names
-      example_prompts TEXT,       -- JSON array of strings
-      builtin INTEGER DEFAULT 0,
-      enabled INTEGER DEFAULT 1,
-      created_at INTEGER NOT NULL
-    );
-    ```
-  - CRUD: `addSkill()`, `getSkills()`, `getEnabledSkills()`, `updateSkill()`, `deleteSkill()`, `toggleSkill()`
-- [ ] **16.3** Seed built-in skills
-  - "Code Reviewer" — system prompt for code analysis, uses no tools, examples: "Review this function", "Find bugs in..."
-  - "Research Assistant" — system prompt for research, uses `web_search` tool, examples: "Research topic X", "Compare A vs B"
-  - "Creative Writer" — system prompt for creative writing, no tools, examples: "Write a short story about...", "Write a poem..."
-  - "Translator" — system prompt for translation, no tools, examples: "Translate to Hindi: ...", "Translate to Japanese: ..."
-  - "Fitness Coach" — system prompt for fitness advice, no tools, examples: "Create a workout plan", "Meal plan for..."
-  - Built-in skills are read-only — user can disable but not edit or delete
-- [ ] **16.4** Wire skills into system prompt injection
-  - Update `ChatScreen.streamNewResponse()`: compose system prompt as:
-    `[User Rules] → [Active Skill Prompt] → [Active Skill Rules] → [User Memory] → [Custom System Prompt]`
-  - Only inject enabled skills' prompts
-  - If multiple skills enabled, concatenate their prompts (separated by `\n---\n`)
-  - Skill tools: only send tool schemas for tools listed in active skills (scoped tool access)
-- [ ] **16.5** Create skill management screen (`src/app/settings/skills.tsx`)
-  - Header: ArrowLeft + "Skills" + `lucide Plus` add button
-  - Two sections: "Built-in" and "Custom"
-  - Each skill card:
-    - `lucide` icon (from skill.icon) + name (bold) + description (muted)
-    - Toggle switch: enable/disable
-    - Tap card → skill detail bottom sheet (full prompt, rules, tools, examples)
-    - Long-press custom skill → edit/delete options
-  - Empty custom section: "Create or import a skill to customize your AI"
-- [ ] **16.6** Create skill editor (`src/components/skills/SkillEditor.tsx`)
-  - Full-screen modal for creating/editing skills
-  - Fields: name, description, icon picker (grid of common lucide icons), system prompt (multiline), rules (multiline), tool selection (checkboxes from registry), example prompts (tag input)
-  - "Preview" button — shows how the skill's system prompt will look when injected
-  - "Save" button
-- [ ] **16.7** Import/export skills as JSON
-  - Export: `expo-sharing` → share skill as `.skill.json` file
-  - Import: pick JSON file → validate schema → add to custom skills
-  - JSON schema:
-    ```json
-    {
-      "medha_skill": "1.0",
-      "name": "Code Reviewer",
-      "description": "...",
-      "icon": "Code",
-      "systemPrompt": "...",
-      "rules": "...",
-      "tools": ["web_search"],
-      "examplePrompts": ["Review this code", "..."]
-    }
-    ```
-  - Validation: required fields, max prompt length (4000 chars), no executable code
-- [ ] **16.8** Skill activation in chat
-  - In the chat empty state (EmptyState component): show active skill name + icon above suggestion chips
-  - Suggestion chips change to skill's `examplePrompts` when a skill is active
-  - Per-conversation skill selection: store `active_skill_id` in conversations table (new column migration)
-- [ ] **16.9** Verify: skill creation, activation, and import/export
-
-#### How to Test Sprint 16
-```
-✅ Built-in skills appear in skill list (Code Reviewer, Research Assistant, etc.)
-✅ Enable "Code Reviewer" → AI responses focus on code analysis
-✅ Enable "Research Assistant" → AI uses web_search tool automatically
-✅ Create custom skill → appears in custom section
-✅ Edit custom skill → changes reflect in next conversation
-✅ Export skill → generates .skill.json file
-✅ Import .skill.json → skill added to custom list
-✅ Disable skill → its prompt and rules no longer injected
-✅ Skill suggestion chips appear in empty state
-✅ Per-conversation skill persists when reopening chat
-```
-
-#### 📗 Things Learned
-- (fill after completing)
-
-#### 📕 Mistakes Made
-- (fill after completing)
-
-#### 📘 Things to Remember
-- Skills compose with rules and memory — they don't replace them
-- System prompt order: Rules → Skill Prompt → Skill Rules → Memory → Custom System Prompt
-- Scoped tools: skill declares which tools it uses — only those schemas are sent to AI when skill is active
-- Built-in skills are seed data — insert on first run, don't overwrite if user disabled them
-- Import validation: reject skills with suspiciously long prompts (>4000 chars) or unknown tool names
-- `.skill.json` files are shareable — users can distribute via messaging apps or file sharing
-
----
-
-### Sprint 17 — Custom Apps (GPT-like Personas)
-> **Goal:** Users create shareable "apps" — named personas that bundle a skill, model, icon, and conversation defaults. Like ChatGPT's Custom GPTs but local-first.
-> **Duration:** ~6 hours
-
-#### Prerequisites
-- Sprint 13 (rules), Sprint 16 (skills) must be complete
-- Skill system, tool registry, and rules injection all working
-
-#### Tasks
-- [ ] **17.1** Define app types (`src/lib/apps/types.ts`)
-  ```typescript
-  interface MedhaApp {
-    id: string;
-    name: string;
-    description: string;
-    icon: string;                    // lucide icon name
-    color?: string;                  // accent color for app card (CSS hsl)
-    skillId?: string;                // linked skill (from Sprint 16)
-    model?: string;                  // pinned model ID (e.g. "claude-sonnet-4-20250514")
-    provider?: string;               // pinned provider ID
-    rules?: string;                  // app-specific rules (override global)
-    greeting?: string;               // first message shown when app opens
-    examplePrompts?: string[];       // suggestion chips
-    builtin: boolean;
-    createdAt: number;
-  }
-  ```
-- [ ] **17.2** Create apps storage (`src/lib/db/apps.ts`)
-  - SQLite table:
-    ```sql
-    CREATE TABLE IF NOT EXISTS apps (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      description TEXT,
-      icon TEXT DEFAULT 'Bot',
-      color TEXT,
-      skill_id TEXT,
-      model TEXT,
-      provider TEXT,
-      rules TEXT,
-      greeting TEXT,
-      example_prompts TEXT,       -- JSON array
-      builtin INTEGER DEFAULT 0,
-      created_at INTEGER NOT NULL,
-      FOREIGN KEY (skill_id) REFERENCES skills(id) ON DELETE SET NULL
-    );
-    ```
-  - CRUD: `addApp()`, `getApps()`, `getApp()`, `updateApp()`, `deleteApp()`
-- [ ] **17.3** Seed built-in apps
-  - "Medha Default" — no pinned model, no skill, default behavior (icon: `Sparkles`)
-  - "Code Assistant" — links "Code Reviewer" skill, pins to Claude Sonnet 4 (icon: `Code`, color: `hsl(265, 80%, 60%)`)
-  - "Writing Coach" — links "Creative Writer" skill, greeting: "What would you like to write today?" (icon: `Feather`)
-  - "Language Tutor" — links "Translator" skill, rules: "Always correct grammar mistakes" (icon: `Languages`)
-  - "Research Pro" — links "Research Assistant" skill, pins to GPT-4o via OpenRouter (icon: `Search`)
-- [ ] **17.4** Create app launcher screen (`src/app/apps.tsx`)
-  - Grid layout (2 columns) of app cards
-  - Each card: colored icon circle + name + description (2 lines max)
-  - Card style: `bg-surface-container-low`, `border-outline-variant/10`, rounded-2xl, shadow
-  - Tap card → creates new conversation with app's config applied
-  - Long-press → edit/delete (custom apps only), share
-  - "Create App" card at end: dashed border + `lucide Plus` icon
-  - Header: "Apps" + search icon (filters by name)
-- [ ] **17.5** Wire app activation into conversation creation
-  - When user taps an app:
-    1. Create new conversation with `model`, `provider`, `system_prompt` (from linked skill), `rules` pre-set
-    2. If `greeting` is set, insert it as first assistant message
-    3. Navigate to `chat/[id]` with app's `examplePrompts` as suggestion chips
-    4. Store `app_id` on conversation (new column migration)
-  - Active app shown in chat top bar: app icon + name (replaces or sits next to ModelPill)
-- [ ] **17.6** Create app editor (`src/app/apps/create.tsx`)
-  - Full-screen wizard flow (3 steps):
-    1. **Identity**: name, description, icon picker (lucide grid), color picker (preset palette of 8 colors)
-    2. **Behavior**: skill selector (dropdown from Sprint 16 skills), custom rules (multiline), greeting message
-    3. **Model**: provider picker, model picker (from that provider), or "Any model" (user's default)
-  - "Preview" step: shows how the app card will look + test conversation
-  - "Save" button → inserts into SQLite
-  - Edit mode: pre-fills all fields from existing app
-- [ ] **17.7** Add app launcher to drawer
-  - New section in ConversationDrawer: "Apps" row with `lucide Grid3X3` icon
-  - Tap → navigates to app launcher screen
-  - Alternatively: horizontal scroll of app icons at top of drawer (quick access)
-- [ ] **17.8** Import/export apps as JSON
-  - Export: bundles app + linked skill into single `.app.json` file
-    ```json
-    {
-      "medha_app": "1.0",
-      "name": "Code Assistant",
-      "description": "...",
-      "icon": "Code",
-      "color": "hsl(265, 80%, 60%)",
-      "skill": { /* embedded skill JSON from Sprint 16 */ },
-      "model": "claude-sonnet-4-20250514",
-      "provider": "anthropic",
-      "rules": "...",
-      "greeting": "...",
-      "examplePrompts": ["..."]
-    }
-    ```
-  - Import: parse JSON → create skill (if embedded) → create app → link
-  - Share via `expo-sharing`
-- [ ] **17.9** App-scoped conversation history
-  - In drawer: filter conversations by app (show app icon badge on each conversation)
-  - App launcher cards show conversation count: "12 chats" subtitle
-- [ ] **17.10** Verify: app creation, activation, sharing, and conversation flow
-
-#### How to Test Sprint 17
-```
-✅ App launcher shows grid of built-in apps (Medha Default, Code Assistant, etc.)
-✅ Tap "Code Assistant" → new chat with Code Reviewer skill active + Claude pinned
-✅ Greeting message appears as first assistant message
-✅ Suggestion chips show app's example prompts
-✅ App icon + name visible in chat top bar
-✅ Create custom app via wizard → appears in launcher grid
-✅ Edit custom app → changes apply to new conversations (not existing ones)
-✅ Export app → .app.json file with embedded skill
-✅ Import .app.json → app + skill created
-✅ Long-press built-in app → no edit/delete (read-only)
-✅ Drawer shows "Apps" row → navigates to launcher
-✅ Conversations show app badge in drawer list
-```
-
-#### 📗 Things Learned
-- (fill after completing)
-
-#### 📕 Mistakes Made
-- (fill after completing)
-
-#### 📘 Things to Remember
-- Apps are a composition layer — they combine skills, rules, and model preferences into a named persona
-- App ≠ Skill: skill is the behavior (prompt + tools), app is the UX wrapper (icon, greeting, model, skill)
-- Built-in apps reference built-in skills by ID — if skill deleted, app still works but without skill's prompt
-- Greeting is a fake assistant message — it's stored in DB as a regular message, not re-injected on each open
-- App-specific rules override global rules (same as per-conversation rules from Sprint 13)
-- Model pinning is a preference, not a requirement — if user doesn't have the API key, show a warning but allow model switch
-- `.app.json` embeds the full skill — no external references that could break on import
-
----
-
-### Sprint 18 — Token & Cost Estimator
-> **Goal:** Users see estimated token counts before sending, per-message token usage after responses, per-conversation cost tracking, and a usage dashboard. Tracks all token usage including tool calls and MCP tool execution.
-> **Duration:** ~3 hours
-
-#### Tasks
-- [ ] **18.1** Create tokenizer utility (`src/lib/tokens/estimator.ts`)
-  - **Do NOT bundle a full tokenizer** (tiktoken WASM is 4MB+ and breaks RN)
-  - Use a simple heuristic estimator: `estimateTokens(text: string) → number`
-    - English: ~4 chars per token (GPT) or ~3.5 chars per token (Claude/Gemini)
-    - Formula: `Math.ceil(text.length / 3.75)` (averaged across providers)
-  - Also export `estimateMessageTokens(messages: Message[], systemPrompt?: string) → number` — sums all message content + system prompt
-  - Accurate enough for cost estimation (within ~15% of real tokenizer)
-- [ ] **18.2** Create model pricing data (`src/lib/tokens/pricing.ts`)
-  - Static pricing map keyed by model ID (or prefix pattern):
-    ```typescript
-    interface ModelPricing {
-      promptPer1M: number;      // USD per 1M input tokens
-      completionPer1M: number;  // USD per 1M output tokens
-    }
-    ```
-  - Populate from OpenRouter/Anthropic/Google pricing pages
-  - Fallback: use pricing from OpenRouter `listModels()` response (already parsed in `Model.pricing`)
-  - `getModelPricing(modelId: string) → ModelPricing | null`
-  - Cache pricing from API responses in MMKV
-- [ ] **18.3** Add live token counter to InputBar (`src/components/chat/InputBar.tsx`)
-  - Small token count badge below the text input (right-aligned)
-  - Shows: `~{n} tokens` in `text-muted-foreground` (12sp)
-  - Updates on text change (debounced 300ms via `useMemo` or `useCallback`)
-  - Includes: system prompt tokens + memory tokens + all message history tokens + current input
-  - Color coding: normal (muted) → yellow (>75% of model context window) → red (>90%)
-  - Tap → shows breakdown tooltip: "Input: ~X | History: ~Y | System: ~Z"
-- [ ] **18.4** Add per-message token display to MessageBubble (`src/components/chat/MessageBubble.tsx`)
-  - Below each assistant message: small muted text showing token usage
-  - Format: `~{input}↑ ~{output}↓` (estimated input/output tokens)
-  - For messages with `tokens_used` from API → show actual count instead of estimate
-  - Only visible on tap (or always visible as a user preference toggle)
-- [ ] **18.5** Extract actual token usage from API responses
-  - Update `streamCompletion()` to capture `usage` object from the final SSE event
-  - OpenAI/OpenRouter: `usage.prompt_tokens`, `usage.completion_tokens` in final chunk
-  - Anthropic: `message_delta` event contains `usage.output_tokens`
-  - Google AI: `usageMetadata.promptTokenCount`, `usageMetadata.candidatesTokenCount`
-  - Pass back via new callback: `onUsage?: (usage: { prompt: number; completion: number }) => void`
-  - Save to `messages.tokens_used` as JSON string: `{"prompt": N, "completion": M}`
-  - **Note**: also track tokens from tool call rounds (Sprint 12) — sum across all rounds per response
-- [ ] **18.6** Add per-conversation cost tracking
-  - Create `token_usage` table in SQLite:
-    ```sql
-    CREATE TABLE IF NOT EXISTS token_usage (
-      id TEXT PRIMARY KEY,
-      conversation_id TEXT NOT NULL,
-      message_id TEXT NOT NULL,
-      model TEXT NOT NULL,
-      prompt_tokens INTEGER NOT NULL,
-      completion_tokens INTEGER NOT NULL,
-      cost_usd REAL,                    -- estimated cost in USD
-      created_at INTEGER NOT NULL,
-      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
-      FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
-    );
-    CREATE INDEX IF NOT EXISTS idx_token_usage_conv ON token_usage(conversation_id);
-    CREATE INDEX IF NOT EXISTS idx_token_usage_date ON token_usage(created_at);
-    ```
-  - After each completed response: insert usage record with estimated cost
-  - `getConversationCost(convId) → { totalTokens: number, estimatedCost: number }`
-- [ ] **18.7** Show conversation cost in drawer
-  - In `ConversationDrawer.tsx`: show small cost badge per conversation
-  - Format: `$0.003` or `<$0.01` for very cheap conversations
-  - Only show if cost > 0 (skip free models)
-- [ ] **18.8** Create usage dashboard screen (`src/app/settings/usage.tsx`)
-  - Header: ArrowLeft + "Usage & Costs"
-  - Summary cards at top:
-    - "Today": total tokens + cost
-    - "This Week": total tokens + cost
-    - "This Month": total tokens + cost
-  - Bar chart showing daily usage for last 7 days (simple View-based bars, no charting lib needed)
-    - Each bar: `bg-foreground` with height proportional to token count
-    - Day labels below (Mon, Tue, etc.)
-  - Breakdown by provider: list of providers with token count + cost
-  - Breakdown by model: top 5 most-used models with stats
-  - "Reset Usage Data" destructive button at bottom
-- [ ] **18.9** Verify: token counting, cost tracking, and usage dashboard
-
-#### How to Test Sprint 18
-```
-✅ Type in input bar → token count badge shows estimated tokens
-✅ Token count updates as text changes (debounced)
-✅ Send message → assistant response shows token usage below bubble
-✅ Conversation in drawer shows cost badge (e.g., "$0.01")
-✅ Usage dashboard shows today/week/month summaries
-✅ Bar chart renders daily usage for last 7 days
-✅ Provider breakdown shows correct distribution
-✅ Free model conversations show $0.00 or no cost badge
-✅ Usage persists across app restarts
-✅ "Reset Usage Data" clears all tracking data
-✅ Tool call tokens (web search, MCP) included in usage tracking
-```
-
-#### 📗 Things Learned
-- (fill after completing)
-
-#### 📕 Mistakes Made
-- (fill after completing)
-
-#### 📘 Things to Remember
-- Do NOT use tiktoken/WASM tokenizer — too heavy for RN, heuristic is good enough for cost estimation
-- Token estimation formula: `Math.ceil(text.length / 3.75)` — averaged across GPT/Claude/Gemini
-- OpenRouter returns pricing in `Model.pricing` — cache and use for cost calculation
-- Anthropic doesn't return usage in SSE stream by default — check `stream_options` or final event
-- Cost display: always show as USD with 3 decimal places for sub-cent amounts
-- Bar chart: use simple View heights — no need for `react-native-chart-kit` or similar
-- `tokens_used` column already exists on messages table — change from `INTEGER` to `TEXT` to store JSON `{"prompt": N, "completion": M}`
-- Track tool call round tokens too — a single user message may trigger multiple API calls via tool loop
-
-### Sprint 19 — Document Intelligence
+### Sprint 15 — Document Intelligence
 > **Goal:** PDF, DOCX, and XLSX files attached by users are actually read and understood. Provider-native document support for Anthropic and Gemini sends files directly; for other providers, client-side text extraction fills the gap.
 > **Duration:** ~3 hours
 
@@ -1858,37 +1356,37 @@ These are not in scope for the current phase but documented for later (sprints 2
 - `multimodal.ts` already has `readDocumentText()` that punts on binary files with `[Binary file: ...]`
 
 #### Tasks
-- [ ] **19.1** Install PDF text extraction library
+- [ ] **15.** Install PDF text extraction library
   - `npx expo install expo-pdf-text-extract` — native module using PDFKit (iOS) + PDFBox (Android)
   - Requires dev build (not Expo Go) — already the case for Medha
   - Extracts text from digital PDFs (not scanned/OCR)
-- [ ] **19.2** Update `readDocumentText()` in `multimodal.ts`
+- [ ] **15.** Update `readDocumentText()` in `multimodal.ts`
   - For `application/pdf`: use `expo-pdf-text-extract` to extract text
   - For DOCX (`application/vnd.openxmlformats-officedocument.wordprocessingml.document`): use lightweight JS parser or note as binary
   - For XLSX (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`): use `xlsx` (SheetJS) to extract as CSV text
   - Truncate all extracted text to 50K chars (existing limit)
   - Fallback: if extraction fails, return `[Could not extract text from: name.pdf]` instead of `[Binary file: ...]`
-- [ ] **19.3** Add provider-native PDF support for Anthropic
+- [ ] **15.** Add provider-native PDF support for Anthropic
   - Update `buildAnthropicMessages()`: when attachment is `application/pdf`, send as Anthropic `document` content block:
     ```json
     { "type": "document", "source": { "type": "base64", "media_type": "application/pdf", "data": "..." } }
     ```
   - Claude natively reads PDFs (converts pages to images + extracts text server-side)
   - Keep client-side text extraction as fallback for other providers
-- [ ] **19.4** Add provider-native PDF support for Google AI
+- [ ] **15.** Add provider-native PDF support for Google AI
   - Update `buildGeminiNativeMessages()`: when attachment is `application/pdf`, send as `inline_data` part:
     ```json
     { "inline_data": { "mime_type": "application/pdf", "data": "BASE64..." } }
     ```
   - Gemini supports PDFs up to 50MB inline
   - For OpenAI-compat path (`buildOpenAIMessages`): use extracted text (OpenAI format doesn't support PDF parts)
-- [ ] **19.5** Update OpenAI/OpenRouter path to use extracted text
+- [ ] **15.** Update OpenAI/OpenRouter path to use extracted text
   - `buildOpenAIMessages()` already inlines text — the text extraction update in 19.2 handles this automatically
   - No structural changes needed — just ensure `readDocumentText()` now returns real PDF content
-- [ ] **19.6** Add PDF page count indicator to attachment UI
+- [ ] **15.** Add PDF page count indicator to attachment UI
   - When a PDF is attached, show page count badge: "12 pages" in `text-muted-foreground`
   - Extract page count via `expo-pdf-text-extract` metadata
-- [ ] **19.7** Verify: PDF and document extraction across providers
+- [ ] **15.** Verify: PDF and document extraction across providers
 
 #### How to Test Sprint 19
 ```
@@ -1920,7 +1418,7 @@ These are not in scope for the current phase but documented for later (sprints 2
 
 ---
 
-### Sprint 20 — Image Generation & Rich Output
+### Sprint 16 — Image Generation & Rich Output
 > **Goal:** AI can generate images via tool calling using DALL-E, Stability AI, or other APIs. Generated images render inline in chat. Code blocks get a "Save as file" button. Markdown images in responses render as actual images.
 > **Duration:** ~5 hours
 
@@ -1929,16 +1427,16 @@ These are not in scope for the current phase but documented for later (sprints 2
 - Sprint 9 (attachments) must be complete — generated images stored using attachment system
 
 #### Tasks
-- [ ] **20.1** Add image generation API key to settings (`src/app/settings/api-keys.tsx`)
+- [ ] **16.** Add image generation API key to settings (`src/app/settings/api-keys.tsx`)
   - New optional provider section: "Image Generation"
   - Supported services: OpenAI (DALL·E 3), Stability AI, Together AI
   - Stored in SecureStore: key `image-gen`, with a separate MMKV key for selected service (`medha:imageGenService`)
   - Label: "Image Generation" with subtitle showing selected service
-- [ ] **20.2** Add image gen settings to MMKV and settings store
+- [ ] **16.** Add image gen settings to MMKV and settings store
   - New MMKV keys: `imageGenEnabled`, `imageGenService` (`'openai' | 'stability' | 'together'`)
   - Settings store: `imageGenEnabled`, `imageGenService`, `setImageGenEnabled()`, `setImageGenService()`
   - `initStorage()` hydrates both values
-- [ ] **20.3** Create `generate_image` tool (`src/lib/tools/image-gen.ts`)
+- [ ] **16.** Create `generate_image` tool (`src/lib/tools/image-gen.ts`)
   - Tool definition:
     ```typescript
     name: 'generate_image',
@@ -1954,46 +1452,46 @@ These are not in scope for the current phase but documented for later (sprints 2
     3. Download/decode the resulting image
     4. Save to app storage via `persistAttachment()`
     5. Return `ToolResult` with markdown image reference and the local URI
-- [ ] **20.4** Implement OpenAI DALL-E 3 backend (`src/lib/tools/image-gen.ts`)
+- [ ] **16.** Implement OpenAI DALL-E 3 backend (`src/lib/tools/image-gen.ts`)
   - `POST https://api.openai.com/v1/images/generations`
   - Body: `{ model: 'dall-e-3', prompt, size, n: 1, response_format: 'b64_json' }`
   - Decode base64 → save as PNG to app storage
   - Headers: `Authorization: Bearer <key>`
-- [ ] **20.5** Implement Stability AI backend (fallback option)
+- [ ] **16.** Implement Stability AI backend (fallback option)
   - `POST https://api.stability.ai/v2beta/stable-image/generate/sd3`
   - Form data with `prompt`, `output_format: 'png'`
   - Headers: `Authorization: Bearer <key>`
   - Returns image bytes directly
-- [ ] **20.6** Register `generate_image` tool in ChatScreen
+- [ ] **16.** Register `generate_image` tool in ChatScreen
   - Register alongside web_search and memory tools
   - Only include in `activeToolNames` when `imageGenEnabled` is true AND an image gen API key exists
   - Append instruction to system prompt: "You can generate images. When the user asks to create, draw, or visualize something, use the generate_image tool."
-- [ ] **20.7** Store generated images as assistant message attachments
+- [ ] **16.** Store generated images as assistant message attachments
   - After tool execution returns image URI, attach it to the final assistant message
   - Update `addMessage()` to support attaching images to assistant messages (currently only user messages have attachments)
   - Image stored in attachments JSON on the assistant message row
-- [ ] **20.8** Render generated images inline in assistant MessageBubble
+- [ ] **16.** Render generated images inline in assistant MessageBubble
   - When assistant message has `attachments` with `type: 'image'` → render `<Image />` inline above/below text
   - Tap image → full-screen modal with pinch-to-zoom
   - Long-press image → save to device gallery via `expo-media-library`
   - Image dimensions: max width 280px, aspect ratio preserved
-- [ ] **20.9** Add image generation toggle pill to chat top bar
+- [ ] **16.** Add image generation toggle pill to chat top bar
   - Small `lucide Image` pill next to existing Globe/Brain toggles
   - Tap toggles image generation on/off
   - Only visible when image gen API key is configured
   - Visual: `bg-muted` + `text-muted-foreground` (off) vs `bg-foreground` + `text-background` (on)
-- [ ] **20.10** Add "Save as file" button to code blocks in MarkdownMessage
+- [ ] **16.** Add "Save as file" button to code blocks in MarkdownMessage
   - Next to existing "Copy" button on code blocks: `lucide Download` icon
   - Infers filename from language tag: `python` → `code.py`, `javascript` → `script.js`, `json` → `data.json`, etc.
   - Saves to device storage via `expo-file-system` + `expo-sharing` (share sheet)
   - Toast: "File saved"
-- [ ] **20.11** Render markdown images inline in assistant messages
+- [ ] **16.** Render markdown images inline in assistant messages
   - When markdown contains `![alt](url)` → render `<Image />` component
   - Support remote URLs (`https://...`) and local URIs (`file://...`)
   - Lazy loading with shimmer placeholder
   - Error state: show broken image icon with alt text
   - Max width: 280px, auto height
-- [ ] **20.12** Verify: image generation, file saving, inline rendering
+- [ ] **16.** Verify: image generation, file saving, inline rendering
 
 #### How to Test Sprint 20
 ```
@@ -2028,16 +1526,16 @@ These are not in scope for the current phase but documented for later (sprints 2
 
 ---
 
-### Sprint 21 — Model Capability Badges
+### Sprint 17 — Model Capability Badges
 > **Goal:** Model picker shows capability icons for each model — what it can do (vision, image gen, PDF reading, tool calling, thinking/reasoning). Users can visually identify which models support which features at a glance.
 > **Duration:** ~2 hours
 
 #### Prerequisites
 - Sprint 8 (model picker) must be complete
-- Sprint 19 (document intelligence) and Sprint 20 (image gen) define the capabilities to surface
+- Sprint 15 (document intelligence) and Sprint 16 (image gen) define the capabilities to surface
 
 #### Tasks
-- [ ] **21.1** Define model capability types (`src/types/index.ts`)
+- [ ] **17.** Define model capability types (`src/types/index.ts`)
   ```typescript
   type ModelCapability = 'vision' | 'image-gen' | 'pdf' | 'tools' | 'thinking' | 'long-context';
 
@@ -2051,7 +1549,7 @@ These are not in scope for the current phase but documented for later (sprints 2
     contextWindow?: number;            // NEW — token limit
   }
   ```
-- [ ] **21.2** Create capability detection module (`src/lib/models/capabilities.ts`)
+- [ ] **17.** Create capability detection module (`src/lib/models/capabilities.ts`)
   - `getModelCapabilities(modelId: string, provider: string) → ModelCapability[]`
   - Pattern-matching on model IDs for known capabilities:
     - **Vision**: `gpt-4o`, `gpt-4-vision`, `claude-3*`, `gemini-*` (most modern models)
@@ -2062,7 +1560,7 @@ These are not in scope for the current phase but documented for later (sprints 2
     - **Long context**: models with >100K context window
   - Hardcoded capability map for known models + heuristic fallback for unknown ones
   - Cache results in memory (Map) — capabilities don't change per session
-- [ ] **21.3** Create capability icon component (`src/components/chat/CapabilityBadges.tsx`)
+- [ ] **17.** Create capability icon component (`src/components/chat/CapabilityBadges.tsx`)
   - Horizontal row of small icons representing capabilities
   - Icons (from `lucide-react-native`):
     - Vision: `lucide Eye`
@@ -2073,20 +1571,20 @@ These are not in scope for the current phase but documented for later (sprints 2
     - Long context: `lucide ScrollText`
   - Size: 12px icons, `text-muted-foreground`, 4px gap
   - Tap row → shows tooltip with capability names (e.g., "Vision • Image Generation • Tools")
-- [ ] **21.4** Integrate badges into ModelPicker
+- [ ] **17.** Integrate badges into ModelPicker
   - Each model row in the picker shows capability icons below the model name
   - Layout: model name (14sp bold) on first line, capability icons (12px, muted) on second line
   - Helps users choose the right model for their task
-- [ ] **21.5** Add capability filter to ModelPicker
+- [ ] **17.** Add capability filter to ModelPicker
   - Filter pills at top of model picker: "Vision", "Tools", "Thinking"
   - Tap a filter → only show models with that capability
   - Multiple filters → intersection (model must have ALL selected capabilities)
   - Active filter: `bg-foreground text-background`, inactive: `bg-muted text-muted-foreground`
-- [ ] **21.6** Show active model capabilities in chat top bar
+- [ ] **17.** Show active model capabilities in chat top bar
   - ModelPill shows 1-2 most relevant capability icons alongside the model name
   - Only show icons for "premium" capabilities (vision, thinking, image-gen) — skip common ones (tools)
   - Helps users know at a glance what the current model can do
-- [ ] **21.7** Verify: capability badges and filters work
+- [ ] **17.** Verify: capability badges and filters work
 
 #### How to Test Sprint 21
 ```
@@ -2114,8 +1612,510 @@ These are not in scope for the current phase but documented for later (sprints 2
 - Filter is AND logic — selecting Vision + Thinking shows only models with BOTH
 - Cache capabilities in memory — no need for persistent storage
 - Provider-specific nuances: "PDF support" via Anthropic/Gemini is native, via others is client-side extraction
-- "Image gen" capability badge is for models with NATIVE image output (Gemini Imagen) — tool-based gen (Sprint 20) works with any model
+- "Image gen" capability badge is for models with NATIVE image output (Gemini Imagen) — tool-based gen (Sprint 16) works with any model
 
+---
+
+### Sprint 18 — Token & Cost Estimator
+> **Goal:** Users see estimated token counts before sending, per-message token usage after responses, per-conversation cost tracking, and a usage dashboard. Tracks all token usage including tool calls and MCP tool execution.
+> **Duration:** ~3 hours
+
+#### Tasks
+- [ ] **18.** Create tokenizer utility (`src/lib/tokens/estimator.ts`)
+  - **Do NOT bundle a full tokenizer** (tiktoken WASM is 4MB+ and breaks RN)
+  - Use a simple heuristic estimator: `estimateTokens(text: string) → number`
+    - English: ~4 chars per token (GPT) or ~3.5 chars per token (Claude/Gemini)
+    - Formula: `Math.ceil(text.length / 3.75)` (averaged across providers)
+  - Also export `estimateMessageTokens(messages: Message[], systemPrompt?: string) → number` — sums all message content + system prompt
+  - Accurate enough for cost estimation (within ~15% of real tokenizer)
+- [ ] **18.** Create model pricing data (`src/lib/tokens/pricing.ts`)
+  - Static pricing map keyed by model ID (or prefix pattern):
+    ```typescript
+    interface ModelPricing {
+      promptPer1M: number;      // USD per 1M input tokens
+      completionPer1M: number;  // USD per 1M output tokens
+    }
+    ```
+  - Populate from OpenRouter/Anthropic/Google pricing pages
+  - Fallback: use pricing from OpenRouter `listModels()` response (already parsed in `Model.pricing`)
+  - `getModelPricing(modelId: string) → ModelPricing | null`
+  - Cache pricing from API responses in MMKV
+- [ ] **18.** Add live token counter to InputBar (`src/components/chat/InputBar.tsx`)
+  - Small token count badge below the text input (right-aligned)
+  - Shows: `~{n} tokens` in `text-muted-foreground` (12sp)
+  - Updates on text change (debounced 300ms via `useMemo` or `useCallback`)
+  - Includes: system prompt tokens + memory tokens + all message history tokens + current input
+  - Color coding: normal (muted) → yellow (>75% of model context window) → red (>90%)
+  - Tap → shows breakdown tooltip: "Input: ~X | History: ~Y | System: ~Z"
+- [ ] **18.** Add per-message token display to MessageBubble (`src/components/chat/MessageBubble.tsx`)
+  - Below each assistant message: small muted text showing token usage
+  - Format: `~{input}↑ ~{output}↓` (estimated input/output tokens)
+  - For messages with `tokens_used` from API → show actual count instead of estimate
+  - Only visible on tap (or always visible as a user preference toggle)
+- [ ] **18.** Extract actual token usage from API responses
+  - Update `streamCompletion()` to capture `usage` object from the final SSE event
+  - OpenAI/OpenRouter: `usage.prompt_tokens`, `usage.completion_tokens` in final chunk
+  - Anthropic: `message_delta` event contains `usage.output_tokens`
+  - Google AI: `usageMetadata.promptTokenCount`, `usageMetadata.candidatesTokenCount`
+  - Pass back via new callback: `onUsage?: (usage: { prompt: number; completion: number }) => void`
+  - Save to `messages.tokens_used` as JSON string: `{"prompt": N, "completion": M}`
+  - **Note**: also track tokens from tool call rounds (Sprint 12) — sum across all rounds per response
+- [ ] **18.** Add per-conversation cost tracking
+  - Create `token_usage` table in SQLite:
+    ```sql
+    CREATE TABLE IF NOT EXISTS token_usage (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      model TEXT NOT NULL,
+      prompt_tokens INTEGER NOT NULL,
+      completion_tokens INTEGER NOT NULL,
+      cost_usd REAL,                    -- estimated cost in USD
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+      FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_token_usage_conv ON token_usage(conversation_id);
+    CREATE INDEX IF NOT EXISTS idx_token_usage_date ON token_usage(created_at);
+    ```
+  - After each completed response: insert usage record with estimated cost
+  - `getConversationCost(convId) → { totalTokens: number, estimatedCost: number }`
+- [ ] **18.** Show conversation cost in drawer
+  - In `ConversationDrawer.tsx`: show small cost badge per conversation
+  - Format: `$0.003` or `<$0.01` for very cheap conversations
+  - Only show if cost > 0 (skip free models)
+- [ ] **18.** Create usage dashboard screen (`src/app/settings/usage.tsx`)
+  - Header: ArrowLeft + "Usage & Costs"
+  - Summary cards at top:
+    - "Today": total tokens + cost
+    - "This Week": total tokens + cost
+    - "This Month": total tokens + cost
+  - Bar chart showing daily usage for last 7 days (simple View-based bars, no charting lib needed)
+    - Each bar: `bg-foreground` with height proportional to token count
+    - Day labels below (Mon, Tue, etc.)
+  - Breakdown by provider: list of providers with token count + cost
+  - Breakdown by model: top 5 most-used models with stats
+  - "Reset Usage Data" destructive button at bottom
+- [ ] **18.** Verify: token counting, cost tracking, and usage dashboard
+
+#### How to Test Sprint 18
+```
+✅ Type in input bar → token count badge shows estimated tokens
+✅ Token count updates as text changes (debounced)
+✅ Send message → assistant response shows token usage below bubble
+✅ Conversation in drawer shows cost badge (e.g., "$0.01")
+✅ Usage dashboard shows today/week/month summaries
+✅ Bar chart renders daily usage for last 7 days
+✅ Provider breakdown shows correct distribution
+✅ Free model conversations show $0.00 or no cost badge
+✅ Usage persists across app restarts
+✅ "Reset Usage Data" clears all tracking data
+✅ Tool call tokens (web search, MCP) included in usage tracking
+```
+
+#### 📗 Things Learned
+- (fill after completing)
+
+#### 📕 Mistakes Made
+- (fill after completing)
+
+#### 📘 Things to Remember
+- Do NOT use tiktoken/WASM tokenizer — too heavy for RN, heuristic is good enough for cost estimation
+- Token estimation formula: `Math.ceil(text.length / 3.75)` — averaged across GPT/Claude/Gemini
+- OpenRouter returns pricing in `Model.pricing` — cache and use for cost calculation
+- Anthropic doesn't return usage in SSE stream by default — check `stream_options` or final event
+- Cost display: always show as USD with 3 decimal places for sub-cent amounts
+- Bar chart: use simple View heights — no need for `react-native-chart-kit` or similar
+- `tokens_used` column already exists on messages table — change from `INTEGER` to `TEXT` to store JSON `{"prompt": N, "completion": M}`
+- Track tool call round tokens too — a single user message may trigger multiple API calls via tool loop
+
+### Sprint 19 — Skills System
+> **Goal:** Users can install, create, and share "skill packs" — bundles of system prompt + tool config + rules that create specialized AI personas. Foundation for Sprint 20 (Custom Apps).
+> **Duration:** ~4 hours
+
+#### Prerequisites
+- Sprint 14 (memory), Sprint 13 (rules), Sprint 12 (tools) must be complete
+- Tool registry and rules injection already working
+
+#### Tasks
+- [ ] **19.** Define skill types (`src/lib/skills/types.ts`)
+  ```typescript
+  interface Skill {
+    id: string;
+    name: string;
+    description: string;
+    icon: string;                    // lucide icon name
+    version: string;                 // semver, e.g. "1.0.0"
+    author?: string;
+    systemPrompt: string;            // injected when skill is active
+    rules?: string;                  // additional rules (appended to user rules)
+    tools?: string[];                // tool names this skill can use (from registry)
+    examplePrompts?: string[];       // suggestion chips when skill is active
+    builtin: boolean;                // shipped with app vs user-created/imported
+    enabled: boolean;
+    createdAt: number;
+  }
+  ```
+- [ ] **19.** Create skills storage (`src/lib/db/skills.ts`)
+  - SQLite table:
+    ```sql
+    CREATE TABLE IF NOT EXISTS skills (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      icon TEXT DEFAULT 'Sparkles',
+      version TEXT DEFAULT '1.0.0',
+      author TEXT,
+      system_prompt TEXT NOT NULL,
+      rules TEXT,
+      tools TEXT,                 -- JSON array of tool names
+      example_prompts TEXT,       -- JSON array of strings
+      builtin INTEGER DEFAULT 0,
+      enabled INTEGER DEFAULT 1,
+      created_at INTEGER NOT NULL
+    );
+    ```
+  - CRUD: `addSkill()`, `getSkills()`, `getEnabledSkills()`, `updateSkill()`, `deleteSkill()`, `toggleSkill()`
+- [ ] **19.** Seed built-in skills
+  - "Code Reviewer" — system prompt for code analysis, uses no tools, examples: "Review this function", "Find bugs in..."
+  - "Research Assistant" — system prompt for research, uses `web_search` tool, examples: "Research topic X", "Compare A vs B"
+  - "Creative Writer" — system prompt for creative writing, no tools, examples: "Write a short story about...", "Write a poem..."
+  - "Translator" — system prompt for translation, no tools, examples: "Translate to Hindi: ...", "Translate to Japanese: ..."
+  - "Fitness Coach" — system prompt for fitness advice, no tools, examples: "Create a workout plan", "Meal plan for..."
+  - Built-in skills are read-only — user can disable but not edit or delete
+- [ ] **19.** Wire skills into system prompt injection
+  - Update `ChatScreen.streamNewResponse()`: compose system prompt as:
+    `[User Rules] → [Active Skill Prompt] → [Active Skill Rules] → [User Memory] → [Custom System Prompt]`
+  - Only inject enabled skills' prompts
+  - If multiple skills enabled, concatenate their prompts (separated by `\n---\n`)
+  - Skill tools: only send tool schemas for tools listed in active skills (scoped tool access)
+- [ ] **19.** Create skill management screen (`src/app/settings/skills.tsx`)
+  - Header: ArrowLeft + "Skills" + `lucide Plus` add button
+  - Two sections: "Built-in" and "Custom"
+  - Each skill card:
+    - `lucide` icon (from skill.icon) + name (bold) + description (muted)
+    - Toggle switch: enable/disable
+    - Tap card → skill detail bottom sheet (full prompt, rules, tools, examples)
+    - Long-press custom skill → edit/delete options
+  - Empty custom section: "Create or import a skill to customize your AI"
+- [ ] **19.** Create skill editor (`src/components/skills/SkillEditor.tsx`)
+  - Full-screen modal for creating/editing skills
+  - Fields: name, description, icon picker (grid of common lucide icons), system prompt (multiline), rules (multiline), tool selection (checkboxes from registry), example prompts (tag input)
+  - "Preview" button — shows how the skill's system prompt will look when injected
+  - "Save" button
+- [ ] **19.** Import/export skills as JSON
+  - Export: `expo-sharing` → share skill as `.skill.json` file
+  - Import: pick JSON file → validate schema → add to custom skills
+  - JSON schema:
+    ```json
+    {
+      "medha_skill": "1.0",
+      "name": "Code Reviewer",
+      "description": "...",
+      "icon": "Code",
+      "systemPrompt": "...",
+      "rules": "...",
+      "tools": ["web_search"],
+      "examplePrompts": ["Review this code", "..."]
+    }
+    ```
+  - Validation: required fields, max prompt length (4000 chars), no executable code
+- [ ] **19.** Skill activation in chat
+  - In the chat empty state (EmptyState component): show active skill name + icon above suggestion chips
+  - Suggestion chips change to skill's `examplePrompts` when a skill is active
+  - Per-conversation skill selection: store `active_skill_id` in conversations table (new column migration)
+- [ ] **19.** Verify: skill creation, activation, and import/export
+
+#### How to Test Sprint 16
+```
+✅ Built-in skills appear in skill list (Code Reviewer, Research Assistant, etc.)
+✅ Enable "Code Reviewer" → AI responses focus on code analysis
+✅ Enable "Research Assistant" → AI uses web_search tool automatically
+✅ Create custom skill → appears in custom section
+✅ Edit custom skill → changes reflect in next conversation
+✅ Export skill → generates .skill.json file
+✅ Import .skill.json → skill added to custom list
+✅ Disable skill → its prompt and rules no longer injected
+✅ Skill suggestion chips appear in empty state
+✅ Per-conversation skill persists when reopening chat
+```
+
+#### 📗 Things Learned
+- (fill after completing)
+
+#### 📕 Mistakes Made
+- (fill after completing)
+
+#### 📘 Things to Remember
+- Skills compose with rules and memory — they don't replace them
+- System prompt order: Rules → Skill Prompt → Skill Rules → Memory → Custom System Prompt
+- Scoped tools: skill declares which tools it uses — only those schemas are sent to AI when skill is active
+- Built-in skills are seed data — insert on first run, don't overwrite if user disabled them
+- Import validation: reject skills with suspiciously long prompts (>4000 chars) or unknown tool names
+- `.skill.json` files are shareable — users can distribute via messaging apps or file sharing
+
+---
+
+### Sprint 20 — Custom Apps (GPT-like Personas)
+> **Goal:** Users create shareable "apps" — named personas that bundle a skill, model, icon, and conversation defaults. Like ChatGPT's Custom GPTs but local-first.
+> **Duration:** ~6 hours
+
+#### Prerequisites
+- Sprint 13 (rules), Sprint 19 (skills) must be complete
+- Skill system, tool registry, and rules injection all working
+
+#### Tasks
+- [ ] **20.** Define app types (`src/lib/apps/types.ts`)
+  ```typescript
+  interface MedhaApp {
+    id: string;
+    name: string;
+    description: string;
+    icon: string;                    // lucide icon name
+    color?: string;                  // accent color for app card (CSS hsl)
+    skillId?: string;                // linked skill (from Sprint 16)
+    model?: string;                  // pinned model ID (e.g. "claude-sonnet-4-20250514")
+    provider?: string;               // pinned provider ID
+    rules?: string;                  // app-specific rules (override global)
+    greeting?: string;               // first message shown when app opens
+    examplePrompts?: string[];       // suggestion chips
+    builtin: boolean;
+    createdAt: number;
+  }
+  ```
+- [ ] **20.** Create apps storage (`src/lib/db/apps.ts`)
+  - SQLite table:
+    ```sql
+    CREATE TABLE IF NOT EXISTS apps (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      icon TEXT DEFAULT 'Bot',
+      color TEXT,
+      skill_id TEXT,
+      model TEXT,
+      provider TEXT,
+      rules TEXT,
+      greeting TEXT,
+      example_prompts TEXT,       -- JSON array
+      builtin INTEGER DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (skill_id) REFERENCES skills(id) ON DELETE SET NULL
+    );
+    ```
+  - CRUD: `addApp()`, `getApps()`, `getApp()`, `updateApp()`, `deleteApp()`
+- [ ] **20.** Seed built-in apps
+  - "Medha Default" — no pinned model, no skill, default behavior (icon: `Sparkles`)
+  - "Code Assistant" — links "Code Reviewer" skill, pins to Claude Sonnet 4 (icon: `Code`, color: `hsl(265, 80%, 60%)`)
+  - "Writing Coach" — links "Creative Writer" skill, greeting: "What would you like to write today?" (icon: `Feather`)
+  - "Language Tutor" — links "Translator" skill, rules: "Always correct grammar mistakes" (icon: `Languages`)
+  - "Research Pro" — links "Research Assistant" skill, pins to GPT-4o via OpenRouter (icon: `Search`)
+- [ ] **20.** Create app launcher screen (`src/app/apps.tsx`)
+  - Grid layout (2 columns) of app cards
+  - Each card: colored icon circle + name + description (2 lines max)
+  - Card style: `bg-surface-container-low`, `border-outline-variant/10`, rounded-2xl, shadow
+  - Tap card → creates new conversation with app's config applied
+  - Long-press → edit/delete (custom apps only), share
+  - "Create App" card at end: dashed border + `lucide Plus` icon
+  - Header: "Apps" + search icon (filters by name)
+- [ ] **20.** Wire app activation into conversation creation
+  - When user taps an app:
+    1. Create new conversation with `model`, `provider`, `system_prompt` (from linked skill), `rules` pre-set
+    2. If `greeting` is set, insert it as first assistant message
+    3. Navigate to `chat/[id]` with app's `examplePrompts` as suggestion chips
+    4. Store `app_id` on conversation (new column migration)
+  - Active app shown in chat top bar: app icon + name (replaces or sits next to ModelPill)
+- [ ] **20.** Create app editor (`src/app/apps/create.tsx`)
+  - Full-screen wizard flow (3 steps):
+    1. **Identity**: name, description, icon picker (lucide grid), color picker (preset palette of 8 colors)
+    2. **Behavior**: skill selector (dropdown from Sprint 19 skills), custom rules (multiline), greeting message
+    3. **Model**: provider picker, model picker (from that provider), or "Any model" (user's default)
+  - "Preview" step: shows how the app card will look + test conversation
+  - "Save" button → inserts into SQLite
+  - Edit mode: pre-fills all fields from existing app
+- [ ] **20.** Add app launcher to drawer
+  - New section in ConversationDrawer: "Apps" row with `lucide Grid3X3` icon
+  - Tap → navigates to app launcher screen
+  - Alternatively: horizontal scroll of app icons at top of drawer (quick access)
+- [ ] **20.** Import/export apps as JSON
+  - Export: bundles app + linked skill into single `.app.json` file
+    ```json
+    {
+      "medha_app": "1.0",
+      "name": "Code Assistant",
+      "description": "...",
+      "icon": "Code",
+      "color": "hsl(265, 80%, 60%)",
+      "skill": { /* embedded skill JSON from Sprint 19 */ },
+      "model": "claude-sonnet-4-20250514",
+      "provider": "anthropic",
+      "rules": "...",
+      "greeting": "...",
+      "examplePrompts": ["..."]
+    }
+    ```
+  - Import: parse JSON → create skill (if embedded) → create app → link
+  - Share via `expo-sharing`
+- [ ] **20.** App-scoped conversation history
+  - In drawer: filter conversations by app (show app icon badge on each conversation)
+  - App launcher cards show conversation count: "12 chats" subtitle
+- [ ] **20.** Verify: app creation, activation, sharing, and conversation flow
+
+#### How to Test Sprint 17
+```
+✅ App launcher shows grid of built-in apps (Medha Default, Code Assistant, etc.)
+✅ Tap "Code Assistant" → new chat with Code Reviewer skill active + Claude pinned
+✅ Greeting message appears as first assistant message
+✅ Suggestion chips show app's example prompts
+✅ App icon + name visible in chat top bar
+✅ Create custom app via wizard → appears in launcher grid
+✅ Edit custom app → changes apply to new conversations (not existing ones)
+✅ Export app → .app.json file with embedded skill
+✅ Import .app.json → app + skill created
+✅ Long-press built-in app → no edit/delete (read-only)
+✅ Drawer shows "Apps" row → navigates to launcher
+✅ Conversations show app badge in drawer list
+```
+
+#### 📗 Things Learned
+- (fill after completing)
+
+#### 📕 Mistakes Made
+- (fill after completing)
+
+#### 📘 Things to Remember
+- Apps are a composition layer — they combine skills, rules, and model preferences into a named persona
+- App ≠ Skill: skill is the behavior (prompt + tools), app is the UX wrapper (icon, greeting, model, skill)
+- Built-in apps reference built-in skills by ID — if skill deleted, app still works but without skill's prompt
+- Greeting is a fake assistant message — it's stored in DB as a regular message, not re-injected on each open
+- App-specific rules override global rules (same as per-conversation rules from Sprint 13)
+- Model pinning is a preference, not a requirement — if user doesn't have the API key, show a warning but allow model switch
+- `.app.json` embeds the full skill — no external references that could break on import
+
+---
+
+### Sprint 21 — MCP Server Support
+> **Goal:** Implement an MCP (Model Context Protocol) client so users can connect to external tool servers. Extends the Sprint 12 tool architecture with remote tool discovery and execution.
+> **Duration:** ~6 hours
+
+#### Prerequisites
+- Sprint 12 tool system (types, registry, tool call loop) must be complete
+- Tool rendering and SSE tool call parsing already implemented
+
+#### Tasks
+- [ ] **21.** Create MCP client module (`src/lib/mcp/client.ts`)
+  - Implements MCP client protocol over HTTP+SSE (Streamable HTTP transport)
+  - `MCPClient` class:
+    - `connect(serverUrl: string, headers?: Record<string, string>) → Promise<void>`
+    - `disconnect() → void`
+    - `listTools() → Promise<MCPToolSchema[]>`
+    - `callTool(name: string, args: Record<string, unknown>) → Promise<MCPToolResult>`
+    - `isConnected() → boolean`
+  - MCP transport: HTTP POST for requests, SSE for streaming responses
+  - Handles `initialize` → `initialized` handshake
+  - Protocol version: `2025-03-26` (latest stable)
+- [ ] **21.** Create MCP-to-tool bridge (`src/lib/mcp/bridge.ts`)
+  - Converts `MCPToolSchema` (MCP format) → `ToolDefinition` (Sprint 12 format)
+  - Wraps `MCPClient.callTool()` as `ToolDefinition.execute()`
+  - Auto-registers MCP tools into the tool registry from Sprint 12
+  - Handles tool name conflicts: prefix with server name (e.g., `weather.get_forecast`)
+- [ ] **21.** Create MCP server config storage (`src/lib/mcp/config.ts`)
+  - Store server configs in SQLite:
+    ```sql
+    CREATE TABLE IF NOT EXISTS mcp_servers (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      url TEXT NOT NULL,
+      headers TEXT,              -- JSON: optional auth headers
+      enabled INTEGER DEFAULT 1,
+      auto_connect INTEGER DEFAULT 1,
+      created_at INTEGER NOT NULL
+    );
+    ```
+  - CRUD: `addServer()`, `getServers()`, `updateServer()`, `deleteServer()`, `toggleServer()`
+- [ ] **21.** Create MCP connection manager (`src/lib/mcp/manager.ts`)
+  - Manages multiple MCPClient instances (one per configured server)
+  - `connectAll()` — connects to all enabled servers with `auto_connect = 1`
+  - `disconnectAll()` — cleanup on app background/exit
+  - Connection state tracking per server: `connecting | connected | error | disconnected`
+  - Auto-reconnect with exponential backoff on connection loss
+  - Emits state changes via Zustand store
+- [ ] **21.** Create MCP store (`src/stores/mcp-store.ts`)
+  - Zustand store for MCP state:
+    ```typescript
+    interface MCPState {
+      servers: MCPServerConfig[];
+      connectionStates: Record<string, 'connecting' | 'connected' | 'error' | 'disconnected'>;
+      availableTools: ToolDefinition[];  // aggregated from all connected servers
+      initialize: () => Promise<void>;
+      addServer: (name: string, url: string, headers?: Record<string, string>) => Promise<void>;
+      removeServer: (id: string) => Promise<void>;
+      toggleServer: (id: string) => Promise<void>;
+      reconnect: (id: string) => Promise<void>;
+    }
+    ```
+- [ ] **21.** Create MCP server management screen (`src/app/settings/mcp-servers.tsx`)
+  - Header: ArrowLeft + "MCP Servers" + `lucide Plus` add button
+  - Server list, each card showing:
+    - Server name (14sp bold) + URL (12sp muted, truncated)
+    - Connection status indicator: green dot (connected), yellow dot (connecting), red dot (error), gray dot (disabled)
+    - Tool count badge: "3 tools" in `bg-muted` pill
+    - Toggle switch: enable/disable
+    - Swipe-to-delete with confirmation
+  - "Add Server" bottom sheet:
+    - Name input, URL input, optional headers (key-value pairs)
+    - "Test Connection" button → attempts connect, shows tool count on success
+    - "Save" button
+  - Curated server list section ("Popular Servers"):
+    - Pre-filled entries user can one-tap add:
+      - "Brave Search" — `https://mcp.bravesearch.com/sse`
+      - "Calculator" — basic math MCP server
+    - Each with description + "Add" button
+  - Empty state: `lucide Plug` icon + "Connect to MCP servers to extend AI capabilities"
+- [ ] **21.** Wire MCP tools into ChatScreen tool loop
+  - On app startup: `MCPManager.connectAll()` → discover tools → register in tool registry
+  - MCP tools appear alongside built-in tools (web search) in tool schemas sent to AI
+  - Tool call flow: AI requests tool → registry resolves → if MCP tool, routes through MCPClient
+  - Tool result rendering: same `SearchResults`/inline display as Sprint 12
+- [ ] **21.** Add MCP tool indicator to chat UI
+  - When MCP tools are active, show `lucide Plug` badge in top bar (next to search globe)
+  - Tap → shows list of connected servers + available tools
+  - During tool execution: show server name in "Running tool..." indicator
+- [ ] **21.** Handle MCP errors gracefully
+  - Server unreachable → show error in server card, skip its tools (don't block chat)
+  - Tool execution timeout (30s) → cancel and show error in chat
+  - Invalid tool result → show raw error to user, continue conversation
+  - Server disconnects mid-conversation → toast notification, remove its tools from active set
+- [ ] **21.** Verify: MCP server connection, tool discovery, and execution
+
+#### How to Test Sprint 15
+```
+✅ Add MCP server via URL → connects, shows tool count
+✅ Server card shows green dot when connected
+✅ AI can call MCP tools during conversation
+✅ Tool results render inline in chat
+✅ Disable server → its tools no longer available to AI
+✅ Delete server → removed from list and disconnected
+✅ Server goes down → error state shown, chat continues without its tools
+✅ App restart → auto-connects to enabled servers
+✅ "Test Connection" verifies server before saving
+✅ Multiple servers work simultaneously
+```
+
+#### 📗 Things Learned
+- (fill after completing)
+
+#### 📕 Mistakes Made
+- (fill after completing)
+
+#### 📘 Things to Remember
+- MCP uses Streamable HTTP transport (HTTP+SSE) — NOT WebSocket (deprecated in 2025-03-26 spec)
+- MCP handshake: client sends `initialize` → server responds with capabilities → client sends `initialized`
+- Tool name conflicts across servers: prefix with server name to disambiguate
+- Connection manager must handle app backgrounding — disconnect on background, reconnect on foreground
+- Auto-reconnect uses exponential backoff: 1s → 2s → 4s → 8s → max 30s
+- MCP server auth: optional Bearer token or custom headers — stored in SQLite (NOT SecureStore, these aren't user API keys)
+- Don't block the chat if an MCP server fails — gracefully degrade
 ---
 
 ### Data & Export (Sprints 22–23)
