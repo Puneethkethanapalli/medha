@@ -1,8 +1,10 @@
-import React, { Fragment, useCallback, useMemo, type ReactNode } from 'react';
-import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { Fragment, useCallback, useMemo, useState, type ReactNode } from 'react';
+import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View, Image, Modal } from 'react-native';
 import type { TextStyle, ViewStyle } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { Copy } from 'lucide-react-native';
+import { Paths, File as FSFile } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import { Copy, Download, X } from 'lucide-react-native';
 import SyntaxHighlighter from 'react-native-syntax-highlighter';
 import { Renderer, useMarkdown, type MarkedStyles } from 'react-native-marked';
 import { useUIStore } from '@/stores/ui-store';
@@ -78,6 +80,36 @@ const LANGUAGE_ALIASES: Record<string, string> = {
   ts: 'typescript',
   tsx: 'typescript',
   yml: 'yaml',
+};
+
+const LANGUAGE_EXTENSIONS: Record<string, string> = {
+  bash: 'sh',
+  c: 'c',
+  cpp: 'cpp',
+  csharp: 'cs',
+  css: 'css',
+  dart: 'dart',
+  dockerfile: 'dockerfile',
+  go: 'go',
+  graphql: 'graphql',
+  html: 'html',
+  java: 'java',
+  javascript: 'js',
+  json: 'json',
+  kotlin: 'kt',
+  lua: 'lua',
+  markdown: 'md',
+  objectivec: 'm',
+  php: 'php',
+  python: 'py',
+  ruby: 'rb',
+  rust: 'rs',
+  shell: 'sh',
+  sql: 'sql',
+  swift: 'swift',
+  typescript: 'ts',
+  xml: 'xml',
+  yaml: 'yaml',
 };
 
 const syntaxStyle = {
@@ -261,8 +293,27 @@ const markedStyles: MarkedStyles = StyleSheet.create({
 });
 
 class NovaMarkdownRenderer extends Renderer {
-  constructor(private readonly onCopyCode: (code: string) => void) {
+  constructor(
+    private readonly onCopyCode: (code: string) => void,
+    private readonly onImagePress: (uri: string) => void
+  ) {
     super();
+  }
+
+  image(href: string, alt?: string, _style?: unknown, _title?: string): ReactNode {
+    return (
+      <Pressable
+        key={this.getKey()}
+        onPress={() => this.onImagePress(href)}
+        style={renderStyles.inlineImageContainer}
+      >
+        <Image
+          source={{ uri: href }}
+          style={renderStyles.inlineImage}
+          resizeMode="cover"
+        />
+      </Pressable>
+    );
   }
 
   paragraph(children: ReactNode[], styles?: ViewStyle): ReactNode {
@@ -477,21 +528,46 @@ function MarkdownCodeBlock({
   const displayLanguage = getDisplayLanguage(language);
   const highlighterLanguage = getHighlighterLanguage(language);
 
+  const handleSaveFile = async () => {
+    const extension = LANGUAGE_EXTENSIONS[displayLanguage] || 'txt';
+    const fileName = `code.${extension}`;
+    const destFile = new FSFile(Paths.document, fileName);
+    try {
+      destFile.write(code, { encoding: 'utf8' });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(destFile.uri, { mimeType: 'text/plain', dialogTitle: 'Save code file' });
+      }
+    } catch {
+      // Ignore errors
+    }
+  };
+
   return (
     <View style={renderStyles.codeBlock}>
       <View style={renderStyles.codeHeader}>
         <Text selectable style={renderStyles.codeLanguage}>
           {displayLanguage}
         </Text>
-        <Pressable
-          accessibilityLabel={`Copy ${displayLanguage} code`}
-          accessibilityRole="button"
-          hitSlop={8}
-          onPress={() => onCopy(code)}
-          style={renderStyles.copyButton}
-        >
-          <Copy size={15} color={COLORS.subtle} strokeWidth={2} />
-        </Pressable>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <Pressable
+            accessibilityLabel={`Save ${displayLanguage} code as file`}
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={handleSaveFile}
+            style={renderStyles.copyButton}
+          >
+            <Download size={15} color={COLORS.subtle} strokeWidth={2} />
+          </Pressable>
+          <Pressable
+            accessibilityLabel={`Copy ${displayLanguage} code`}
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={() => onCopy(code)}
+            style={renderStyles.copyButton}
+          >
+            <Copy size={15} color={COLORS.subtle} strokeWidth={2} />
+          </Pressable>
+        </View>
       </View>
       <View style={renderStyles.codeBody}>
         <SyntaxHighlighter
@@ -512,6 +588,8 @@ function MarkdownCodeBlock({
 
 export function MarkdownMessage({ content, isStreaming = false }: MarkdownMessageProps) {
   const showToast = useUIStore((s) => s.showToast);
+  const [imageViewerUri, setImageViewerUri] = useState<string | null>(null);
+
   const renderedContent = useMemo(
     () => completeStreamingMarkdown(content, isStreaming),
     [content, isStreaming]
@@ -525,7 +603,26 @@ export function MarkdownMessage({ content, isStreaming = false }: MarkdownMessag
     [showToast]
   );
 
-  const renderer = new NovaMarkdownRenderer(copyCode);
+  const handleImagePress = useCallback((uri: string) => {
+    setImageViewerUri(uri);
+  }, []);
+
+  const handleCloseImageViewer = useCallback(() => {
+    setImageViewerUri(null);
+  }, []);
+
+  const handleSaveImage = useCallback(async () => {
+    if (!imageViewerUri) return;
+    try {
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(imageViewerUri, { dialogTitle: 'Save image' });
+      }
+    } catch {
+      // Ignore
+    }
+  }, [imageViewerUri]);
+
+  const renderer = new NovaMarkdownRenderer(copyCode, handleImagePress);
 
   const elements = useMarkdown(renderedContent, {
     renderer,
@@ -547,11 +644,32 @@ export function MarkdownMessage({ content, isStreaming = false }: MarkdownMessag
   });
 
   return (
-    <View style={renderStyles.markdownRoot}>
-      {elements.map((element, index) => (
-        <Fragment key={`markdown-${index}`}>{element}</Fragment>
-      ))}
-    </View>
+    <>
+      <View style={renderStyles.markdownRoot}>
+        {elements.map((element, index) => (
+          <Fragment key={`markdown-${index}`}>{element}</Fragment>
+        ))}
+      </View>
+
+      {/* Full-screen image viewer */}
+      <Modal visible={!!imageViewerUri} transparent animationType="fade">
+        <View style={renderStyles.imageViewerOverlay}>
+          <Pressable style={renderStyles.imageViewerClose} onPress={handleCloseImageViewer}>
+            <X size={24} color="#fff" />
+          </Pressable>
+          {imageViewerUri && (
+            <Image
+              source={{ uri: imageViewerUri }}
+              style={renderStyles.imageViewerImage}
+              resizeMode="contain"
+            />
+          )}
+          <Pressable style={renderStyles.imageViewerSave} onPress={handleSaveImage}>
+            <Download size={20} color="#fff" />
+          </Pressable>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -680,5 +798,42 @@ const renderStyles = StyleSheet.create({
   tableScroller: {
     marginBottom: 16,
     maxWidth: '100%',
+  },
+  inlineImageContainer: {
+    marginBottom: 12,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: COLORS.surface,
+    maxWidth: 280,
+  },
+  inlineImage: {
+    width: 280,
+    height: 200,
+    borderRadius: 8,
+  },
+  imageViewerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageViewerClose: {
+    position: 'absolute',
+    top: 48,
+    right: 16,
+    padding: 8,
+    zIndex: 10,
+  },
+  imageViewerSave: {
+    position: 'absolute',
+    bottom: 48,
+    right: 16,
+    padding: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 24,
+  },
+  imageViewerImage: {
+    width: '100%',
+    height: '80%',
   },
 });

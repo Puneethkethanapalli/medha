@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Theme, ThinkingMode, RuleItem } from '@/lib/storage/mmkv';
+import type { Theme, ThinkingMode, RuleItem, ImageGenService } from '@/lib/storage/mmkv';
 
 interface SettingsState {
   theme: Theme;
@@ -11,6 +11,8 @@ interface SettingsState {
   webSearchEnabled: boolean;
   globalRules: RuleItem[];
   memoryEnabled: boolean;
+  imageGenEnabled: boolean;
+  imageGenService: ImageGenService;
   isInitialized: boolean;
 }
 
@@ -24,6 +26,8 @@ interface SettingsActions {
   setWebSearchEnabled: (enabled: boolean) => Promise<void>;
   setGlobalRules: (rules: RuleItem[]) => Promise<void>;
   setMemoryEnabled: (enabled: boolean) => Promise<void>;
+  setImageGenEnabled: (enabled: boolean) => Promise<void>;
+  setImageGenService: (service: ImageGenService) => Promise<void>;
   validateApiKey: (provider: string, key: string) => Promise<boolean>;
   initialize: () => Promise<void>;
 }
@@ -57,6 +61,8 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
   webSearchEnabled: false,
   globalRules: [],
   memoryEnabled: false,
+  imageGenEnabled: false,
+  imageGenService: 'openai' as ImageGenService,
   isInitialized: false,
 
   // Actions
@@ -114,6 +120,18 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
     set({ memoryEnabled: enabled });
   },
 
+  setImageGenEnabled: async (enabled) => {
+    await loadModules();
+    await mmkv!.setImageGenEnabled(enabled);
+    set({ imageGenEnabled: enabled });
+  },
+
+  setImageGenService: async (service) => {
+    await loadModules();
+    await mmkv!.setImageGenService(service);
+    set({ imageGenService: service });
+  },
+
   validateApiKey: async (providerId, key) => {
     const provider = getProviderInstance(providerId);
     if (!provider) return false;
@@ -133,6 +151,8 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
       webSearchEnabled: mmkv!.isWebSearchEnabledSync(),
       globalRules: mmkv!.getGlobalRulesSync(),
       memoryEnabled: mmkv!.isMemoryEnabledSync(),
+      imageGenEnabled: mmkv!.isImageGenEnabledSync(),
+      imageGenService: mmkv!.getImageGenServiceSync(),
       isInitialized: true,
     });
   },

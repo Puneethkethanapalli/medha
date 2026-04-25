@@ -16,7 +16,34 @@ const KEYS = {
   webSearchEnabled: 'medha:webSearchEnabled',
   globalRules: 'medha:globalRules',
   memoryEnabled: 'medha:memoryEnabled',
+  imageGenService: 'medha:imageGenService',
+  imageGenEnabled: 'medha:imageGenEnabled',
 };
+
+export type ImageGenService = 'openai' | 'stability';
+
+// Image generation service
+export async function getImageGenService(): Promise<ImageGenService> {
+  const value = await AsyncStorage.getItem(KEYS.imageGenService);
+  if (value === 'stability') return 'stability';
+  return 'openai';
+}
+
+export async function setImageGenService(service: ImageGenService): Promise<void> {
+  await AsyncStorage.setItem(KEYS.imageGenService, service);
+  _imageGenService = service;
+}
+
+// Image generation enabled
+export async function isImageGenEnabled(): Promise<boolean> {
+  const value = await AsyncStorage.getItem(KEYS.imageGenEnabled);
+  return value === 'true';
+}
+
+export async function setImageGenEnabled(enabled: boolean): Promise<void> {
+  await AsyncStorage.setItem(KEYS.imageGenEnabled, String(enabled));
+  _imageGenEnabled = enabled;
+}
 
 // Theme
 export async function getTheme(): Promise<Theme> {
@@ -192,6 +219,8 @@ let _customCommands: StoredCustomCommand[] = [];
 let _webSearchEnabled = false;
 let _globalRules: RuleItem[] = DEFAULT_RULES.map((r) => ({ ...r }));
 let _memoryEnabled = false;
+let _imageGenService: ImageGenService = 'openai';
+let _imageGenEnabled = false;
 let _initialized = false;
 
 export function getThemeSync(): Theme {
@@ -234,6 +263,14 @@ export function isMemoryEnabledSync(): boolean {
   return _memoryEnabled;
 }
 
+export function getImageGenServiceSync(): ImageGenService {
+  return _imageGenService;
+}
+
+export function isImageGenEnabledSync(): boolean {
+  return _imageGenEnabled;
+}
+
 export async function initStorage(): Promise<void> {
   if (_initialized) return;
   const theme = await getTheme();
@@ -246,6 +283,8 @@ export async function initStorage(): Promise<void> {
   const webSearch = await isWebSearchEnabled();
   const globalRules = await getGlobalRules();
   const memoryEnabled = await isMemoryEnabled();
+  const imageGenService = await getImageGenService();
+  const imageGenEnabled = await isImageGenEnabled();
   _theme = theme;
   _lastModel = lastModel;
   _lastProvider = lastProvider;
@@ -256,5 +295,7 @@ export async function initStorage(): Promise<void> {
   _webSearchEnabled = webSearch;
   _globalRules = globalRules;
   _memoryEnabled = memoryEnabled;
+  _imageGenService = imageGenService;
+  _imageGenEnabled = imageGenEnabled;
   _initialized = true;
 }

@@ -1,0 +1,1063 @@
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/.transforms/5b0f2f440b9604868ca5cd0929ce2f16/results.bin b/node_modules/react-native-pdf-thumbnail/android/build/.transforms/5b0f2f440b9604868ca5cd0929ce2f16/results.bin
+new file mode 100644
+index 0000000..0d259dd
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/.transforms/5b0f2f440b9604868ca5cd0929ce2f16/results.bin
+@@ -0,0 +1 @@
++o/classes
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/.transforms/5b0f2f440b9604868ca5cd0929ce2f16/transformed/classes/classes_dex/classes.dex b/node_modules/react-native-pdf-thumbnail/android/build/.transforms/5b0f2f440b9604868ca5cd0929ce2f16/transformed/classes/classes_dex/classes.dex
+new file mode 100644
+index 0000000..d618147
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/.transforms/5b0f2f440b9604868ca5cd0929ce2f16/transformed/classes/classes_dex/classes.dex differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/.transforms/fbd9eb8d3432a31f440c2ea24347f4ca/results.bin b/node_modules/react-native-pdf-thumbnail/android/build/.transforms/fbd9eb8d3432a31f440c2ea24347f4ca/results.bin
+new file mode 100644
+index 0000000..7ed749e
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/.transforms/fbd9eb8d3432a31f440c2ea24347f4ca/results.bin
+@@ -0,0 +1 @@
++o/bundleLibRuntimeToDirDebug
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/.transforms/fbd9eb8d3432a31f440c2ea24347f4ca/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/pdfthumbnail/BuildConfig.dex b/node_modules/react-native-pdf-thumbnail/android/build/.transforms/fbd9eb8d3432a31f440c2ea24347f4ca/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/pdfthumbnail/BuildConfig.dex
+new file mode 100644
+index 0000000..814403d
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/.transforms/fbd9eb8d3432a31f440c2ea24347f4ca/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/pdfthumbnail/BuildConfig.dex differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/.transforms/fbd9eb8d3432a31f440c2ea24347f4ca/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/org/songsterq/pdfthumbnail/PdfThumbnailModule$Companion.dex b/node_modules/react-native-pdf-thumbnail/android/build/.transforms/fbd9eb8d3432a31f440c2ea24347f4ca/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/org/songsterq/pdfthumbnail/PdfThumbnailModule$Companion.dex
+new file mode 100644
+index 0000000..859eaf8
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/.transforms/fbd9eb8d3432a31f440c2ea24347f4ca/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/org/songsterq/pdfthumbnail/PdfThumbnailModule$Companion.dex differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/.transforms/fbd9eb8d3432a31f440c2ea24347f4ca/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/org/songsterq/pdfthumbnail/PdfThumbnailModule.dex b/node_modules/react-native-pdf-thumbnail/android/build/.transforms/fbd9eb8d3432a31f440c2ea24347f4ca/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/org/songsterq/pdfthumbnail/PdfThumbnailModule.dex
+new file mode 100644
+index 0000000..45001ed
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/.transforms/fbd9eb8d3432a31f440c2ea24347f4ca/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/org/songsterq/pdfthumbnail/PdfThumbnailModule.dex differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/.transforms/fbd9eb8d3432a31f440c2ea24347f4ca/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/org/songsterq/pdfthumbnail/PdfThumbnailPackage.dex b/node_modules/react-native-pdf-thumbnail/android/build/.transforms/fbd9eb8d3432a31f440c2ea24347f4ca/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/org/songsterq/pdfthumbnail/PdfThumbnailPackage.dex
+new file mode 100644
+index 0000000..c697b1e
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/.transforms/fbd9eb8d3432a31f440c2ea24347f4ca/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/org/songsterq/pdfthumbnail/PdfThumbnailPackage.dex differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/.transforms/fbd9eb8d3432a31f440c2ea24347f4ca/transformed/bundleLibRuntimeToDirDebug/desugar_graph.bin b/node_modules/react-native-pdf-thumbnail/android/build/.transforms/fbd9eb8d3432a31f440c2ea24347f4ca/transformed/bundleLibRuntimeToDirDebug/desugar_graph.bin
+new file mode 100644
+index 0000000..601f245
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/.transforms/fbd9eb8d3432a31f440c2ea24347f4ca/transformed/bundleLibRuntimeToDirDebug/desugar_graph.bin differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/generated/source/buildConfig/debug/com/pdfthumbnail/BuildConfig.java b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/buildConfig/debug/com/pdfthumbnail/BuildConfig.java
+new file mode 100644
+index 0000000..cf1080b
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/buildConfig/debug/com/pdfthumbnail/BuildConfig.java
+@@ -0,0 +1,10 @@
++/**
++ * Automatically generated file. DO NOT MODIFY
++ */
++package com.pdfthumbnail;
++
++public final class BuildConfig {
++  public static final boolean DEBUG = Boolean.parseBoolean("true");
++  public static final String LIBRARY_PACKAGE_NAME = "com.pdfthumbnail";
++  public static final String BUILD_TYPE = "debug";
++}
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/CMakeLists.txt b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/CMakeLists.txt
+new file mode 100644
+index 0000000..499e7df
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/CMakeLists.txt
+@@ -0,0 +1,28 @@
++# Copyright (c) Meta Platforms, Inc. and affiliates.
++#
++# This source code is licensed under the MIT license found in the
++# LICENSE file in the root directory of this source tree.
++
++cmake_minimum_required(VERSION 3.13)
++set(CMAKE_VERBOSE_MAKEFILE on)
++
++file(GLOB react_codegen_SRCS CONFIGURE_DEPENDS *.cpp react/renderer/components/ReactNativePdfThumbnailSpec/*.cpp)
++
++add_library(
++  react_codegen_ReactNativePdfThumbnailSpec
++  OBJECT
++  ${react_codegen_SRCS}
++)
++
++target_include_directories(react_codegen_ReactNativePdfThumbnailSpec PUBLIC . react/renderer/components/ReactNativePdfThumbnailSpec)
++
++target_link_libraries(
++  react_codegen_ReactNativePdfThumbnailSpec
++  fbjni
++  jsi
++  # We need to link different libraries based on whether we are building rncore or not, that's necessary
++  # because we want to break a circular dependency between react_codegen_rncore and reactnative
++  reactnative
++)
++
++target_compile_reactnative_options(react_codegen_ReactNativePdfThumbnailSpec PRIVATE)
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/ReactNativePdfThumbnailSpec-generated.cpp b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/ReactNativePdfThumbnailSpec-generated.cpp
+new file mode 100644
+index 0000000..3ce7397
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/ReactNativePdfThumbnailSpec-generated.cpp
+@@ -0,0 +1,22 @@
++
++/**
++ * This code was generated by [react-native-codegen](https://www.npmjs.com/package/react-native-codegen).
++ *
++ * Do not edit this file as changes may cause incorrect behavior and will be lost
++ * once the code is regenerated.
++ *
++ * @generated by codegen project: GenerateModuleJniCpp.js
++ */
++
++#include "ReactNativePdfThumbnailSpec.h"
++
++namespace facebook::react {
++
++
++
++std::shared_ptr<TurboModule> ReactNativePdfThumbnailSpec_ModuleProvider(const std::string &moduleName, const JavaTurboModule::InitParams &params) {
++
++  return nullptr;
++}
++
++} // namespace facebook::react
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/ReactNativePdfThumbnailSpec.h b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/ReactNativePdfThumbnailSpec.h
+new file mode 100644
+index 0000000..a04ea99
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/ReactNativePdfThumbnailSpec.h
+@@ -0,0 +1,24 @@
++
++/**
++ * This code was generated by [react-native-codegen](https://www.npmjs.com/package/react-native-codegen).
++ *
++ * Do not edit this file as changes may cause incorrect behavior and will be lost
++ * once the code is regenerated.
++ *
++ * @generated by codegen project: GenerateModuleJniH.js
++ */
++
++#pragma once
++
++#include <ReactCommon/JavaTurboModule.h>
++#include <ReactCommon/TurboModule.h>
++#include <jsi/jsi.h>
++
++namespace facebook::react {
++
++
++
++JSI_EXPORT
++std::shared_ptr<TurboModule> ReactNativePdfThumbnailSpec_ModuleProvider(const std::string &moduleName, const JavaTurboModule::InitParams &params);
++
++} // namespace facebook::react
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/ComponentDescriptors.cpp b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/ComponentDescriptors.cpp
+new file mode 100644
+index 0000000..aaf6d75
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/ComponentDescriptors.cpp
+@@ -0,0 +1,22 @@
++
++/**
++ * This code was generated by [react-native-codegen](https://www.npmjs.com/package/react-native-codegen).
++ *
++ * Do not edit this file as changes may cause incorrect behavior and will be lost
++ * once the code is regenerated.
++ *
++ * @generated by codegen project: GenerateComponentDescriptorCpp.js
++ */
++
++#include <react/renderer/components/ReactNativePdfThumbnailSpec/ComponentDescriptors.h>
++#include <react/renderer/core/ConcreteComponentDescriptor.h>
++#include <react/renderer/componentregistry/ComponentDescriptorProviderRegistry.h>
++
++namespace facebook::react {
++
++void ReactNativePdfThumbnailSpec_registerComponentDescriptorsFromCodegen(
++  std::shared_ptr<const ComponentDescriptorProviderRegistry> registry) {
++
++}
++
++} // namespace facebook::react
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/ComponentDescriptors.h b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/ComponentDescriptors.h
+new file mode 100644
+index 0000000..cbdba95
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/ComponentDescriptors.h
+@@ -0,0 +1,24 @@
++
++/**
++ * This code was generated by [react-native-codegen](https://www.npmjs.com/package/react-native-codegen).
++ *
++ * Do not edit this file as changes may cause incorrect behavior and will be lost
++ * once the code is regenerated.
++ *
++ * @generated by codegen project: GenerateComponentDescriptorH.js
++ */
++
++#pragma once
++
++#include <react/renderer/components/ReactNativePdfThumbnailSpec/ShadowNodes.h>
++#include <react/renderer/core/ConcreteComponentDescriptor.h>
++#include <react/renderer/componentregistry/ComponentDescriptorProviderRegistry.h>
++
++namespace facebook::react {
++
++
++
++void ReactNativePdfThumbnailSpec_registerComponentDescriptorsFromCodegen(
++  std::shared_ptr<const ComponentDescriptorProviderRegistry> registry);
++
++} // namespace facebook::react
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/EventEmitters.cpp b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/EventEmitters.cpp
+new file mode 100644
+index 0000000..dccbf34
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/EventEmitters.cpp
+@@ -0,0 +1,16 @@
++
++/**
++ * This code was generated by [react-native-codegen](https://www.npmjs.com/package/react-native-codegen).
++ *
++ * Do not edit this file as changes may cause incorrect behavior and will be lost
++ * once the code is regenerated.
++ *
++ * @generated by codegen project: GenerateEventEmitterCpp.js
++ */
++
++#include <react/renderer/components/ReactNativePdfThumbnailSpec/EventEmitters.h>
++
++
++namespace facebook::react {
++
++} // namespace facebook::react
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/EventEmitters.h b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/EventEmitters.h
+new file mode 100644
+index 0000000..2845a63
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/EventEmitters.h
+@@ -0,0 +1,17 @@
++
++/**
++ * This code was generated by [react-native-codegen](https://www.npmjs.com/package/react-native-codegen).
++ *
++ * Do not edit this file as changes may cause incorrect behavior and will be lost
++ * once the code is regenerated.
++ *
++ * @generated by codegen project: GenerateEventEmitterH.js
++ */
++#pragma once
++
++#include <react/renderer/components/view/ViewEventEmitter.h>
++
++
++namespace facebook::react {
++
++} // namespace facebook::react
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/Props.cpp b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/Props.cpp
+new file mode 100644
+index 0000000..1f45e8f
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/Props.cpp
+@@ -0,0 +1,19 @@
++
++/**
++ * This code was generated by [react-native-codegen](https://www.npmjs.com/package/react-native-codegen).
++ *
++ * Do not edit this file as changes may cause incorrect behavior and will be lost
++ * once the code is regenerated.
++ *
++ * @generated by codegen project: GeneratePropsCpp.js
++ */
++
++#include <react/renderer/components/ReactNativePdfThumbnailSpec/Props.h>
++#include <react/renderer/core/PropsParserContext.h>
++#include <react/renderer/core/propsConversions.h>
++
++namespace facebook::react {
++
++
++
++} // namespace facebook::react
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/Props.h b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/Props.h
+new file mode 100644
+index 0000000..870864b
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/Props.h
+@@ -0,0 +1,18 @@
++
++/**
++ * This code was generated by [react-native-codegen](https://www.npmjs.com/package/react-native-codegen).
++ *
++ * Do not edit this file as changes may cause incorrect behavior and will be lost
++ * once the code is regenerated.
++ *
++ * @generated by codegen project: GeneratePropsH.js
++ */
++#pragma once
++
++
++
++namespace facebook::react {
++
++
++
++} // namespace facebook::react
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/ReactNativePdfThumbnailSpecJSI.h b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/ReactNativePdfThumbnailSpecJSI.h
+new file mode 100644
+index 0000000..ec16260
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/ReactNativePdfThumbnailSpecJSI.h
+@@ -0,0 +1,19 @@
++/**
++ * This code was generated by [react-native-codegen](https://www.npmjs.com/package/react-native-codegen).
++ *
++ * Do not edit this file as changes may cause incorrect behavior and will be lost
++ * once the code is regenerated.
++ *
++ * @generated by codegen project: GenerateModuleH.js
++ */
++
++#pragma once
++
++#include <ReactCommon/TurboModule.h>
++#include <react/bridging/Bridging.h>
++
++namespace facebook::react {
++
++
++
++} // namespace facebook::react
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/ShadowNodes.cpp b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/ShadowNodes.cpp
+new file mode 100644
+index 0000000..2f8c868
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/ShadowNodes.cpp
+@@ -0,0 +1,17 @@
++
++/**
++ * This code was generated by [react-native-codegen](https://www.npmjs.com/package/react-native-codegen).
++ *
++ * Do not edit this file as changes may cause incorrect behavior and will be lost
++ * once the code is regenerated.
++ *
++ * @generated by codegen project: GenerateShadowNodeCpp.js
++ */
++
++#include <react/renderer/components/ReactNativePdfThumbnailSpec/ShadowNodes.h>
++
++namespace facebook::react {
++
++
++
++} // namespace facebook::react
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/ShadowNodes.h b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/ShadowNodes.h
+new file mode 100644
+index 0000000..30593b3
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/ShadowNodes.h
+@@ -0,0 +1,23 @@
++
++/**
++ * This code was generated by [react-native-codegen](https://www.npmjs.com/package/react-native-codegen).
++ *
++ * Do not edit this file as changes may cause incorrect behavior and will be lost
++ * once the code is regenerated.
++ *
++ * @generated by codegen project: GenerateShadowNodeH.js
++ */
++
++#pragma once
++
++#include <react/renderer/components/ReactNativePdfThumbnailSpec/EventEmitters.h>
++#include <react/renderer/components/ReactNativePdfThumbnailSpec/Props.h>
++#include <react/renderer/components/ReactNativePdfThumbnailSpec/States.h>
++#include <react/renderer/components/view/ConcreteViewShadowNode.h>
++#include <jsi/jsi.h>
++
++namespace facebook::react {
++
++
++
++} // namespace facebook::react
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/States.cpp b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/States.cpp
+new file mode 100644
+index 0000000..7c51093
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/States.cpp
+@@ -0,0 +1,16 @@
++
++/**
++ * This code was generated by [react-native-codegen](https://www.npmjs.com/package/react-native-codegen).
++ *
++ * Do not edit this file as changes may cause incorrect behavior and will be lost
++ * once the code is regenerated.
++ *
++ * @generated by codegen project: GenerateStateCpp.js
++ */
++#include <react/renderer/components/ReactNativePdfThumbnailSpec/States.h>
++
++namespace facebook::react {
++
++
++
++} // namespace facebook::react
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/States.h b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/States.h
+new file mode 100644
+index 0000000..2e55bce
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/jni/react/renderer/components/ReactNativePdfThumbnailSpec/States.h
+@@ -0,0 +1,20 @@
++/**
++ * This code was generated by [react-native-codegen](https://www.npmjs.com/package/react-native-codegen).
++ *
++ * Do not edit this file as changes may cause incorrect behavior and will be lost
++ * once the code is regenerated.
++ *
++ * @generated by codegen project: GenerateStateH.js
++ */
++#pragma once
++
++#include <react/renderer/core/StateData.h>
++#ifdef RN_SERIALIZABLE_STATE
++#include <folly/dynamic.h>
++#endif
++
++namespace facebook::react {
++
++
++
++} // namespace facebook::react
+\ No newline at end of file
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/schema.json b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/schema.json
+new file mode 100644
+index 0000000..c845b54
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/generated/source/codegen/schema.json
+@@ -0,0 +1 @@
++{"libraryName":"","modules":{}}
+\ No newline at end of file
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/AndroidManifest.xml b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/AndroidManifest.xml
+new file mode 100644
+index 0000000..b304d22
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/AndroidManifest.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++    package="com.pdfthumbnail" >
++
++    <uses-sdk android:minSdkVersion="24" />
++
++</manifest>
+\ No newline at end of file
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/output-metadata.json b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/output-metadata.json
+new file mode 100644
+index 0000000..bcbd138
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/aapt_friendly_merged_manifests/debug/processDebugManifest/aapt/output-metadata.json
+@@ -0,0 +1,18 @@
++{
++  "version": 3,
++  "artifactType": {
++    "type": "AAPT_FRIENDLY_MERGED_MANIFESTS",
++    "kind": "Directory"
++  },
++  "applicationId": "com.pdfthumbnail",
++  "variantName": "debug",
++  "elements": [
++    {
++      "type": "SINGLE",
++      "filters": [],
++      "attributes": [],
++      "outputFile": "AndroidManifest.xml"
++    }
++  ],
++  "elementType": "File"
++}
+\ No newline at end of file
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/aar_metadata/debug/writeDebugAarMetadata/aar-metadata.properties b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/aar_metadata/debug/writeDebugAarMetadata/aar-metadata.properties
+new file mode 100644
+index 0000000..1211b1e
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/aar_metadata/debug/writeDebugAarMetadata/aar-metadata.properties
+@@ -0,0 +1,6 @@
++aarFormatVersion=1.0
++aarMetadataVersion=1.0
++minCompileSdk=1
++minCompileSdkExtension=0
++minAndroidGradlePluginVersion=1.0.0
++coreLibraryDesugaringEnabled=false
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/annotation_processor_list/debug/javaPreCompileDebug/annotationProcessors.json b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/annotation_processor_list/debug/javaPreCompileDebug/annotationProcessors.json
+new file mode 100644
+index 0000000..9e26dfe
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/annotation_processor_list/debug/javaPreCompileDebug/annotationProcessors.json
+@@ -0,0 +1 @@
++{}
+\ No newline at end of file
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/compile_library_classes_jar/debug/bundleLibCompileToJarDebug/classes.jar b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/compile_library_classes_jar/debug/bundleLibCompileToJarDebug/classes.jar
+new file mode 100644
+index 0000000..7a10045
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/compile_library_classes_jar/debug/bundleLibCompileToJarDebug/classes.jar differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/compile_r_class_jar/debug/generateDebugRFile/R.jar b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/compile_r_class_jar/debug/generateDebugRFile/R.jar
+new file mode 100644
+index 0000000..cdd357e
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/compile_r_class_jar/debug/generateDebugRFile/R.jar differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/compile_symbol_list/debug/generateDebugRFile/R.txt b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/compile_symbol_list/debug/generateDebugRFile/R.txt
+new file mode 100644
+index 0000000..e69de29
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties
+new file mode 100644
+index 0000000..3a01eb9
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties
+@@ -0,0 +1 @@
++#Sun Apr 26 04:35:37 IST 2026
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/incremental/debug/packageDebugResources/merger.xml b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/incremental/debug/packageDebugResources/merger.xml
+new file mode 100644
+index 0000000..44817ec
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/incremental/debug/packageDebugResources/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/home/puneeth/Desktop/medha/node_modules/react-native-pdf-thumbnail/android/src/main/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main" generated-set="main$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/home/puneeth/Desktop/medha/node_modules/react-native-pdf-thumbnail/android/src/main/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="debug$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/home/puneeth/Desktop/medha/node_modules/react-native-pdf-thumbnail/android/src/debug/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="debug" generated-set="debug$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/home/puneeth/Desktop/medha/node_modules/react-native-pdf-thumbnail/android/src/debug/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/home/puneeth/Desktop/medha/node_modules/react-native-pdf-thumbnail/android/build/generated/res/resValues/debug"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated" generated-set="generated$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/home/puneeth/Desktop/medha/node_modules/react-native-pdf-thumbnail/android/build/generated/res/resValues/debug"/></dataSet><mergedItems/></merger>
+\ No newline at end of file
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/incremental/mergeDebugAssets/merger.xml b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/incremental/mergeDebugAssets/merger.xml
+new file mode 100644
+index 0000000..06b66f4
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/incremental/mergeDebugAssets/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet config="main" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/home/puneeth/Desktop/medha/node_modules/react-native-pdf-thumbnail/android/src/main/assets"/></dataSet><dataSet config="debug" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/home/puneeth/Desktop/medha/node_modules/react-native-pdf-thumbnail/android/src/debug/assets"/></dataSet><dataSet config="generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/home/puneeth/Desktop/medha/node_modules/react-native-pdf-thumbnail/android/build/intermediates/shader_assets/debug/compileDebugShaders/out"/></dataSet></merger>
+\ No newline at end of file
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/incremental/mergeDebugJniLibFolders/merger.xml b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/incremental/mergeDebugJniLibFolders/merger.xml
+new file mode 100644
+index 0000000..a9d18c4
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/incremental/mergeDebugJniLibFolders/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet config="main" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/home/puneeth/Desktop/medha/node_modules/react-native-pdf-thumbnail/android/src/main/jniLibs"/></dataSet><dataSet config="debug" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/home/puneeth/Desktop/medha/node_modules/react-native-pdf-thumbnail/android/src/debug/jniLibs"/></dataSet></merger>
+\ No newline at end of file
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/incremental/mergeDebugShaders/merger.xml b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/incremental/mergeDebugShaders/merger.xml
+new file mode 100644
+index 0000000..bbd8f3d
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/incremental/mergeDebugShaders/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet config="main" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/home/puneeth/Desktop/medha/node_modules/react-native-pdf-thumbnail/android/src/main/shaders"/></dataSet><dataSet config="debug" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/home/puneeth/Desktop/medha/node_modules/react-native-pdf-thumbnail/android/src/debug/shaders"/></dataSet></merger>
+\ No newline at end of file
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/java_res/debug/processDebugJavaRes/out/META-INF/react-native-pdf-thumbnail_debug.kotlin_module b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/java_res/debug/processDebugJavaRes/out/META-INF/react-native-pdf-thumbnail_debug.kotlin_module
+new file mode 100644
+index 0000000..9dbc290
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/java_res/debug/processDebugJavaRes/out/META-INF/react-native-pdf-thumbnail_debug.kotlin_module differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/pdfthumbnail/BuildConfig.class b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/pdfthumbnail/BuildConfig.class
+new file mode 100644
+index 0000000..4187423
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/pdfthumbnail/BuildConfig.class differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/local_only_symbol_list/debug/parseDebugLocalResources/R-def.txt b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/local_only_symbol_list/debug/parseDebugLocalResources/R-def.txt
+new file mode 100644
+index 0000000..78ac5b8
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/local_only_symbol_list/debug/parseDebugLocalResources/R-def.txt
+@@ -0,0 +1,2 @@
++R_DEF: Internal format may change without notice
++local
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/manifest_merge_blame_file/debug/processDebugManifest/manifest-merger-blame-debug-report.txt b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/manifest_merge_blame_file/debug/processDebugManifest/manifest-merger-blame-debug-report.txt
+new file mode 100644
+index 0000000..c50eb67
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/manifest_merge_blame_file/debug/processDebugManifest/manifest-merger-blame-debug-report.txt
+@@ -0,0 +1,7 @@
++1<?xml version="1.0" encoding="utf-8"?>
++2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++3    package="com.pdfthumbnail" >
++4
++5    <uses-sdk android:minSdkVersion="24" />
++6
++7</manifest>
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml
+new file mode 100644
+index 0000000..b304d22
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++    package="com.pdfthumbnail" >
++
++    <uses-sdk android:minSdkVersion="24" />
++
++</manifest>
+\ No newline at end of file
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/navigation_json/debug/extractDeepLinksDebug/navigation.json b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/navigation_json/debug/extractDeepLinksDebug/navigation.json
+new file mode 100644
+index 0000000..0637a08
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/navigation_json/debug/extractDeepLinksDebug/navigation.json
+@@ -0,0 +1 @@
++[]
+\ No newline at end of file
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/nested_resources_validation_report/debug/generateDebugResources/nestedResourcesValidationReport.txt b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/nested_resources_validation_report/debug/generateDebugResources/nestedResourcesValidationReport.txt
+new file mode 100644
+index 0000000..08f4ebe
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/nested_resources_validation_report/debug/generateDebugResources/nestedResourcesValidationReport.txt
+@@ -0,0 +1 @@
++0 Warning/Error
+\ No newline at end of file
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/META-INF/react-native-pdf-thumbnail_debug.kotlin_module b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/META-INF/react-native-pdf-thumbnail_debug.kotlin_module
+new file mode 100644
+index 0000000..9dbc290
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/META-INF/react-native-pdf-thumbnail_debug.kotlin_module differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/pdfthumbnail/BuildConfig.class b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/pdfthumbnail/BuildConfig.class
+new file mode 100644
+index 0000000..4187423
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/pdfthumbnail/BuildConfig.class differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/org/songsterq/pdfthumbnail/PdfThumbnailModule$Companion.class b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/org/songsterq/pdfthumbnail/PdfThumbnailModule$Companion.class
+new file mode 100644
+index 0000000..ea189fa
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/org/songsterq/pdfthumbnail/PdfThumbnailModule$Companion.class differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/org/songsterq/pdfthumbnail/PdfThumbnailModule.class b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/org/songsterq/pdfthumbnail/PdfThumbnailModule.class
+new file mode 100644
+index 0000000..c3ca98d
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/org/songsterq/pdfthumbnail/PdfThumbnailModule.class differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/org/songsterq/pdfthumbnail/PdfThumbnailPackage.class b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/org/songsterq/pdfthumbnail/PdfThumbnailPackage.class
+new file mode 100644
+index 0000000..616d499
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/org/songsterq/pdfthumbnail/PdfThumbnailPackage.class differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/runtime_library_classes_jar/debug/bundleLibRuntimeToJarDebug/classes.jar b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/runtime_library_classes_jar/debug/bundleLibRuntimeToJarDebug/classes.jar
+new file mode 100644
+index 0000000..0c344ad
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/runtime_library_classes_jar/debug/bundleLibRuntimeToJarDebug/classes.jar differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/intermediates/symbol_list_with_package_name/debug/generateDebugRFile/package-aware-r.txt b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/symbol_list_with_package_name/debug/generateDebugRFile/package-aware-r.txt
+new file mode 100644
+index 0000000..177961e
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/intermediates/symbol_list_with_package_name/debug/generateDebugRFile/package-aware-r.txt
+@@ -0,0 +1 @@
++com.pdfthumbnail
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab
+new file mode 100644
+index 0000000..799a3dc
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.keystream b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.keystream
+new file mode 100644
+index 0000000..0e094d5
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.keystream differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.keystream.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.keystream.len
+new file mode 100644
+index 0000000..a09dabf
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.keystream.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.len
+new file mode 100644
+index 0000000..01bdaa1
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.values.at b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.values.at
+new file mode 100644
+index 0000000..7c27e78
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.values.at differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab_i b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab_i
+new file mode 100644
+index 0000000..7795e0d
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab_i differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab_i.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab_i.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab
+new file mode 100644
+index 0000000..415ad2b
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.keystream b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.keystream
+new file mode 100644
+index 0000000..4bbdad2
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.keystream differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.keystream.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.keystream.len
+new file mode 100644
+index 0000000..b31f54b
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.keystream.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.len
+new file mode 100644
+index 0000000..a9f80ae
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.values.at b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.values.at
+new file mode 100644
+index 0000000..fe23964
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.values.at differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab_i b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab_i
+new file mode 100644
+index 0000000..6792ed1
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab_i differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab_i.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab_i.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab
+new file mode 100644
+index 0000000..4028516
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.keystream b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.keystream
+new file mode 100644
+index 0000000..4bbdad2
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.keystream differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.keystream.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.keystream.len
+new file mode 100644
+index 0000000..b31f54b
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.keystream.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.len
+new file mode 100644
+index 0000000..a9f80ae
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.values.at b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.values.at
+new file mode 100644
+index 0000000..d45bb94
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.values.at differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab_i b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab_i
+new file mode 100644
+index 0000000..6792ed1
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab_i differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab_i.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab_i.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab
+new file mode 100644
+index 0000000..bdf584a
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.keystream b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.keystream
+new file mode 100644
+index 0000000..4d160cc
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.keystream differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.keystream.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.keystream.len
+new file mode 100644
+index 0000000..4e6ef51
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.keystream.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.len
+new file mode 100644
+index 0000000..2a17e6e
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.values.at b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.values.at
+new file mode 100644
+index 0000000..fc8ea95
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.values.at differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab_i b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab_i
+new file mode 100644
+index 0000000..21218ca
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab_i differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab_i.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab_i.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab
+new file mode 100644
+index 0000000..4028516
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.keystream b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.keystream
+new file mode 100644
+index 0000000..11a0b82
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.keystream differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.keystream.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.keystream.len
+new file mode 100644
+index 0000000..b31f54b
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.keystream.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.len
+new file mode 100644
+index 0000000..a9f80ae
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.values.at b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.values.at
+new file mode 100644
+index 0000000..d45bb94
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.values.at differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab_i b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab_i
+new file mode 100644
+index 0000000..67e24a2
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab_i differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab_i.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab_i.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab
+new file mode 100644
+index 0000000..0a8d812
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.keystream b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.keystream
+new file mode 100644
+index 0000000..a95b72f
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.keystream differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.keystream.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.keystream.len
+new file mode 100644
+index 0000000..be9fd94
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.keystream.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.len
+new file mode 100644
+index 0000000..93a595b
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.values.at b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.values.at
+new file mode 100644
+index 0000000..c6afa2e
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.values.at differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab_i b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab_i
+new file mode 100644
+index 0000000..5bd1a93
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab_i differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab_i.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab_i.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab
+new file mode 100644
+index 0000000..347d1ae
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.keystream b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.keystream
+new file mode 100644
+index 0000000..0e094d5
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.keystream differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.keystream.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.keystream.len
+new file mode 100644
+index 0000000..a09dabf
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.keystream.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.len
+new file mode 100644
+index 0000000..01bdaa1
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.values.at b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.values.at
+new file mode 100644
+index 0000000..c3d6fad
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.values.at differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab_i b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab_i
+new file mode 100644
+index 0000000..7795e0d
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab_i differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab_i.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab_i.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab
+new file mode 100644
+index 0000000..836ca65
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.keystream b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.keystream
+new file mode 100644
+index 0000000..b425921
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.keystream differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.keystream.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.keystream.len
+new file mode 100644
+index 0000000..1cf91b4
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.keystream.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.len
+new file mode 100644
+index 0000000..01bdaa1
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.values.at b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.values.at
+new file mode 100644
+index 0000000..08dabc7
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.values.at differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab_i b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab_i
+new file mode 100644
+index 0000000..13aca7b
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab_i differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab_i.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab_i.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab
+new file mode 100644
+index 0000000..7a0f915
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.keystream b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.keystream
+new file mode 100644
+index 0000000..229b3e4
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.keystream differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.keystream.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.keystream.len
+new file mode 100644
+index 0000000..ffc9b0d
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.keystream.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.len
+new file mode 100644
+index 0000000..01bdaa1
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.values.at b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.values.at
+new file mode 100644
+index 0000000..fdc18fe
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.values.at differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab_i b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab_i
+new file mode 100644
+index 0000000..cb15915
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab_i differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab_i.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab_i.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/counters.tab b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/counters.tab
+new file mode 100644
+index 0000000..2ceb12b
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/counters.tab
+@@ -0,0 +1,2 @@
++2
++0
+\ No newline at end of file
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab
+new file mode 100644
+index 0000000..7785dc2
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.keystream b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.keystream
+new file mode 100644
+index 0000000..0e094d5
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.keystream differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.keystream.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.keystream.len
+new file mode 100644
+index 0000000..a09dabf
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.keystream.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.len
+new file mode 100644
+index 0000000..01bdaa1
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.values.at b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.values.at
+new file mode 100644
+index 0000000..7d30a43
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.values.at differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab_i b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab_i
+new file mode 100644
+index 0000000..7795e0d
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab_i differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab_i.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/file-to-id.tab_i.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab
+new file mode 100644
+index 0000000..eefb032
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.keystream b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.keystream
+new file mode 100644
+index 0000000..100d205
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.keystream differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.keystream.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.keystream.len
+new file mode 100644
+index 0000000..ccfcbf4
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.keystream.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.len
+new file mode 100644
+index 0000000..01bdaa1
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.values.at b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.values.at
+new file mode 100644
+index 0000000..abdc918
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.values.at differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab_i b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab_i
+new file mode 100644
+index 0000000..f768a77
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab_i differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab_i.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/id-to-file.tab_i.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab
+new file mode 100644
+index 0000000..60bd25d
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream
+new file mode 100644
+index 0000000..b047133
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream.len
+new file mode 100644
+index 0000000..bb23aa0
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.len
+new file mode 100644
+index 0000000..3b37f75
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.values.at b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.values.at
+new file mode 100644
+index 0000000..bf7a736
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab.values.at differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab_i b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab_i
+new file mode 100644
+index 0000000..16ff445
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab_i differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab_i.len b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/lookups/lookups.tab_i.len differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/last-build.bin b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/last-build.bin
+new file mode 100644
+index 0000000..4a27daa
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/cacheable/last-build.bin differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/classpath-snapshot/shrunk-classpath-snapshot.bin b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/classpath-snapshot/shrunk-classpath-snapshot.bin
+new file mode 100644
+index 0000000..56edc09
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/classpath-snapshot/shrunk-classpath-snapshot.bin differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/local-state/build-history.bin b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/local-state/build-history.bin
+new file mode 100644
+index 0000000..58a3d9a
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/kotlin/compileDebugKotlin/local-state/build-history.bin differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/outputs/logs/manifest-merger-debug-report.txt b/node_modules/react-native-pdf-thumbnail/android/build/outputs/logs/manifest-merger-debug-report.txt
+new file mode 100644
+index 0000000..ed5f02d
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/android/build/outputs/logs/manifest-merger-debug-report.txt
+@@ -0,0 +1,16 @@
++-- Merging decision tree log ---
++manifest
++ADDED from /home/puneeth/Desktop/medha/node_modules/react-native-pdf-thumbnail/android/src/main/AndroidManifestNew.xml:1:1-2:12
++INJECTED from /home/puneeth/Desktop/medha/node_modules/react-native-pdf-thumbnail/android/src/main/AndroidManifestNew.xml:1:1-2:12
++	package
++		INJECTED from /home/puneeth/Desktop/medha/node_modules/react-native-pdf-thumbnail/android/src/main/AndroidManifestNew.xml
++	xmlns:android
++		ADDED from /home/puneeth/Desktop/medha/node_modules/react-native-pdf-thumbnail/android/src/main/AndroidManifestNew.xml:1:11-69
++uses-sdk
++INJECTED from /home/puneeth/Desktop/medha/node_modules/react-native-pdf-thumbnail/android/src/main/AndroidManifestNew.xml reason: use-sdk injection requested
++INJECTED from /home/puneeth/Desktop/medha/node_modules/react-native-pdf-thumbnail/android/src/main/AndroidManifestNew.xml
++INJECTED from /home/puneeth/Desktop/medha/node_modules/react-native-pdf-thumbnail/android/src/main/AndroidManifestNew.xml
++	android:targetSdkVersion
++		INJECTED from /home/puneeth/Desktop/medha/node_modules/react-native-pdf-thumbnail/android/src/main/AndroidManifestNew.xml
++	android:minSdkVersion
++		INJECTED from /home/puneeth/Desktop/medha/node_modules/react-native-pdf-thumbnail/android/src/main/AndroidManifestNew.xml
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/tmp/compileDebugJavaWithJavac/previous-compilation-data.bin b/node_modules/react-native-pdf-thumbnail/android/build/tmp/compileDebugJavaWithJavac/previous-compilation-data.bin
+new file mode 100644
+index 0000000..6732de8
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/tmp/compileDebugJavaWithJavac/previous-compilation-data.bin differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/tmp/kotlin-classes/debug/META-INF/react-native-pdf-thumbnail_debug.kotlin_module b/node_modules/react-native-pdf-thumbnail/android/build/tmp/kotlin-classes/debug/META-INF/react-native-pdf-thumbnail_debug.kotlin_module
+new file mode 100644
+index 0000000..9dbc290
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/tmp/kotlin-classes/debug/META-INF/react-native-pdf-thumbnail_debug.kotlin_module differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/tmp/kotlin-classes/debug/org/songsterq/pdfthumbnail/PdfThumbnailModule$Companion.class b/node_modules/react-native-pdf-thumbnail/android/build/tmp/kotlin-classes/debug/org/songsterq/pdfthumbnail/PdfThumbnailModule$Companion.class
+new file mode 100644
+index 0000000..ea189fa
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/tmp/kotlin-classes/debug/org/songsterq/pdfthumbnail/PdfThumbnailModule$Companion.class differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/tmp/kotlin-classes/debug/org/songsterq/pdfthumbnail/PdfThumbnailModule.class b/node_modules/react-native-pdf-thumbnail/android/build/tmp/kotlin-classes/debug/org/songsterq/pdfthumbnail/PdfThumbnailModule.class
+new file mode 100644
+index 0000000..c3ca98d
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/tmp/kotlin-classes/debug/org/songsterq/pdfthumbnail/PdfThumbnailModule.class differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/build/tmp/kotlin-classes/debug/org/songsterq/pdfthumbnail/PdfThumbnailPackage.class b/node_modules/react-native-pdf-thumbnail/android/build/tmp/kotlin-classes/debug/org/songsterq/pdfthumbnail/PdfThumbnailPackage.class
+new file mode 100644
+index 0000000..616d499
+Binary files /dev/null and b/node_modules/react-native-pdf-thumbnail/android/build/tmp/kotlin-classes/debug/org/songsterq/pdfthumbnail/PdfThumbnailPackage.class differ
+diff --git a/node_modules/react-native-pdf-thumbnail/android/src/main/java/org/songsterq/pdfthumbnail/PdfThumbnailModule.kt b/node_modules/react-native-pdf-thumbnail/android/src/main/java/org/songsterq/pdfthumbnail/PdfThumbnailModule.kt
+index 921b578..3e4aa6b 100644
+--- a/node_modules/react-native-pdf-thumbnail/android/src/main/java/org/songsterq/pdfthumbnail/PdfThumbnailModule.kt
++++ b/node_modules/react-native-pdf-thumbnail/android/src/main/java/org/songsterq/pdfthumbnail/PdfThumbnailModule.kt
+@@ -98,7 +98,7 @@ class PdfThumbnailModule(reactContext: ReactApplicationContext) :
+     currentPage.close()
+ 
+     // Some bitmaps have transparent background which results in a black thumbnail. Add a white background.
+-    val bitmapWhiteBG = Bitmap.createBitmap(bitmap.width, bitmap.height, bitmap.config)
++    val bitmapWhiteBG = Bitmap.createBitmap(bitmap.width, bitmap.height, bitmap.config ?: Bitmap.Config.ARGB_8888)
+     val canvas = Canvas(bitmapWhiteBG)
+     canvas.drawBitmap(bitmap, 0f, 0f, null)
+     bitmap.recycle()
+diff --git a/node_modules/react-native-pdf-thumbnail/react-native.config.js b/node_modules/react-native-pdf-thumbnail/react-native.config.js
+new file mode 100644
+index 0000000..4563138
+--- /dev/null
++++ b/node_modules/react-native-pdf-thumbnail/react-native.config.js
+@@ -0,0 +1,10 @@
++module.exports = {
++  dependency: {
++    platforms: {
++      android: {
++        packageImportPath: 'import org.songsterq.pdfthumbnail.PdfThumbnailPackage;',
++        packageInstance: 'new PdfThumbnailPackage()',
++      },
++    },
++  },
++};

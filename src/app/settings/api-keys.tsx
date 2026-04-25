@@ -3,11 +3,11 @@ import { View, Text, TextInput, Pressable, ActivityIndicator, Alert } from 'reac
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Plus, Bolt, Trash2, Shield, X, Check } from 'lucide-react-native';
+import { ArrowLeft, Plus, Trash2, Shield, X, Check } from 'lucide-react-native';
 import { cn } from '@/lib/utils';
 import { useSettingsStore, hasProviderKey, deleteProviderKey, maskKey } from '@/stores/settings-store';
 
-type ProviderId = 'openrouter' | 'google-ai' | 'anthropic' | 'minimax' | 'tavily';
+type ProviderId = 'openrouter' | 'google-ai' | 'anthropic' | 'minimax' | 'tavily' | 'image-gen';
 
 interface ProviderConfig {
   id: ProviderId;
@@ -21,6 +21,7 @@ const PROVIDERS: ProviderConfig[] = [
   { id: 'anthropic', name: 'Anthropic', description: 'Claude models via Anthropic API' },
   { id: 'minimax', name: 'MiniMax', description: 'MiniMax M2.7 and M1 models' },
   { id: 'tavily', name: 'Web Search (Tavily)', description: 'Enable AI web search — free tier: 1000/mo' },
+  { id: 'image-gen', name: 'Image Generation', description: 'DALL-E 3 or Stability AI — generate images in chat' },
 ];
 
 export default function ApiKeysScreen() {
@@ -35,6 +36,7 @@ export default function ApiKeysScreen() {
     anthropic: '',
     minimax: '',
     tavily: '',
+    'image-gen': '',
   });
   const [testingProvider, setTestingProvider] = useState<ProviderId | null>(null);
   const [isAddingKey, setIsAddingKey] = useState<ProviderId | null>(null);
@@ -104,8 +106,8 @@ export default function ApiKeysScreen() {
 
     setIsValidating(true);
     try {
-      // Tavily is not an AI provider — save directly without validation
-      if (provider.id === 'tavily') {
+      // Tavily and image-gen are not AI providers — save directly without validation
+      if (provider.id === 'tavily' || provider.id === 'image-gen') {
         const { saveProviderKey } = await import('@/stores/settings-store');
         await saveProviderKey(provider.id, key.trim());
         setConnectedProviders(prev => new Set([...prev, provider.id]));

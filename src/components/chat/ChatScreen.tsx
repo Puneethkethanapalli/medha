@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { Menu, PenSquare } from 'lucide-react-native';
 import { ModelPill } from '@/components/chat/ModelPill';
 import { ChatSettingsButton } from '@/components/chat/ChatSettingsButton';
+import { ImageGenToggle } from '@/components/chat/ImageGenToggle';
 import { MessageList } from '@/components/chat/MessageList';
 import { MessageActionsMenu } from '@/components/chat/MessageActionsMenu';
 import { OfflineBanner } from '@/components/chat/OfflineBanner';
@@ -26,6 +27,7 @@ import { getApiKey } from '@/lib/storage/secure';
 import { getProvider, registerBuiltInProviders, listProviders } from '@/lib/providers/registry';
 import { registerTool, listTools, getOpenAIToolSchemas, getAnthropicToolSchemas, getTool } from '@/lib/tools/registry';
 import { webSearchTool } from '@/lib/tools/web-search';
+import { generateImageTool } from '@/lib/tools/image-gen';
 import { saveMemoryTool, forgetMemoryTool } from '@/lib/tools/memory-tools';
 import { composeSystemPrompt } from '@/lib/rules/injector';
 import type { AccumulatedToolCall } from '@/lib/streaming/stream';
@@ -49,6 +51,7 @@ export const ChatScreen = React.memo(function ChatScreen({
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentConvId, setCurrentConvId] = useState<string | null>(conversationId);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  const [hasImageGenKey, setHasImageGenKey] = useState(false);
   const abortRef = useRef<{ abort: () => void } | null>(null);
 
   const openDrawer = useUIStore((s) => s.openDrawer);
@@ -61,6 +64,7 @@ export const ChatScreen = React.memo(function ChatScreen({
   const thinkingMode = useSettingsStore((s) => s.thinkingMode);
   const webSearchEnabled = useSettingsStore((s) => s.webSearchEnabled);
   const memoryEnabled = useSettingsStore((s) => s.memoryEnabled);
+  const imageGenEnabled = useSettingsStore((s) => s.imageGenEnabled);
 
   const {
     startStreaming,
@@ -72,12 +76,24 @@ export const ChatScreen = React.memo(function ChatScreen({
 
   // Ensure providers and tools are registered
   useEffect(() => {
+    const checkImageGenKey = async () => {
+      const { hasApiKey } = await import('@/lib/storage/secure');
+      setHasImageGenKey(await hasApiKey('image-gen'));
+    };
+    checkImageGenKey();
+  }, []);
+
+  useEffect(() => {
     if (listProviders().length === 0) {
       registerBuiltInProviders();
     }
     // Register built-in tools
     if (listTools().length === 0) {
       registerTool(webSearchTool);
+    }
+    // Register image generation tool
+    if (!getTool('generate_image')) {
+      registerTool(generateImageTool);
     }
     // Memory tools are always registered — they're core functionality
     if (!getTool('save_memory')) {
@@ -179,6 +195,14 @@ export const ChatScreen = React.memo(function ChatScreen({
           : memoryInstruction;
       }
 
+      if (imageGenEnabled) {
+        const imageGenInstruction =
+          'You can generate images. When the user asks to create, draw, or visualize something, use the generate_image tool.';
+        systemPrompt = systemPrompt
+          ? `${systemPrompt}\n\n${imageGenInstruction}`
+          : imageGenInstruction;
+      }
+
       // Create placeholder assistant message
       const assistantMsgId = addMessage(convId, 'assistant', '', model);
       updateMessage(assistantMsgId, { status: 'streaming' });
@@ -205,14 +229,15 @@ export const ChatScreen = React.memo(function ChatScreen({
         (m) => m.role !== 'system' && m.id !== assistantMsgId
       );
 
-      // Build tool config — web search when enabled, memory tools always
-      const useTools = (webSearchEnabled || memoryEnabled) && listTools().length > 0;
+      // Build tool config — web search when enabled, memory tools always, image gen when enabled
+      const useTools = (webSearchEnabled || memoryEnabled || imageGenEnabled) && listTools().length > 0;
       const activeToolNames: string[] = [];
       if (webSearchEnabled) activeToolNames.push('web_search');
       if (memoryEnabled) {
         activeToolNames.push('save_memory');
         activeToolNames.push('forget_memory');
       }
+      if (imageGenEnabled) activeToolNames.push('generate_image');
       const toolConfig = useTools
         ? {
             tools: getOpenAIToolSchemas(activeToolNames),
@@ -341,7 +366,7 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       abortRef.current = response;
     },
-    [lastModel, lastProvider, thinkingMode, webSearchEnabled, memoryEnabled, startStreaming, appendToken, appendReasoningToken, stopStreaming, setError]
+    [lastModel, lastProvider, thinkingMode, webSearchEnabled, memoryEnabled, imageGenEnabled, startStreaming, appendToken, appendReasoningToken, stopStreaming, setError]
   );
 
   const handleSend = useCallback(
@@ -538,6 +563,7 @@ export const ChatScreen = React.memo(function ChatScreen({
         </Pressable>
         <View className="flex-1 flex-row items-center justify-center gap-2 px-2">
           <ModelPill />
+          {hasImageGenKey && <ImageGenToggle />}
           <ChatSettingsButton />
         </View>
         <Pressable onPress={handleNewChat} className="w-10 h-10 items-center justify-center">
