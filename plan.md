@@ -1351,6 +1351,15 @@ These are not in scope for the current phase but documented for later (sprints 2
 > **Goal:** PDF, DOCX, and XLSX files attached by users are actually read and understood. Provider-native document support for Anthropic and Gemini sends files directly; for other providers, client-side text extraction + PDF page-to-image rendering enables full visual understanding via vision models.
 > **Duration:** ~4 hours
 
+#### Supported File Formats
+| Format | Processing Method | Images/Charts Visible? |
+|---|---|---|
+| **PDF** | Text layer extraction + Page-to-image rendering (for OpenRouter/MiniMax) or Native Upload (Anthropic/Gemini) | ✅ Yes (Full visual understanding) |
+| **DOCX** | Text extraction via `mammoth` | ❌ No (Text only) |
+| **XLSX / CSV** | Structured parsing to CSV via `xlsx` (SheetJS) | ❌ No (Text/Data only) |
+| **TXT / MD** | Raw text reading | ❌ No (Text only) |
+| **PPTX** | *Not currently supported* (Would require custom parser) | ❌ N/A |
+
 #### Prerequisites
 - Sprint 9 (attachments) must be complete — file picker and storage already working
 - `multimodal.ts` already has `readDocumentText()` that punts on binary files with `[Binary file: ...]`
