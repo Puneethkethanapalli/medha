@@ -9,6 +9,7 @@ import { AttachmentTray } from '@/components/chat/AttachmentTray';
 import { AttachmentButton } from '@/components/chat/AttachmentButton';
 import { SlashCommandPicker } from '@/components/chat/SlashCommandPicker';
 import { deleteAttachmentFile } from '@/lib/attachments/storage';
+import { readDocumentTextAsync, renderPdfPagesToImages } from '@/lib/attachments/document-extract';
 import { filterCommands, parseSlashInput, resolveCommandText } from '@/lib/commands/registry';
 import type { SlashCommand } from '@/lib/commands/registry';
 import type { Attachment } from '@/types';
@@ -22,11 +23,12 @@ export function InputBar({ onSend, onStop }: InputBarProps) {
   const [text, setText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [isExtracting, setIsExtracting] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const isStreaming = useChatStore((s) => s.isStreaming);
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  const canSend = text.trim().length > 0 || attachments.length > 0;
+  const canSend = (text.trim().length > 0 || attachments.length > 0) && !isExtracting;
 
   // Slash command detection
   const slashState = useMemo(() => parseSlashInput(text), [text]);
@@ -36,33 +38,70 @@ export function InputBar({ onSend, onStop }: InputBarProps) {
   );
   const showPicker = slashState !== null && matchedCommands.length > 0 && !slashState.arg;
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const trimmed = text.trim();
     if (!trimmed && attachments.length === 0) return;
-    if (isStreaming) return;
+    if (isStreaming || isExtracting) return;
+
+    // Extract text from document attachments before sending
+    const docAttachments = attachments.filter((a) => a.type === 'document');
+    let enrichedAttachments = attachments;
+
+    if (docAttachments.length > 0) {
+      setIsExtracting(true);
+      try {
+        enrichedAttachments = await Promise.all(
+          attachments.map(async (att) => {
+            if (att.type !== 'document') return att;
+            const result = await readDocumentTextAsync(att);
+            const enriched: Attachment = {
+              ...att,
+              extractedText: result.text ?? undefined,
+              pageCount: result.pageCount ?? undefined,
+            };
+
+            // Render PDF pages as images for non-native providers (OpenRouter, MiniMax)
+            if (att.mimeType === 'application/pdf' && result.pageCount) {
+              try {
+                const pageImages = await renderPdfPagesToImages(att.uri, result.pageCount);
+                if (pageImages.length > 0) {
+                  enriched.pageImageUris = pageImages;
+                }
+              } catch {
+                // Non-fatal — text extraction still works
+              }
+            }
+
+            return enriched;
+          })
+        );
+      } catch {
+        // Fall through with un-enriched attachments
+      } finally {
+        setIsExtracting(false);
+      }
+    }
 
     // Check if we're sending a command with an arg (e.g. "/translate Hindi")
     if (slashState && slashState.arg) {
       const exactMatch = matchedCommands.find((c) => c.name === slashState.commandQuery);
       if (exactMatch) {
         const resolved = resolveCommandText(exactMatch, slashState.arg);
-        // Button press animation
         animateSendButton();
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        onSend(resolved, attachments.length > 0 ? attachments : undefined);
+        onSend(resolved, enrichedAttachments.length > 0 ? enrichedAttachments : undefined);
         setText('');
         setAttachments([]);
         return;
       }
     }
 
-    // Button press animation
     animateSendButton();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onSend(trimmed, attachments.length > 0 ? attachments : undefined);
+    onSend(trimmed, enrichedAttachments.length > 0 ? enrichedAttachments : undefined);
     setText('');
     setAttachments([]);
-  }, [text, attachments, isStreaming, slashState, matchedCommands, onSend, scaleAnim]);
+  }, [text, attachments, isStreaming, isExtracting, slashState, matchedCommands, onSend, scaleAnim]);
 
   const animateSendButton = useCallback(() => {
     Animated.sequence([

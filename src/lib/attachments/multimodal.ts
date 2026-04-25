@@ -1,7 +1,7 @@
 import { File } from 'expo-file-system';
 import type { Attachment, Message } from '@/types';
 
-// ── OpenAI-compatible format (OpenRouter, Google AI, MiniMax) ─────────
+// ── OpenAI-compatible format (OpenRouter, Google AI compat, MiniMax) ─────────
 
 type OpenAITextPart = { type: 'text'; text: string };
 type OpenAIImagePart = { type: 'image_url'; image_url: { url: string } };
@@ -79,11 +79,19 @@ export function buildOpenAIMessages(
       }
     }
 
-    if (imageAttachments.length === 0) {
+    // Collect rendered PDF page images from document attachments
+    const pdfPageImages: string[] = [];
+    for (const doc of docAttachments) {
+      if (doc.pageImageUris && doc.pageImageUris.length > 0) {
+        pdfPageImages.push(...doc.pageImageUris);
+      }
+    }
+
+    if (imageAttachments.length === 0 && pdfPageImages.length === 0) {
       // Plain text message
       result.push({ role: msg.role, content: textContent });
     } else {
-      // Multimodal message with images
+      // Multimodal message with images (user photos + rendered PDF pages)
       const parts: OpenAIContentPart[] = [];
 
       if (textContent) {
@@ -96,6 +104,17 @@ export function buildOpenAIMessages(
           parts.push({
             type: 'image_url',
             image_url: { url: `data:${img.mimeType};base64,${base64}` },
+          });
+        }
+      }
+
+      // Rendered PDF pages as vision content
+      for (const pageUri of pdfPageImages) {
+        const base64 = readUriBase64(pageUri);
+        if (base64) {
+          parts.push({
+            type: 'image_url',
+            image_url: { url: `data:image/jpeg;base64,${base64}` },
           });
         }
       }
@@ -114,7 +133,11 @@ type AnthropicImagePart = {
   type: 'image';
   source: { type: 'base64'; media_type: string; data: string };
 };
-type AnthropicContentPart = AnthropicTextPart | AnthropicImagePart;
+type AnthropicDocumentPart = {
+  type: 'document';
+  source: { type: 'base64'; media_type: 'application/pdf'; data: string };
+};
+type AnthropicContentPart = AnthropicTextPart | AnthropicImagePart | AnthropicDocumentPart;
 
 export type AnthropicMessage = {
   role: string;
@@ -124,6 +147,7 @@ export type AnthropicMessage = {
 /**
  * Build Anthropic-compatible message array from Message[].
  * System messages are excluded (Anthropic uses a top-level `system` field).
+ * PDFs are sent as native `document` content blocks; other docs are inlined as text.
  */
 export function buildAnthropicMessages(messages: Message[]): AnthropicMessage[] {
   const result: AnthropicMessage[] = [];
@@ -147,21 +171,24 @@ export function buildAnthropicMessages(messages: Message[]): AnthropicMessage[] 
     const attachments = msg.attachments || [];
     const imageAttachments = attachments.filter((a) => a.type === 'image');
     const docAttachments = attachments.filter((a) => a.type === 'document');
+    const pdfAttachments = docAttachments.filter((a) => a.mimeType === 'application/pdf');
+    const otherDocAttachments = docAttachments.filter((a) => a.mimeType !== 'application/pdf');
 
+    // Build text content — append non-PDF document contents inline
     let textContent = msg.content;
-    for (const doc of docAttachments) {
+    for (const doc of otherDocAttachments) {
       const docText = readDocumentText(doc);
       if (docText) {
         textContent += `\n\n--- Attached file: ${doc.name} ---\n${docText}`;
       }
     }
 
-    if (imageAttachments.length === 0) {
+    if (imageAttachments.length === 0 && pdfAttachments.length === 0) {
       result.push({ role: msg.role, content: textContent });
     } else {
       const parts: AnthropicContentPart[] = [];
 
-      // Anthropic requires images before text
+      // Anthropic requires images before text, documents can go before text too
       for (const img of imageAttachments) {
         const base64 = readImageBase64(img);
         if (base64) {
@@ -170,6 +197,21 @@ export function buildAnthropicMessages(messages: Message[]): AnthropicMessage[] 
             source: {
               type: 'base64',
               media_type: img.mimeType,
+              data: base64,
+            },
+          });
+        }
+      }
+
+      // Native PDF document blocks
+      for (const pdf of pdfAttachments) {
+        const base64 = readAttachmentBase64(pdf);
+        if (base64) {
+          parts.push({
+            type: 'document',
+            source: {
+              type: 'base64',
+              media_type: 'application/pdf',
               data: base64,
             },
           });
@@ -199,6 +241,26 @@ function readImageBase64(attachment: Attachment): string | null {
   }
 }
 
+function readUriBase64(uri: string): string | null {
+  try {
+    const file = new File(uri);
+    if (!file.exists) return null;
+    return file.base64Sync();
+  } catch {
+    return null;
+  }
+}
+
+function readAttachmentBase64(attachment: Attachment): string | null {
+  try {
+    const file = new File(attachment.uri);
+    if (!file.exists) return null;
+    return file.base64Sync();
+  } catch {
+    return null;
+  }
+}
+
 const TEXT_MIME_TYPES = new Set([
   'text/plain',
   'text/markdown',
@@ -206,16 +268,21 @@ const TEXT_MIME_TYPES = new Set([
   'application/json',
 ]);
 
-function readDocumentText(attachment: Attachment): string | null {
+export function readDocumentText(attachment: Attachment): string | null {
   try {
+    // Use pre-extracted text if available (from client-side extraction)
+    if (attachment.extractedText) {
+      const text = attachment.extractedText;
+      return text.length > 50000 ? text.slice(0, 50000) + '\n... (truncated)' : text;
+    }
+
     // Only inline text-readable formats
     if (!TEXT_MIME_TYPES.has(attachment.mimeType)) {
-      // For PDFs and other binary docs, just note their name
-      return `[Binary file: ${attachment.name} (${attachment.mimeType})]`;
+      return `[Could not extract text from: ${attachment.name}]`;
     }
+
     const file = new File(attachment.uri);
     if (!file.exists) return null;
-    // Truncate to 50K chars to avoid blowing up context
     const text = file.textSync();
     return text.length > 50000 ? text.slice(0, 50000) + '\n... (truncated)' : text;
   } catch {

@@ -1348,47 +1348,68 @@ These are not in scope for the current phase but documented for later (sprints 2
 ---
 
 ### Sprint 15 — Document Intelligence
-> **Goal:** PDF, DOCX, and XLSX files attached by users are actually read and understood. Provider-native document support for Anthropic and Gemini sends files directly; for other providers, client-side text extraction fills the gap.
-> **Duration:** ~3 hours
+> **Goal:** PDF, DOCX, and XLSX files attached by users are actually read and understood. Provider-native document support for Anthropic and Gemini sends files directly; for other providers, client-side text extraction + PDF page-to-image rendering enables full visual understanding via vision models.
+> **Duration:** ~4 hours
 
 #### Prerequisites
 - Sprint 9 (attachments) must be complete — file picker and storage already working
 - `multimodal.ts` already has `readDocumentText()` that punts on binary files with `[Binary file: ...]`
 
 #### Tasks
-- [ ] **15.** Install PDF text extraction library
+- [x] **15.1** Install PDF text extraction library
   - `npx expo install expo-pdf-text-extract` — native module using PDFKit (iOS) + PDFBox (Android)
   - Requires dev build (not Expo Go) — already the case for Medha
   - Extracts text from digital PDFs (not scanned/OCR)
-- [ ] **15.** Update `readDocumentText()` in `multimodal.ts`
+- [x] **15.2** Update `readDocumentText()` in `multimodal.ts`
   - For `application/pdf`: use `expo-pdf-text-extract` to extract text
   - For DOCX (`application/vnd.openxmlformats-officedocument.wordprocessingml.document`): use lightweight JS parser or note as binary
   - For XLSX (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`): use `xlsx` (SheetJS) to extract as CSV text
   - Truncate all extracted text to 50K chars (existing limit)
   - Fallback: if extraction fails, return `[Could not extract text from: name.pdf]` instead of `[Binary file: ...]`
-- [ ] **15.** Add provider-native PDF support for Anthropic
+- [x] **15.3** Add provider-native PDF support for Anthropic
   - Update `buildAnthropicMessages()`: when attachment is `application/pdf`, send as Anthropic `document` content block:
     ```json
     { "type": "document", "source": { "type": "base64", "media_type": "application/pdf", "data": "..." } }
     ```
   - Claude natively reads PDFs (converts pages to images + extracts text server-side)
   - Keep client-side text extraction as fallback for other providers
-- [ ] **15.** Add provider-native PDF support for Google AI
+- [x] **15.4** Add provider-native PDF support for Google AI
   - Update `buildGeminiNativeMessages()`: when attachment is `application/pdf`, send as `inline_data` part:
     ```json
     { "inline_data": { "mime_type": "application/pdf", "data": "BASE64..." } }
     ```
   - Gemini supports PDFs up to 50MB inline
   - For OpenAI-compat path (`buildOpenAIMessages`): use extracted text (OpenAI format doesn't support PDF parts)
-- [ ] **15.** Update OpenAI/OpenRouter path to use extracted text
-  - `buildOpenAIMessages()` already inlines text — the text extraction update in 19.2 handles this automatically
+- [x] **15.5** Update OpenAI/OpenRouter path to use extracted text
+  - `buildOpenAIMessages()` already inlines text — the text extraction update in 15.2 handles this automatically
   - No structural changes needed — just ensure `readDocumentText()` now returns real PDF content
-- [ ] **15.** Add PDF page count indicator to attachment UI
+- [x] **15.6** Add PDF page count indicator to attachment UI
   - When a PDF is attached, show page count badge: "12 pages" in `text-muted-foreground`
   - Extract page count via `expo-pdf-text-extract` metadata
-- [ ] **15.** Verify: PDF and document extraction across providers
+- [x] **15.7** Install PDF page-to-image renderer
+  - `pnpm add react-native-pdf-thumbnail` — wraps Android `PdfRenderer` (API 21+)
+  - Requires dev build — already the case for Medha
+  - API: `PdfThumbnail.generate(uri, pageIndex, quality)` → `{ uri, width, height }`
+- [x] **15.8** Create `renderPdfPagesToImages()` in `document-extract.ts`
+  - Renders up to 10 PDF pages as JPEG images (quality 80)
+  - Returns array of local file URIs for the rendered images
+  - Caps at 10 pages to keep context window usage reasonable
+  - Skips failed pages gracefully — partial rendering is better than nothing
+- [x] **15.9** Add `pageImageUris` field to `Attachment` type
+  - New optional field: `pageImageUris?: string[]` — stores rendered page image URIs
+  - Populated during InputBar's document enrichment flow (alongside text extraction)
+- [x] **15.10** Wire PDF page rendering into InputBar send flow
+  - After extracting text from PDF, also call `renderPdfPagesToImages()`
+  - Store resulting URIs on `attachment.pageImageUris`
+  - Non-fatal: if page rendering fails, text extraction still works
+- [x] **15.11** Update `buildOpenAIMessages()` to include PDF page images
+  - When a document attachment has `pageImageUris`, include them as `image_url` parts
+  - Page images sent as `data:image/jpeg;base64,...` — same format as user photo attachments
+  - Both extracted text AND page images sent — text provides searchable content, images provide visual context
+  - Anthropic/Gemini paths unchanged — they handle PDFs natively
+- [ ] **15.12** Verify: PDF visual understanding across all providers
 
-#### How to Test Sprint 19
+#### How to Test Sprint 15
 ```
 ✅ Attach a digital PDF → AI summarizes its contents correctly
 ✅ Attach a DOCX → AI reads the text content
@@ -1399,10 +1420,18 @@ These are not in scope for the current phase but documented for later (sprints 2
 ✅ Large PDF (100+ pages) → text truncated gracefully at 50K chars
 ✅ Scanned PDF (no text layer) → graceful fallback message
 ✅ PDF page count shown in attachment badge
+✅ OpenRouter + vision model: PDF with charts → AI describes charts/diagrams correctly
+✅ PDF with embedded images → images visible to vision models via page rendering
+✅ PDF > 10 pages → only first 10 pages rendered as images, text extraction covers all
+✅ Page rendering failure → falls back to text-only, no crash
 ```
 
 #### 📗 Things Learned
-- (fill after completing)
+- `react-native-pdf-thumbnail` uses Android's native `PdfRenderer` (API 21+) — fast, no external dependencies
+- Claude's approach to PDFs: converts every page to an image + extracts text — dual-layer analysis
+- Gemini uses "native vision" — treats the whole PDF visually, includes built-in OCR
+- ChatGPT only does visual PDF analysis on Enterprise plans — standard plans use text extraction only
+- The dominant industry pattern is "page-to-image" for full PDF understanding
 
 #### 📕 Mistakes Made
 - (fill after completing)
@@ -1410,11 +1439,14 @@ These are not in scope for the current phase but documented for later (sprints 2
 #### 📘 Things to Remember
 - `expo-pdf-text-extract` requires dev build — won't work in Expo Go
 - Anthropic and Gemini can read PDFs natively (server-side) — always prefer this over client-side extraction
-- OpenRouter/OpenAI format doesn't support PDF parts — must extract text client-side first
+- OpenRouter/OpenAI format doesn't support PDF parts — use text extraction + page images instead
 - PDF base64 encoding adds ~33% size overhead — watch request size limits
 - Scanned PDFs need OCR which `expo-pdf-text-extract` doesn't do — note this limitation to users
 - Truncate at 50K chars — large PDFs can blow up context windows and costs
 - DOCX extraction is lower priority — start with PDF which is the most common format
+- `react-native-pdf-thumbnail` generates JPEG images — render at quality 80 for good balance of fidelity vs size
+- Cap page rendering at 10 pages — each page image adds ~100-500KB of base64, 10 pages could be 1-5MB of context
+- Page images are additive to text extraction, not a replacement — text-only models still get the extracted text
 
 ---
 
@@ -1427,16 +1459,16 @@ These are not in scope for the current phase but documented for later (sprints 2
 - Sprint 9 (attachments) must be complete — generated images stored using attachment system
 
 #### Tasks
-- [ ] **16.** Add image generation API key to settings (`src/app/settings/api-keys.tsx`)
+- [x] **16.** Add image generation API key to settings (`src/app/settings/api-keys.tsx`)
   - New optional provider section: "Image Generation"
   - Supported services: OpenAI (DALL·E 3), Stability AI, Together AI
   - Stored in SecureStore: key `image-gen`, with a separate MMKV key for selected service (`medha:imageGenService`)
   - Label: "Image Generation" with subtitle showing selected service
-- [ ] **16.** Add image gen settings to MMKV and settings store
+- [x] **16.** Add image gen settings to MMKV and settings store
   - New MMKV keys: `imageGenEnabled`, `imageGenService` (`'openai' | 'stability' | 'together'`)
   - Settings store: `imageGenEnabled`, `imageGenService`, `setImageGenEnabled()`, `setImageGenService()`
   - `initStorage()` hydrates both values
-- [ ] **16.** Create `generate_image` tool (`src/lib/tools/image-gen.ts`)
+- [x] **16.** Create `generate_image` tool (`src/lib/tools/image-gen.ts`)
   - Tool definition:
     ```typescript
     name: 'generate_image',
@@ -1452,46 +1484,46 @@ These are not in scope for the current phase but documented for later (sprints 2
     3. Download/decode the resulting image
     4. Save to app storage via `persistAttachment()`
     5. Return `ToolResult` with markdown image reference and the local URI
-- [ ] **16.** Implement OpenAI DALL-E 3 backend (`src/lib/tools/image-gen.ts`)
+- [x] **16.** Implement OpenAI DALL-E 3 backend (`src/lib/tools/image-gen.ts`)
   - `POST https://api.openai.com/v1/images/generations`
   - Body: `{ model: 'dall-e-3', prompt, size, n: 1, response_format: 'b64_json' }`
   - Decode base64 → save as PNG to app storage
   - Headers: `Authorization: Bearer <key>`
-- [ ] **16.** Implement Stability AI backend (fallback option)
+- [x] **16.** Implement Stability AI backend (fallback option)
   - `POST https://api.stability.ai/v2beta/stable-image/generate/sd3`
   - Form data with `prompt`, `output_format: 'png'`
   - Headers: `Authorization: Bearer <key>`
   - Returns image bytes directly
-- [ ] **16.** Register `generate_image` tool in ChatScreen
+- [x] **16.** Register `generate_image` tool in ChatScreen
   - Register alongside web_search and memory tools
   - Only include in `activeToolNames` when `imageGenEnabled` is true AND an image gen API key exists
   - Append instruction to system prompt: "You can generate images. When the user asks to create, draw, or visualize something, use the generate_image tool."
-- [ ] **16.** Store generated images as assistant message attachments
+- [x] **16.** Store generated images as assistant message attachments
   - After tool execution returns image URI, attach it to the final assistant message
   - Update `addMessage()` to support attaching images to assistant messages (currently only user messages have attachments)
   - Image stored in attachments JSON on the assistant message row
-- [ ] **16.** Render generated images inline in assistant MessageBubble
+- [x] **16.** Render generated images inline in assistant MessageBubble
   - When assistant message has `attachments` with `type: 'image'` → render `<Image />` inline above/below text
   - Tap image → full-screen modal with pinch-to-zoom
   - Long-press image → save to device gallery via `expo-media-library`
   - Image dimensions: max width 280px, aspect ratio preserved
-- [ ] **16.** Add image generation toggle pill to chat top bar
+- [x] **16.** Add image generation toggle pill to chat top bar
   - Small `lucide Image` pill next to existing Globe/Brain toggles
   - Tap toggles image generation on/off
   - Only visible when image gen API key is configured
   - Visual: `bg-muted` + `text-muted-foreground` (off) vs `bg-foreground` + `text-background` (on)
-- [ ] **16.** Add "Save as file" button to code blocks in MarkdownMessage
+- [x] **16.** Add "Save as file" button to code blocks in MarkdownMessage
   - Next to existing "Copy" button on code blocks: `lucide Download` icon
   - Infers filename from language tag: `python` → `code.py`, `javascript` → `script.js`, `json` → `data.json`, etc.
   - Saves to device storage via `expo-file-system` + `expo-sharing` (share sheet)
   - Toast: "File saved"
-- [ ] **16.** Render markdown images inline in assistant messages
+- [x] **16.** Render markdown images inline in assistant messages
   - When markdown contains `![alt](url)` → render `<Image />` component
   - Support remote URLs (`https://...`) and local URIs (`file://...`)
   - Lazy loading with shimmer placeholder
   - Error state: show broken image icon with alt text
   - Max width: 280px, auto height
-- [ ] **16.** Verify: image generation, file saving, inline rendering
+- [x] **16.** Verify: image generation, file saving, inline rendering
 
 #### How to Test Sprint 20
 ```

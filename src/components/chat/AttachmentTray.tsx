@@ -38,6 +38,7 @@ export function AttachmentTray({ attachments, onRemove }: AttachmentTrayProps) {
               {att.name}
             </Text>
             <Text className="text-muted-foreground text-[10px]">
+              {att.pageCount ? `${att.pageCount} pages • ` : ''}
               {formatFileSize(att.size)}
             </Text>
           </View>

@@ -18,6 +18,12 @@ export interface Attachment {
   name: string;          // display name (e.g. "photo.jpg", "report.pdf")
   mimeType: string;      // e.g. 'image/jpeg', 'application/pdf'
   size: number;          // file size in bytes
+  /** Pre-extracted text content (for documents, filled client-side before sending) */
+  extractedText?: string;
+  /** Page count for PDFs */
+  pageCount?: number;
+  /** Rendered page images for PDFs (local file URIs) — used by non-native providers */
+  pageImageUris?: string[];
 }
 
 export interface Message {

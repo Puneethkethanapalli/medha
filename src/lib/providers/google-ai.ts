@@ -210,19 +210,48 @@ export class GoogleAIProvider implements AIProvider {
 
 // ── Native Gemini message format helpers ────────────────────────────────
 
-interface GeminiPart {
-  text?: string;
+interface GeminiTextPart {
+  text: string;
 }
+
+interface GeminiInlineDataPart {
+  inline_data: {
+    mime_type: string;
+    data: string;
+  };
+}
+
+type GeminiPart = GeminiTextPart | GeminiInlineDataPart;
 
 interface GeminiContent {
   role: 'user' | 'model';
   parts: GeminiPart[];
 }
 
+function isTextPart(part: GeminiPart): part is GeminiTextPart {
+  return 'text' in part;
+}
+
+function isInlineDataPart(part: GeminiPart): part is GeminiInlineDataPart {
+  return 'inline_data' in part;
+}
+
+function readAttachmentBase64(uri: string): string | null {
+  try {
+    const { File } = require('expo-file-system');
+    const file = new File(uri);
+    if (!file.exists) return null;
+    return file.base64Sync();
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Convert Message[] to Gemini native contents format.
  * Gemini uses 'model' instead of 'assistant', and doesn't support 'system' as a content role.
  * Tool-role messages are folded into user turns.
+ * PDFs are sent as inline_data parts; images as inline_data too.
  */
 function buildGeminiNativeMessages(messages: Message[]): GeminiContent[] {
   const contents: GeminiContent[] = [];
@@ -242,17 +271,51 @@ function buildGeminiNativeMessages(messages: Message[]): GeminiContent[] {
       role = 'user';
     }
 
-    // Build text content with inline attachments
+    const attachments = msg.attachments || [];
+    const imageAttachments = attachments.filter((a) => a.type === 'image');
+    const docAttachments = attachments.filter((a) => a.type === 'document');
+    const pdfAttachments = docAttachments.filter((a) => a.mimeType === 'application/pdf');
+    const otherDocAttachments = docAttachments.filter((a) => a.mimeType !== 'application/pdf');
+
+    // Build text content with inline non-PDF document names
     let textContent = msg.content;
-    const docAttachments = (msg.attachments || []).filter((a) => a.type === 'document');
-    for (const doc of docAttachments) {
+    for (const doc of otherDocAttachments) {
       textContent += `\n\n--- Attached file: ${doc.name} ---`;
     }
 
-    contents.push({
-      role,
-      parts: [{ text: textContent }],
-    });
+    const parts: GeminiPart[] = [];
+
+    // Inline images
+    for (const img of imageAttachments) {
+      const base64 = readAttachmentBase64(img.uri);
+      if (base64) {
+        parts.push({
+          inline_data: {
+            mime_type: img.mimeType,
+            data: base64,
+          },
+        });
+      }
+    }
+
+    // Inline PDFs (Gemini supports PDF up to 50MB)
+    for (const pdf of pdfAttachments) {
+      const base64 = readAttachmentBase64(pdf.uri);
+      if (base64) {
+        parts.push({
+          inline_data: {
+            mime_type: 'application/pdf',
+            data: base64,
+          },
+        });
+      }
+    }
+
+    if (textContent) {
+      parts.push({ text: textContent });
+    }
+
+    contents.push({ role, parts });
   }
 
   return contents;
