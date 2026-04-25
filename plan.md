@@ -867,14 +867,17 @@ CREATE INDEX idx_conversations_updated ON conversations(updated_at DESC);
 | **16** | Skills system | ~4h | 57h |
 | **17** | Custom apps (GPT-like personas) | ~6h | 63h |
 | **18** | Token & cost estimator | ~3h | 66h |
+| **19** | Document intelligence (PDF, DOCX, XLSX) | ~3h | 69h |
+| **20** | Image generation & rich output | ~5h | 74h |
+| **21** | Model capability badges | ~2h | 76h |
 
-**Total: ~66 hours** (MVP at 24h + post-MVP features at 42h)
+**Total: ~76 hours** (MVP at 24h + post-MVP features at 52h)
 
 ---
 
-## 🔮 Future Sprints (Post-Sprint 18, Cool/Nice features)
+## 🔮 Future Sprints (Post-Sprint 21, Cool/Nice features)
 
-These are not in scope for the current phase but documented for later (sprints 19+). Sprints 10–18 are fully detailed below.
+These are not in scope for the current phase but documented for later (sprints 22+). Sprints 10–21 are fully detailed below.
 
 ---
 
@@ -1846,25 +1849,294 @@ These are not in scope for the current phase but documented for later (sprints 1
 - `tokens_used` column already exists on messages table — change from `INTEGER` to `TEXT` to store JSON `{"prompt": N, "completion": M}`
 - Track tool call round tokens too — a single user message may trigger multiple API calls via tool loop
 
-### Data & Export (Sprints 19–20)
+### Sprint 19 — Document Intelligence
+> **Goal:** PDF, DOCX, and XLSX files attached by users are actually read and understood. Provider-native document support for Anthropic and Gemini sends files directly; for other providers, client-side text extraction fills the gap.
+> **Duration:** ~3 hours
 
-- **Sprint 19**: Backup & restore (~3h)
+#### Prerequisites
+- Sprint 9 (attachments) must be complete — file picker and storage already working
+- `multimodal.ts` already has `readDocumentText()` that punts on binary files with `[Binary file: ...]`
+
+#### Tasks
+- [ ] **19.1** Install PDF text extraction library
+  - `npx expo install expo-pdf-text-extract` — native module using PDFKit (iOS) + PDFBox (Android)
+  - Requires dev build (not Expo Go) — already the case for Medha
+  - Extracts text from digital PDFs (not scanned/OCR)
+- [ ] **19.2** Update `readDocumentText()` in `multimodal.ts`
+  - For `application/pdf`: use `expo-pdf-text-extract` to extract text
+  - For DOCX (`application/vnd.openxmlformats-officedocument.wordprocessingml.document`): use lightweight JS parser or note as binary
+  - For XLSX (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`): use `xlsx` (SheetJS) to extract as CSV text
+  - Truncate all extracted text to 50K chars (existing limit)
+  - Fallback: if extraction fails, return `[Could not extract text from: name.pdf]` instead of `[Binary file: ...]`
+- [ ] **19.3** Add provider-native PDF support for Anthropic
+  - Update `buildAnthropicMessages()`: when attachment is `application/pdf`, send as Anthropic `document` content block:
+    ```json
+    { "type": "document", "source": { "type": "base64", "media_type": "application/pdf", "data": "..." } }
+    ```
+  - Claude natively reads PDFs (converts pages to images + extracts text server-side)
+  - Keep client-side text extraction as fallback for other providers
+- [ ] **19.4** Add provider-native PDF support for Google AI
+  - Update `buildGeminiNativeMessages()`: when attachment is `application/pdf`, send as `inline_data` part:
+    ```json
+    { "inline_data": { "mime_type": "application/pdf", "data": "BASE64..." } }
+    ```
+  - Gemini supports PDFs up to 50MB inline
+  - For OpenAI-compat path (`buildOpenAIMessages`): use extracted text (OpenAI format doesn't support PDF parts)
+- [ ] **19.5** Update OpenAI/OpenRouter path to use extracted text
+  - `buildOpenAIMessages()` already inlines text — the text extraction update in 19.2 handles this automatically
+  - No structural changes needed — just ensure `readDocumentText()` now returns real PDF content
+- [ ] **19.6** Add PDF page count indicator to attachment UI
+  - When a PDF is attached, show page count badge: "12 pages" in `text-muted-foreground`
+  - Extract page count via `expo-pdf-text-extract` metadata
+- [ ] **19.7** Verify: PDF and document extraction across providers
+
+#### How to Test Sprint 19
+```
+✅ Attach a digital PDF → AI summarizes its contents correctly
+✅ Attach a DOCX → AI reads the text content
+✅ Attach an XLSX → AI reads the spreadsheet data as CSV
+✅ Anthropic: PDF sent as native document block → Claude reads it with full fidelity
+✅ Google AI: PDF sent as inline_data → Gemini reads charts/tables
+✅ OpenRouter: PDF text extracted client-side → model gets text content
+✅ Large PDF (100+ pages) → text truncated gracefully at 50K chars
+✅ Scanned PDF (no text layer) → graceful fallback message
+✅ PDF page count shown in attachment badge
+```
+
+#### 📗 Things Learned
+- (fill after completing)
+
+#### 📕 Mistakes Made
+- (fill after completing)
+
+#### 📘 Things to Remember
+- `expo-pdf-text-extract` requires dev build — won't work in Expo Go
+- Anthropic and Gemini can read PDFs natively (server-side) — always prefer this over client-side extraction
+- OpenRouter/OpenAI format doesn't support PDF parts — must extract text client-side first
+- PDF base64 encoding adds ~33% size overhead — watch request size limits
+- Scanned PDFs need OCR which `expo-pdf-text-extract` doesn't do — note this limitation to users
+- Truncate at 50K chars — large PDFs can blow up context windows and costs
+- DOCX extraction is lower priority — start with PDF which is the most common format
+
+---
+
+### Sprint 20 — Image Generation & Rich Output
+> **Goal:** AI can generate images via tool calling using DALL-E, Stability AI, or other APIs. Generated images render inline in chat. Code blocks get a "Save as file" button. Markdown images in responses render as actual images.
+> **Duration:** ~5 hours
+
+#### Prerequisites
+- Sprint 12 (tool calling) must be complete — image gen is a registered tool
+- Sprint 9 (attachments) must be complete — generated images stored using attachment system
+
+#### Tasks
+- [ ] **20.1** Add image generation API key to settings (`src/app/settings/api-keys.tsx`)
+  - New optional provider section: "Image Generation"
+  - Supported services: OpenAI (DALL·E 3), Stability AI, Together AI
+  - Stored in SecureStore: key `image-gen`, with a separate MMKV key for selected service (`medha:imageGenService`)
+  - Label: "Image Generation" with subtitle showing selected service
+- [ ] **20.2** Add image gen settings to MMKV and settings store
+  - New MMKV keys: `imageGenEnabled`, `imageGenService` (`'openai' | 'stability' | 'together'`)
+  - Settings store: `imageGenEnabled`, `imageGenService`, `setImageGenEnabled()`, `setImageGenService()`
+  - `initStorage()` hydrates both values
+- [ ] **20.3** Create `generate_image` tool (`src/lib/tools/image-gen.ts`)
+  - Tool definition:
+    ```typescript
+    name: 'generate_image',
+    description: 'Generate an image based on a text description. Use when the user asks to create, draw, design, or visualize something.',
+    parameters: {
+      prompt: { type: 'string', description: 'Detailed image description', required: true },
+      size: { type: 'string', description: 'Image size', enum: ['1024x1024', '1024x1792', '1792x1024'], required: false },
+    }
+    ```
+  - Execute function:
+    1. Read `imageGenService` from MMKV to determine which API to call
+    2. Call the selected API with the prompt
+    3. Download/decode the resulting image
+    4. Save to app storage via `persistAttachment()`
+    5. Return `ToolResult` with markdown image reference and the local URI
+- [ ] **20.4** Implement OpenAI DALL-E 3 backend (`src/lib/tools/image-gen.ts`)
+  - `POST https://api.openai.com/v1/images/generations`
+  - Body: `{ model: 'dall-e-3', prompt, size, n: 1, response_format: 'b64_json' }`
+  - Decode base64 → save as PNG to app storage
+  - Headers: `Authorization: Bearer <key>`
+- [ ] **20.5** Implement Stability AI backend (fallback option)
+  - `POST https://api.stability.ai/v2beta/stable-image/generate/sd3`
+  - Form data with `prompt`, `output_format: 'png'`
+  - Headers: `Authorization: Bearer <key>`
+  - Returns image bytes directly
+- [ ] **20.6** Register `generate_image` tool in ChatScreen
+  - Register alongside web_search and memory tools
+  - Only include in `activeToolNames` when `imageGenEnabled` is true AND an image gen API key exists
+  - Append instruction to system prompt: "You can generate images. When the user asks to create, draw, or visualize something, use the generate_image tool."
+- [ ] **20.7** Store generated images as assistant message attachments
+  - After tool execution returns image URI, attach it to the final assistant message
+  - Update `addMessage()` to support attaching images to assistant messages (currently only user messages have attachments)
+  - Image stored in attachments JSON on the assistant message row
+- [ ] **20.8** Render generated images inline in assistant MessageBubble
+  - When assistant message has `attachments` with `type: 'image'` → render `<Image />` inline above/below text
+  - Tap image → full-screen modal with pinch-to-zoom
+  - Long-press image → save to device gallery via `expo-media-library`
+  - Image dimensions: max width 280px, aspect ratio preserved
+- [ ] **20.9** Add image generation toggle pill to chat top bar
+  - Small `lucide Image` pill next to existing Globe/Brain toggles
+  - Tap toggles image generation on/off
+  - Only visible when image gen API key is configured
+  - Visual: `bg-muted` + `text-muted-foreground` (off) vs `bg-foreground` + `text-background` (on)
+- [ ] **20.10** Add "Save as file" button to code blocks in MarkdownMessage
+  - Next to existing "Copy" button on code blocks: `lucide Download` icon
+  - Infers filename from language tag: `python` → `code.py`, `javascript` → `script.js`, `json` → `data.json`, etc.
+  - Saves to device storage via `expo-file-system` + `expo-sharing` (share sheet)
+  - Toast: "File saved"
+- [ ] **20.11** Render markdown images inline in assistant messages
+  - When markdown contains `![alt](url)` → render `<Image />` component
+  - Support remote URLs (`https://...`) and local URIs (`file://...`)
+  - Lazy loading with shimmer placeholder
+  - Error state: show broken image icon with alt text
+  - Max width: 280px, auto height
+- [ ] **20.12** Verify: image generation, file saving, inline rendering
+
+#### How to Test Sprint 20
+```
+✅ Add OpenAI key for image gen → image generation toggle appears in top bar
+✅ "Generate a sunset over mountains" → AI calls generate_image → image renders inline
+✅ Tap generated image → full-screen zoom view
+✅ Long-press image → save to gallery
+✅ Image persists in chat after app restart (stored in attachments)
+✅ Image gen disabled → AI responds with text only, no tool call
+✅ No image gen key → toggle not shown, tool not registered
+✅ Code block has "Save" button → saves/shares file
+✅ AI response with ![](url) → image renders inline
+✅ Multiple images in one response → all render correctly
+✅ Works across OpenRouter, Google AI, Anthropic, MiniMax
+```
+
+#### 📗 Things Learned
+- (fill after completing)
+
+#### 📕 Mistakes Made
+- (fill after completing)
+
+#### 📘 Things to Remember
+- Image generation is tool-based — works with ANY text model, not just vision models
+- DALL-E 3 `b64_json` response format avoids URL expiration issues (URLs expire in 1 hour)
+- Save generated images to app storage immediately — don't rely on remote URLs
+- Image gen API keys are separate from chat API keys — user may have OpenAI key just for images
+- Tool-based approach means the AI decides when to generate — natural language trigger, no button
+- `generate_image` tool should NOT be registered when no image gen key exists — avoids confusing the AI
+- Code block "Save" uses language tag to infer extension — `python` → `.py`, `javascript` → `.js`
+- Markdown image rendering needs lazy loading — large images can freeze the UI
+
+---
+
+### Sprint 21 — Model Capability Badges
+> **Goal:** Model picker shows capability icons for each model — what it can do (vision, image gen, PDF reading, tool calling, thinking/reasoning). Users can visually identify which models support which features at a glance.
+> **Duration:** ~2 hours
+
+#### Prerequisites
+- Sprint 8 (model picker) must be complete
+- Sprint 19 (document intelligence) and Sprint 20 (image gen) define the capabilities to surface
+
+#### Tasks
+- [ ] **21.1** Define model capability types (`src/types/index.ts`)
+  ```typescript
+  type ModelCapability = 'vision' | 'image-gen' | 'pdf' | 'tools' | 'thinking' | 'long-context';
+
+  // Extend Model interface
+  interface Model {
+    id: string;
+    name: string;
+    provider: string;
+    pricing?: { prompt: number; completion: number };
+    capabilities?: ModelCapability[];  // NEW
+    contextWindow?: number;            // NEW — token limit
+  }
+  ```
+- [ ] **21.2** Create capability detection module (`src/lib/models/capabilities.ts`)
+  - `getModelCapabilities(modelId: string, provider: string) → ModelCapability[]`
+  - Pattern-matching on model IDs for known capabilities:
+    - **Vision**: `gpt-4o`, `gpt-4-vision`, `claude-3*`, `gemini-*` (most modern models)
+    - **Image gen**: models with native image generation (Gemini 2.0 Imagen) — distinct from tool-based gen
+    - **PDF**: `claude-*` (native), `gemini-*` (native), others via client extraction
+    - **Tools**: most modern models (gpt-4o, claude-3+, gemini-1.5+, etc.)
+    - **Thinking**: `o1`, `o3`, `gemini-2.5*`, `claude-3-7-sonnet`, `claude-sonnet-4`, `deepseek-r1`
+    - **Long context**: models with >100K context window
+  - Hardcoded capability map for known models + heuristic fallback for unknown ones
+  - Cache results in memory (Map) — capabilities don't change per session
+- [ ] **21.3** Create capability icon component (`src/components/chat/CapabilityBadges.tsx`)
+  - Horizontal row of small icons representing capabilities
+  - Icons (from `lucide-react-native`):
+    - Vision: `lucide Eye`
+    - Image gen: `lucide ImagePlus`
+    - PDF: `lucide FileText`
+    - Tools: `lucide Wrench`
+    - Thinking: `lucide Brain`
+    - Long context: `lucide ScrollText`
+  - Size: 12px icons, `text-muted-foreground`, 4px gap
+  - Tap row → shows tooltip with capability names (e.g., "Vision • Image Generation • Tools")
+- [ ] **21.4** Integrate badges into ModelPicker
+  - Each model row in the picker shows capability icons below the model name
+  - Layout: model name (14sp bold) on first line, capability icons (12px, muted) on second line
+  - Helps users choose the right model for their task
+- [ ] **21.5** Add capability filter to ModelPicker
+  - Filter pills at top of model picker: "Vision", "Tools", "Thinking"
+  - Tap a filter → only show models with that capability
+  - Multiple filters → intersection (model must have ALL selected capabilities)
+  - Active filter: `bg-foreground text-background`, inactive: `bg-muted text-muted-foreground`
+- [ ] **21.6** Show active model capabilities in chat top bar
+  - ModelPill shows 1-2 most relevant capability icons alongside the model name
+  - Only show icons for "premium" capabilities (vision, thinking, image-gen) — skip common ones (tools)
+  - Helps users know at a glance what the current model can do
+- [ ] **21.7** Verify: capability badges and filters work
+
+#### How to Test Sprint 21
+```
+✅ Open model picker → each model shows capability icons
+✅ GPT-4o shows: Eye (vision) + Wrench (tools)
+✅ Claude Sonnet 4 shows: Eye + Brain (thinking) + FileText (PDF) + Wrench
+✅ Gemini 2.5 shows: Eye + Brain + FileText + Wrench + ScrollText (long context)
+✅ Tap filter "Vision" → only vision-capable models shown
+✅ Tap filter "Thinking" → only reasoning models shown
+✅ ModelPill in top bar shows 1-2 capability icons next to model name
+✅ Unknown/custom models → no capability icons (graceful degradation)
+```
+
+#### 📗 Things Learned
+- (fill after completing)
+
+#### 📕 Mistakes Made
+- (fill after completing)
+
+#### 📘 Things to Remember
+- Capability detection is heuristic — can't know every model's capabilities
+- Hardcode known models, use patterns for unknown ones (e.g., any model with "vision" in name)
+- OpenRouter model list includes some metadata — use it when available
+- Keep icons small (12px) — they're supplementary info, not primary UI
+- Filter is AND logic — selecting Vision + Thinking shows only models with BOTH
+- Cache capabilities in memory — no need for persistent storage
+- Provider-specific nuances: "PDF support" via Anthropic/Gemini is native, via others is client-side extraction
+- "Image gen" capability badge is for models with NATIVE image output (Gemini Imagen) — tool-based gen (Sprint 20) works with any model
+
+---
+
+### Data & Export (Sprints 22–23)
+
+- **Sprint 22**: Backup & restore (~3h)
   - Export all conversations as JSON (with attachments as base64)
   - Import conversations from JSON
   - Export/import settings (API keys optionally excluded for security)
   - Share individual conversations as Markdown
-- **Sprint 20**: Cloud sync (Google Drive / local backup) (~4h)
+- **Sprint 23**: Cloud sync (Google Drive / local backup) (~4h)
 
-### Polish & Platform (Sprints 21–24)
+### Polish & Platform (Sprints 24–27)
 
-- **Sprint 21**: TTS + response actions (~3h)
+- **Sprint 24**: TTS + response actions (~3h)
   - Text-to-speech via `expo-speech` (per-message speaker icon, auto-play option)
   - Copy code block button in markdown renderer
   - Re-generate last response button (retry with same prompt)
   - Undo snackbar for conversation/message deletions
-- **Sprint 22**: Swipe to branch (alternate response timelines)
-- **Sprint 23**: Multi-model compare (side-by-side responses from different models)
-- **Sprint 24**: Widgets (Android home screen — quick chat, continue conversation)
+- **Sprint 25**: Swipe to branch (alternate response timelines)
+- **Sprint 26**: Multi-model compare (side-by-side responses from different models)
+- **Sprint 27**: Widgets (Android home screen — quick chat, continue conversation)
 
 ---
 
