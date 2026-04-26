@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Pressable, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
-import { ArrowLeft, Key, MessageSquare, Palette, Zap, SlidersHorizontal, Brain } from 'lucide-react-native';
+import { ArrowLeft, Key, MessageSquare, Palette, Zap, SlidersHorizontal, Brain, BarChart3 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useUIStore } from '@/stores/ui-store';
 
@@ -45,6 +45,12 @@ export default function SettingsScreen() {
       label: 'Memories',
       description: 'Manage what the AI remembers',
       onPress: () => router.push('/settings/memories' as any),
+    },
+    {
+      icon: BarChart3,
+      label: 'Usage & Costs',
+      description: 'Track token usage and estimated costs',
+      onPress: () => router.push('/settings/usage' as any),
     },
     {
       icon: Palette,

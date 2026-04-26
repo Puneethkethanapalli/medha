@@ -30,7 +30,9 @@ import { webSearchTool } from '@/lib/tools/web-search';
 import { generateImageTool } from '@/lib/tools/image-gen';
 import { saveMemoryTool, forgetMemoryTool } from '@/lib/tools/memory-tools';
 import { composeSystemPrompt } from '@/lib/rules/injector';
-import type { AccumulatedToolCall } from '@/lib/streaming/stream';
+import { recordUsage } from '@/lib/db/token-usage';
+import { calculateCost } from '@/lib/tokens/pricing';
+import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { useRouter } from 'expo-router';
 import type { Message, Attachment } from '@/types';
 
@@ -53,6 +55,7 @@ export const ChatScreen = React.memo(function ChatScreen({
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [hasImageGenKey, setHasImageGenKey] = useState(false);
   const abortRef = useRef<{ abort: () => void } | null>(null);
+  const usageAccumRef = useRef<UsageData>({ promptTokens: 0, completionTokens: 0 });
 
   const openDrawer = useUIStore((s) => s.openDrawer);
   const setActiveConversation = useUIStore((s) => s.setActiveConversation);
@@ -249,6 +252,10 @@ export const ChatScreen = React.memo(function ChatScreen({
       let accumulated = '';
       let accumulatedReasoning = '';
       let firstTokenFired = false;
+      // Reset usage accumulator for this response (accumulates across tool call rounds)
+      if (toolRound === 0) {
+        usageAccumRef.current = { promptTokens: 0, completionTokens: 0 };
+      }
 
       const fireFirstTokenHaptic = () => {
         if (!firstTokenFired) {
@@ -257,17 +264,40 @@ export const ChatScreen = React.memo(function ChatScreen({
         }
       };
 
+      const handleUsage = (usage: UsageData) => {
+        usageAccumRef.current.promptTokens += usage.promptTokens;
+        usageAccumRef.current.completionTokens += usage.completionTokens;
+      };
+
       const handleDone = () => {
+        // Save usage data
+        const { promptTokens, completionTokens } = usageAccumRef.current;
+        const tokensUsedJson = JSON.stringify({ prompt: promptTokens, completion: completionTokens });
+        const costUsd = calculateCost(promptTokens, completionTokens, model);
+
         updateMessage(assistantMsgId, {
           content: accumulated,
           reasoning: accumulatedReasoning || null,
           status: 'complete',
+          tokens_used: (promptTokens > 0 || completionTokens > 0) ? tokensUsedJson : null,
         });
+
+        // Record to token_usage table
+        if (promptTokens > 0 || completionTokens > 0) {
+          recordUsage(convId, assistantMsgId, model, promptTokens, completionTokens, costUsd);
+        }
+
         touchConversation(convId);
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantMsgId
-              ? { ...m, content: accumulated, reasoning: accumulatedReasoning || null, status: 'complete' }
+              ? {
+                  ...m,
+                  content: accumulated,
+                  reasoning: accumulatedReasoning || null,
+                  status: 'complete',
+                  tokens_used: (promptTokens > 0 || completionTokens > 0) ? tokensUsedJson : null,
+                }
               : m
           )
         );
@@ -361,7 +391,8 @@ export const ChatScreen = React.memo(function ChatScreen({
         },
         handleDone,
         handleError,
-        useTools ? handleToolCalls : undefined
+        useTools ? handleToolCalls : undefined,
+        handleUsage
       );
 
       abortRef.current = response;

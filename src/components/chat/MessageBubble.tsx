@@ -264,7 +264,7 @@ export const MessageBubble = React.memo(function MessageBubble({
           </View>
         )}
 
-        {/* Copy button for completed messages */}
+        {/* Copy button + token usage for completed messages */}
         {!!displayContent && !isStreaming && message.status !== 'error' && (
           <View className="mt-1 flex-row items-center gap-2 pt-1">
             <Pressable
@@ -276,6 +276,24 @@ export const MessageBubble = React.memo(function MessageBubble({
             >
               <Copy size={15} color="hsl(0, 0%, 44%)" strokeWidth={2} />
             </Pressable>
+            {/* Token usage indicator */}
+            {message.tokens_used && (() => {
+              try {
+                const usage = JSON.parse(message.tokens_used);
+                if (usage.prompt > 0 || usage.completion > 0) {
+                  return (
+                    <Text className="text-muted-foreground text-[10px] opacity-50">
+                      {usage.prompt > 0 && `~${usage.prompt.toLocaleString()}↑`}
+                      {usage.prompt > 0 && usage.completion > 0 && ' '}
+                      {usage.completion > 0 && `~${usage.completion.toLocaleString()}↓`}
+                    </Text>
+                  );
+                }
+              } catch {
+                // Ignore malformed JSON
+              }
+              return null;
+            })()}
           </View>
         )}
       </View>

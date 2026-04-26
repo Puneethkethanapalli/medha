@@ -5,6 +5,8 @@ import { Text } from '@/components/ui/text';
 import { PenSquare, Search, Pin, MessageCircle, Settings } from 'lucide-react-native';
 import { MedhaLogo } from '@/components/branding/MedhaLogo';
 import { deleteConversation } from '@/lib/db/conversations';
+import { getConversationUsage } from '@/lib/db/token-usage';
+import { formatCost } from '@/lib/tokens/pricing';
 import type { Conversation } from '@/types';
 
 interface ConversationDrawerProps {
@@ -85,7 +87,7 @@ function ConversationItem({
     );
   };
 
-  return (
+    return (
     <Pressable
       onPress={onPress}
       onLongPress={handleLongPress}
@@ -112,9 +114,26 @@ function ConversationItem({
       >
         {conversation.title}
       </Text>
+      <ConversationCostBadge conversationId={conversation.id} />
     </Pressable>
   );
 }
+
+const ConversationCostBadge = React.memo(function ConversationCostBadge({
+  conversationId,
+}: {
+  conversationId: string;
+}) {
+  const usage = useMemo(() => getConversationUsage(conversationId), [conversationId]);
+  const costLabel = formatCost(usage.totalCost);
+  if (!costLabel || usage.totalCost === 0) return null;
+
+  return (
+    <Text className="text-muted-foreground text-[10px] opacity-50">
+      {costLabel}
+    </Text>
+  );
+});
 
 export function ConversationDrawer({
   conversations,

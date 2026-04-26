@@ -1,8 +1,9 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { View, TextInput, Pressable, Animated, Easing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { ArrowUp, Square, Mic } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
 import { useChatStore } from '@/stores/chat-store';
 import { VoiceInput } from '@/components/chat/VoiceInput';
 import { AttachmentTray } from '@/components/chat/AttachmentTray';
@@ -12,6 +13,7 @@ import { deleteAttachmentFile } from '@/lib/attachments/storage';
 import { readDocumentTextAsync, renderPdfPagesToImages } from '@/lib/attachments/document-extract';
 import { filterCommands, parseSlashInput, resolveCommandText } from '@/lib/commands/registry';
 import type { SlashCommand } from '@/lib/commands/registry';
+import { estimateTokens } from '@/lib/tokens/estimator';
 import type { Attachment } from '@/types';
 
 interface InputBarProps {
@@ -29,6 +31,15 @@ export function InputBar({ onSend, onStop }: InputBarProps) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const canSend = (text.trim().length > 0 || attachments.length > 0) && !isExtracting;
+
+  // Debounced token estimate
+  const [debouncedTokens, setDebouncedTokens] = useState(0);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedTokens(text.trim().length > 0 ? estimateTokens(text) : 0);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [text]);
 
   // Slash command detection
   const slashState = useMemo(() => parseSlashInput(text), [text]);
@@ -248,6 +259,15 @@ export function InputBar({ onSend, onStop }: InputBarProps) {
                 </Animated.View>
               ) : null}
             </View>
+
+            {/* Token counter */}
+            {debouncedTokens > 0 && (
+              <View className="flex-row justify-end px-1 pt-1">
+                <Text className="text-muted-foreground text-[11px] opacity-60">
+                  ~{debouncedTokens.toLocaleString()} tokens
+                </Text>
+              </View>
+            )}
           </View>
         </>
       )}

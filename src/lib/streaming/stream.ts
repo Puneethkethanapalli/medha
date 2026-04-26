@@ -1,5 +1,5 @@
 import { fetch } from 'expo/fetch';
-import { SSEParser, ThinkTagSeparator, extractTokens, extractGeminiNativeTokens, type ToolCallDelta } from './sse-parser';
+import { SSEParser, ThinkTagSeparator, extractTokens, extractGeminiNativeTokens, type ToolCallDelta, type UsageData } from './sse-parser';
 
 // ─── Public types ───────────────────────────────────────────────────────
 
@@ -15,6 +15,9 @@ export type ReasoningTokenHandler = (token: string) => void;
 export type DoneHandler = () => void;
 export type ErrorHandler = (error: Error) => void;
 export type ToolCallHandler = (toolCalls: AccumulatedToolCall[]) => void;
+export type UsageHandler = (usage: UsageData) => void;
+
+export type { UsageData } from './sse-parser';
 
 /** A fully-accumulated tool call, ready for execution. */
 export interface AccumulatedToolCall {
@@ -94,11 +97,13 @@ export async function streamCompletion(
   onError: ErrorHandler,
   format: 'openai' | 'anthropic' | 'gemini-native' = 'openai',
   onToolCalls?: ToolCallHandler,
+  onUsage?: UsageHandler,
 ): Promise<void> {
   const { url, headers, body, signal } = options;
   const sseParser = new SSEParser();
   const thinkSep = new ThinkTagSeparator();
   const toolAccum = new ToolCallAccumulator();
+  const usageAccum: UsageData = { promptTokens: 0, completionTokens: 0 };
 
   // ── 1. Fetch ──────────────────────────────────────────────────────────
 
@@ -135,11 +140,17 @@ export async function streamCompletion(
         onError(new Error('Empty response body'));
         return;
       }
-      processEvents(sseParser.feed(text), thinkSep, onContent, onReasoning, format, toolAccum);
-      processEvents(sseParser.flush(), thinkSep, onContent, onReasoning, format, toolAccum);
+      processEvents(sseParser.feed(text), thinkSep, onContent, onReasoning, format, toolAccum, usageAccum);
+      processEvents(sseParser.flush(), thinkSep, onContent, onReasoning, format, toolAccum, usageAccum);
       if (toolAccum.hasToolCalls() && onToolCalls) {
+        if (onUsage && (usageAccum.promptTokens > 0 || usageAccum.completionTokens > 0)) {
+          onUsage({ ...usageAccum });
+        }
         onToolCalls(toolAccum.finalize());
       } else {
+        if (onUsage && (usageAccum.promptTokens > 0 || usageAccum.completionTokens > 0)) {
+          onUsage({ ...usageAccum });
+        }
         onDone();
       }
     } catch (err) {
@@ -162,11 +173,17 @@ export async function streamCompletion(
       const chunk = decoder.decode(value, { stream: true });
       const events = sseParser.feed(chunk);
 
-      if (processEvents(events, thinkSep, onContent, onReasoning, format, toolAccum)) {
+      if (processEvents(events, thinkSep, onContent, onReasoning, format, toolAccum, usageAccum)) {
         // [DONE] sentinel received
         if (toolAccum.hasToolCalls() && onToolCalls) {
+          if (onUsage && (usageAccum.promptTokens > 0 || usageAccum.completionTokens > 0)) {
+            onUsage({ ...usageAccum });
+          }
           onToolCalls(toolAccum.finalize());
         } else {
+          if (onUsage && (usageAccum.promptTokens > 0 || usageAccum.completionTokens > 0)) {
+            onUsage({ ...usageAccum });
+          }
           onDone();
         }
         return;
@@ -177,16 +194,22 @@ export async function streamCompletion(
     const trailing = decoder.decode();
     if (trailing) {
       const events = sseParser.feed(trailing);
-      processEvents(events, thinkSep, onContent, onReasoning, format, toolAccum);
+      processEvents(events, thinkSep, onContent, onReasoning, format, toolAccum, usageAccum);
     }
 
     // Flush parser for any buffered partial event
     const remaining = sseParser.flush();
-    processEvents(remaining, thinkSep, onContent, onReasoning, format, toolAccum);
+    processEvents(remaining, thinkSep, onContent, onReasoning, format, toolAccum, usageAccum);
 
     if (toolAccum.hasToolCalls() && onToolCalls) {
+      if (onUsage && (usageAccum.promptTokens > 0 || usageAccum.completionTokens > 0)) {
+        onUsage({ ...usageAccum });
+      }
       onToolCalls(toolAccum.finalize());
     } else {
+      if (onUsage && (usageAccum.promptTokens > 0 || usageAccum.completionTokens > 0)) {
+        onUsage({ ...usageAccum });
+      }
       onDone();
     }
   } catch (err) {
@@ -211,6 +234,7 @@ function processEvents(
   onReasoning: ReasoningTokenHandler,
   format: 'openai' | 'anthropic' | 'gemini-native',
   toolAccum: ToolCallAccumulator,
+  usageAccum: UsageData,
 ): boolean {
   for (const event of events) {
     const data = event.data.trim();
@@ -222,12 +246,14 @@ function processEvents(
     if (format === 'anthropic' && event.event === 'message_stop') return true;
 
     if (format === 'gemini-native') {
-      // Native Gemini format — different structure, no tool call accumulation needed
-      // (google_search is handled server-side, results come as text)
       const tokens = extractGeminiNativeTokens(data);
       if (tokens) {
         if (tokens.content) onContent(tokens.content);
         if (tokens.reasoning) onReasoning(tokens.reasoning);
+        if (tokens.usage) {
+          usageAccum.promptTokens += tokens.usage.promptTokens;
+          usageAccum.completionTokens += tokens.usage.completionTokens;
+        }
       }
     } else {
       const tokens = extractTokens(data, thinkSep);
@@ -235,6 +261,10 @@ function processEvents(
         if (tokens.content) onContent(tokens.content);
         if (tokens.reasoning) onReasoning(tokens.reasoning);
         if (tokens.toolCalls) toolAccum.push(tokens.toolCalls);
+        if (tokens.usage) {
+          usageAccum.promptTokens += tokens.usage.promptTokens;
+          usageAccum.completionTokens += tokens.usage.completionTokens;
+        }
       }
     }
   }

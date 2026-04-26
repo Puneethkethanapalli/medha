@@ -35,7 +35,8 @@ export interface Message {
   attachments: Attachment[] | null;
   status: 'complete' | 'streaming' | 'cancelled' | 'error';
   model: string | null;
-  tokens_used: number | null;
+  /** JSON string: {"prompt": N, "completion": N} or null */
+  tokens_used: string | null;
   /** Tool call ID — set when role is 'tool' to correlate result with the call */
   tool_call_id: string | null;
   /** JSON-serialized tool calls — set on assistant messages that triggered tool execution */

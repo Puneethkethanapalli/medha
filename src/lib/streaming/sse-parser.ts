@@ -27,10 +27,16 @@ export interface ToolCallDelta {
   arguments?: string;
 }
 
+export interface UsageData {
+  promptTokens: number;
+  completionTokens: number;
+}
+
 export interface TokenContent {
   content?: string;
   reasoning?: string;
   toolCalls?: ToolCallDelta[];
+  usage?: UsageData;
 }
 
 // ─── SSEParser ──────────────────────────────────────────────────────────
@@ -353,7 +359,40 @@ export function extractTokens(
     }
   }
 
-  return (result.content || result.reasoning || result.toolCalls) ? result : null;
+  // --- Usage extraction (OpenAI/OpenRouter: final chunk has usage object) ---
+  const usage = parsed.usage as Record<string, unknown> | undefined;
+  if (usage) {
+    const prompt = Number(usage.prompt_tokens ?? 0);
+    const completion = Number(usage.completion_tokens ?? 0);
+    if (prompt > 0 || completion > 0) {
+      result.usage = { promptTokens: prompt, completionTokens: completion };
+    }
+  }
+
+  // Anthropic: message_start has input token usage
+  if (parsed.type === 'message_start') {
+    const msg = parsed.message as Record<string, unknown> | undefined;
+    const msgUsage = msg?.usage as Record<string, unknown> | undefined;
+    if (msgUsage) {
+      const prompt = Number(msgUsage.input_tokens ?? 0);
+      if (prompt > 0) {
+        result.usage = { promptTokens: prompt, completionTokens: 0 };
+      }
+    }
+  }
+
+  // Anthropic: message_delta has output token usage
+  if (parsed.type === 'message_delta') {
+    const deltaUsage = (parsed as any).usage as Record<string, unknown> | undefined;
+    if (deltaUsage) {
+      const completion = Number(deltaUsage.output_tokens ?? 0);
+      if (completion > 0) {
+        result.usage = { promptTokens: 0, completionTokens: completion };
+      }
+    }
+  }
+
+  return (result.content || result.reasoning || result.toolCalls || result.usage) ? result : null;
 }
 
 /**
@@ -375,7 +414,19 @@ export function extractGeminiNativeTokens(data: string): TokenContent | null {
   const result: TokenContent = {};
 
   const candidates = parsed.candidates as any[];
-  if (!candidates || !candidates[0]) return null;
+  if (!candidates || !candidates[0]) {
+    // Even without candidates, the final chunk may have usageMetadata
+    const usageMeta = parsed.usageMetadata as Record<string, unknown> | undefined;
+    if (usageMeta) {
+      const prompt = Number(usageMeta.promptTokenCount ?? 0);
+      const completion = Number(usageMeta.candidatesTokenCount ?? 0);
+      if (prompt > 0 || completion > 0) {
+        result.usage = { promptTokens: prompt, completionTokens: completion };
+        return result;
+      }
+    }
+    return null;
+  }
 
   const candidate = candidates[0];
   const parts = candidate.content?.parts as any[];
@@ -391,5 +442,15 @@ export function extractGeminiNativeTokens(data: string): TokenContent | null {
     }
   }
 
-  return (result.content || result.reasoning) ? result : null;
+  // Gemini native: usageMetadata in the final chunk
+  const usageMeta = parsed.usageMetadata as Record<string, unknown> | undefined;
+  if (usageMeta) {
+    const prompt = Number(usageMeta.promptTokenCount ?? 0);
+    const completion = Number(usageMeta.candidatesTokenCount ?? 0);
+    if (prompt > 0 || completion > 0) {
+      result.usage = { promptTokens: prompt, completionTokens: completion };
+    }
+  }
+
+  return (result.content || result.reasoning || result.usage) ? result : null;
 }

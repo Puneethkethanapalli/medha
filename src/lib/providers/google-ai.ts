@@ -1,7 +1,7 @@
 import { fetch } from 'expo/fetch';
 import type { AIProvider, StreamConfig } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
-import type { AccumulatedToolCall } from '@/lib/streaming/stream';
+import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { buildOpenAIMessages } from '@/lib/attachments/multimodal';
 import type { Message, Model } from '@/types';
 
@@ -19,7 +19,8 @@ export class GoogleAIProvider implements AIProvider {
     onReasoning: (token: string) => void,
     onDone: () => void,
     onError: (error: Error) => void,
-    onToolCalls?: (toolCalls: AccumulatedToolCall[]) => void
+    onToolCalls?: (toolCalls: AccumulatedToolCall[]) => void,
+    onUsage?: (usage: UsageData) => void
   ) {
     const abortController = new AbortController();
 
@@ -28,9 +29,9 @@ export class GoogleAIProvider implements AIProvider {
     const useNativeSearch = config.tools && config.tools.length > 0;
 
     if (useNativeSearch) {
-      this._streamNative(messages, config, onContent, onReasoning, onDone, onError, abortController);
+      this._streamNative(messages, config, onContent, onReasoning, onDone, onError, abortController, onUsage);
     } else {
-      this._streamOpenAICompat(messages, config, onContent, onReasoning, onDone, onError, onToolCalls, abortController);
+      this._streamOpenAICompat(messages, config, onContent, onReasoning, onDone, onError, onToolCalls, abortController, onUsage);
     }
 
     return {
@@ -51,7 +52,8 @@ export class GoogleAIProvider implements AIProvider {
     onReasoning: (token: string) => void,
     onDone: () => void,
     onError: (error: Error) => void,
-    abortController: AbortController
+    abortController: AbortController,
+    onUsage?: (usage: UsageData) => void
   ) {
     // Convert messages to native Gemini format
     const contents = buildGeminiNativeMessages(messages);
@@ -109,7 +111,9 @@ export class GoogleAIProvider implements AIProvider {
       reasoningHandler,
       onDone,
       onError,
-      'gemini-native'
+      'gemini-native',
+      undefined,
+      onUsage
     );
   }
 
@@ -125,7 +129,8 @@ export class GoogleAIProvider implements AIProvider {
     onDone: () => void,
     onError: (error: Error) => void,
     onToolCalls: ((toolCalls: AccumulatedToolCall[]) => void) | undefined,
-    abortController: AbortController
+    abortController: AbortController,
+    onUsage?: (usage: UsageData) => void
   ) {
     // Build messages array (handles multimodal attachments)
     const requestMessages = buildOpenAIMessages(messages, config.systemPrompt);
@@ -134,6 +139,7 @@ export class GoogleAIProvider implements AIProvider {
       model: config.model,
       messages: requestMessages,
       stream: true,
+      stream_options: { include_usage: true },
     };
 
     if (config.temperature !== undefined) {
@@ -173,7 +179,8 @@ export class GoogleAIProvider implements AIProvider {
       onDone,
       onError,
       'openai',
-      onToolCalls
+      onToolCalls,
+      onUsage
     );
   }
 

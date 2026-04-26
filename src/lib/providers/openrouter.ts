@@ -1,7 +1,7 @@
 import { fetch } from 'expo/fetch';
 import type { AIProvider, StreamConfig } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
-import type { AccumulatedToolCall } from '@/lib/streaming/stream';
+import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { buildOpenAIMessages } from '@/lib/attachments/multimodal';
 import type { Message } from '@/types';
 
@@ -18,7 +18,8 @@ export class OpenRouterProvider implements AIProvider {
     onReasoning: (token: string) => void,
     onDone: () => void,
     onError: (error: Error) => void,
-    onToolCalls?: (toolCalls: AccumulatedToolCall[]) => void
+    onToolCalls?: (toolCalls: AccumulatedToolCall[]) => void,
+    onUsage?: (usage: UsageData) => void
   ) {
     const abortController = new AbortController();
 
@@ -29,6 +30,7 @@ export class OpenRouterProvider implements AIProvider {
       model: config.model,
       messages: requestMessages,
       stream: true,
+      stream_options: { include_usage: true },
     };
 
     if (config.temperature !== undefined) {
@@ -72,7 +74,8 @@ export class OpenRouterProvider implements AIProvider {
       onDone,
       onError,
       'openai',
-      onToolCalls
+      onToolCalls,
+      onUsage
     );
 
     let reasoningContent = '';

@@ -107,4 +107,22 @@ export function initializeDatabase(): void {
   `);
   database.runSync('CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category)');
   database.runSync('CREATE INDEX IF NOT EXISTS idx_memories_hits ON memories(hit_count DESC)');
+
+  // Create token_usage table (Sprint 18)
+  database.runSync(`
+    CREATE TABLE IF NOT EXISTS token_usage (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      model TEXT NOT NULL,
+      prompt_tokens INTEGER NOT NULL,
+      completion_tokens INTEGER NOT NULL,
+      cost_usd REAL,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+      FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
+    )
+  `);
+  database.runSync('CREATE INDEX IF NOT EXISTS idx_token_usage_conv ON token_usage(conversation_id)');
+  database.runSync('CREATE INDEX IF NOT EXISTS idx_token_usage_date ON token_usage(created_at)');
 }

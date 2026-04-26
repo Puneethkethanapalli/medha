@@ -1,6 +1,6 @@
 import type { Message } from '@/types';
 import type { OpenAIToolSchema } from '@/lib/tools/types';
-import type { AccumulatedToolCall } from '@/lib/streaming/stream';
+import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 
 export type ThinkingMode = 'auto' | 'on' | 'off';
 
@@ -35,7 +35,8 @@ export interface AIProvider {
     onReasoning: (token: string) => void,
     onDone: () => void,
     onError: (error: Error) => void,
-    onToolCalls?: (toolCalls: AccumulatedToolCall[]) => void
+    onToolCalls?: (toolCalls: AccumulatedToolCall[]) => void,
+    onUsage?: (usage: UsageData) => void
   ): ReasoningStreamResponse;
   listModels(apiKey: string): Promise<import('@/types').Model[]>;
   validateKey(apiKey: string): Promise<boolean>;

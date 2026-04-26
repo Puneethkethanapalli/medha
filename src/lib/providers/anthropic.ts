@@ -1,7 +1,7 @@
 import { fetch } from 'expo/fetch';
 import type { AIProvider, StreamConfig } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
-import type { AccumulatedToolCall } from '@/lib/streaming/stream';
+import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { buildAnthropicMessages } from '@/lib/attachments/multimodal';
 import type { Message, Model } from '@/types';
 
@@ -39,7 +39,8 @@ export class AnthropicProvider implements AIProvider {
     onReasoning: (token: string) => void,
     onDone: () => void,
     onError: (error: Error) => void,
-    onToolCalls?: (toolCalls: AccumulatedToolCall[]) => void
+    onToolCalls?: (toolCalls: AccumulatedToolCall[]) => void,
+    onUsage?: (usage: UsageData) => void
   ) {
     const abortController = new AbortController();
 
@@ -98,7 +99,8 @@ export class AnthropicProvider implements AIProvider {
       onDone,
       onError,
       'anthropic',
-      onToolCalls
+      onToolCalls,
+      onUsage
     );
 
     return {
