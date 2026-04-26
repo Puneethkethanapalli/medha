@@ -1662,14 +1662,14 @@ These are not in scope for the current phase but documented for later (sprints 2
 > **Duration:** ~3 hours
 
 #### Tasks
-- [ ] **18.** Create tokenizer utility (`src/lib/tokens/estimator.ts`)
+- [x] **18.** Create tokenizer utility (`src/lib/tokens/estimator.ts`)
   - **Do NOT bundle a full tokenizer** (tiktoken WASM is 4MB+ and breaks RN)
   - Use a simple heuristic estimator: `estimateTokens(text: string) → number`
     - English: ~4 chars per token (GPT) or ~3.5 chars per token (Claude/Gemini)
     - Formula: `Math.ceil(text.length / 3.75)` (averaged across providers)
   - Also export `estimateMessageTokens(messages: Message[], systemPrompt?: string) → number` — sums all message content + system prompt
   - Accurate enough for cost estimation (within ~15% of real tokenizer)
-- [ ] **18.** Create model pricing data (`src/lib/tokens/pricing.ts`)
+- [x] **18.** Create model pricing data (`src/lib/tokens/pricing.ts`)
   - Static pricing map keyed by model ID (or prefix pattern):
     ```typescript
     interface ModelPricing {
@@ -1681,19 +1681,19 @@ These are not in scope for the current phase but documented for later (sprints 2
   - Fallback: use pricing from OpenRouter `listModels()` response (already parsed in `Model.pricing`)
   - `getModelPricing(modelId: string) → ModelPricing | null`
   - Cache pricing from API responses in MMKV
-- [ ] **18.** Add live token counter to InputBar (`src/components/chat/InputBar.tsx`)
+- [x] **18.** Add live token counter to InputBar (`src/components/chat/InputBar.tsx`)
   - Small token count badge below the text input (right-aligned)
   - Shows: `~{n} tokens` in `text-muted-foreground` (12sp)
   - Updates on text change (debounced 300ms via `useMemo` or `useCallback`)
   - Includes: system prompt tokens + memory tokens + all message history tokens + current input
   - Color coding: normal (muted) → yellow (>75% of model context window) → red (>90%)
   - Tap → shows breakdown tooltip: "Input: ~X | History: ~Y | System: ~Z"
-- [ ] **18.** Add per-message token display to MessageBubble (`src/components/chat/MessageBubble.tsx`)
+- [x] **18.** Add per-message token display to MessageBubble (`src/components/chat/MessageBubble.tsx`)
   - Below each assistant message: small muted text showing token usage
   - Format: `~{input}↑ ~{output}↓` (estimated input/output tokens)
   - For messages with `tokens_used` from API → show actual count instead of estimate
   - Only visible on tap (or always visible as a user preference toggle)
-- [ ] **18.** Extract actual token usage from API responses
+- [x] **18.** Extract actual token usage from API responses
   - Update `streamCompletion()` to capture `usage` object from the final SSE event
   - OpenAI/OpenRouter: `usage.prompt_tokens`, `usage.completion_tokens` in final chunk
   - Anthropic: `message_delta` event contains `usage.output_tokens`
@@ -1701,7 +1701,7 @@ These are not in scope for the current phase but documented for later (sprints 2
   - Pass back via new callback: `onUsage?: (usage: { prompt: number; completion: number }) => void`
   - Save to `messages.tokens_used` as JSON string: `{"prompt": N, "completion": M}`
   - **Note**: also track tokens from tool call rounds (Sprint 12) — sum across all rounds per response
-- [ ] **18.** Add per-conversation cost tracking
+- [x] **18.** Add per-conversation cost tracking
   - Create `token_usage` table in SQLite:
     ```sql
     CREATE TABLE IF NOT EXISTS token_usage (
@@ -1721,11 +1721,11 @@ These are not in scope for the current phase but documented for later (sprints 2
     ```
   - After each completed response: insert usage record with estimated cost
   - `getConversationCost(convId) → { totalTokens: number, estimatedCost: number }`
-- [ ] **18.** Show conversation cost in drawer
+- [x] **18.** Show conversation cost in drawer
   - In `ConversationDrawer.tsx`: show small cost badge per conversation
   - Format: `$0.003` or `<$0.01` for very cheap conversations
   - Only show if cost > 0 (skip free models)
-- [ ] **18.** Create usage dashboard screen (`src/app/settings/usage.tsx`)
+- [x] **18.** Create usage dashboard screen (`src/app/settings/usage.tsx`)
   - Header: ArrowLeft + "Usage & Costs"
   - Summary cards at top:
     - "Today": total tokens + cost
@@ -1737,7 +1737,7 @@ These are not in scope for the current phase but documented for later (sprints 2
   - Breakdown by provider: list of providers with token count + cost
   - Breakdown by model: top 5 most-used models with stats
   - "Reset Usage Data" destructive button at bottom
-- [ ] **18.** Verify: token counting, cost tracking, and usage dashboard
+- [x] **18.** Verify: token counting, cost tracking, and usage dashboard
 
 #### How to Test Sprint 18
 ```
@@ -1770,115 +1770,280 @@ These are not in scope for the current phase but documented for later (sprints 2
 - `tokens_used` column already exists on messages table — change from `INTEGER` to `TEXT` to store JSON `{"prompt": N, "completion": M}`
 - Track tool call round tokens too — a single user message may trigger multiple API calls via tool loop
 
-### Sprint 19 — Skills System
-> **Goal:** Users can install, create, and share "skill packs" — bundles of system prompt + tool config + rules that create specialized AI personas. Foundation for Sprint 20 (Custom Apps).
-> **Duration:** ~4 hours
+---
+
+### Sprint 19 — Agent Skills System
+> **Goal:** Users can import, create, invoke, and share Agent Skills compatible with the open `SKILL.md` standard (used by Claude Code, Cursor, Gemini CLI, GitHub Copilot). Medha stores skills locally as files, loads only metadata by default, injects full instructions only when activated (progressive disclosure), and preserves bundled references/assets safely. Foundation for Sprint 20 (Custom Apps/Personas).
+> **Duration:** ~5 hours
+> **Reference:** [Agent Skills Specification](https://agentskills.io/specification) · [Client Implementation Guide](https://agentskills.io/client-implementation/adding-skills-support)
 
 #### Prerequisites
 - Sprint 14 (memory), Sprint 13 (rules), Sprint 12 (tools) must be complete
 - Tool registry and rules injection already working
 
+#### Architecture Notes
+The Agent Skills standard uses **progressive disclosure** to conserve context:
+1. **Discovery** (~100 tokens): Only `name` + `description` loaded at startup for all skills
+2. **Activation** (<5000 tokens): Full `SKILL.md` body injected only when skill is invoked
+3. **Resources** (on demand): `scripts/`, `references/`, `assets/` accessed only when needed
+
+Skills are **files on disk**, not just DB rows. The canonical source is `SKILL.md`:
+```
+{documentDirectory}/skills/
+  ├── code-review/
+  │   └── SKILL.md
+  ├── research/
+  │   ├── SKILL.md
+  │   └── references/
+  │       └── search-strategies.md
+  └── translate-document/
+      └── SKILL.md
+```
+
+SQLite stores only lightweight metadata + file location. Body content is read from disk on demand.
+
+#### SKILL.md Format (from Agent Skills spec)
+```markdown
+---
+name: code-review
+description: Review code for bugs, security issues, style problems, and performance. Use when the user asks to review, audit, or check code quality.
+license: MIT
+allowed-tools: web_search
+metadata:
+  author: medha
+  version: "1.0"
+---
+
+## When to Use
+Use this skill when the user shares code and asks for review, feedback, or quality assessment.
+
+## Instructions
+1. Read the code carefully before commenting
+2. Prioritize: security issues > bugs > performance > style
+3. Be specific — reference line numbers and suggest fixes
+4. Acknowledge what's done well, not just problems
+
+## Output Format
+Structure your review as:
+- **Summary**: 1-2 sentence overall assessment
+- **Critical Issues**: Security/correctness problems (if any)
+- **Suggestions**: Improvements ranked by impact
+- **Positive Notes**: What's well-done
+```
+
 #### Tasks
-- [ ] **19.** Define skill types (`src/lib/skills/types.ts`)
+
+**Phase 1: Core Infrastructure (~2h)**
+
+- [ ] **19.1** Define skill types (`src/lib/skills/types.ts`)
   ```typescript
-  interface Skill {
-    id: string;
+  /** Parsed frontmatter from SKILL.md */
+  interface SkillFrontmatter {
+    name: string;                        // kebab-case, 1-64 chars, matches directory name
+    description: string;                 // 1-1024 chars, used for discovery
+    license?: string;
+    compatibility?: string;
+    'allowed-tools'?: string;            // space-separated tool names
+    metadata?: Record<string, string>;   // arbitrary key-value pairs
+    [key: string]: unknown;              // preserve unknown fields (Claude extensions etc.)
+  }
+
+  /** Parsed SKILL.md file */
+  interface ParsedSkill {
+    frontmatter: SkillFrontmatter;
+    body: string;                        // markdown content after closing ---
+  }
+
+  /** Skill record stored in SQLite (metadata only — body lives on disk) */
+  interface SkillRecord {
+    id: string;                          // UUID
+    name: string;                        // from frontmatter, kebab-case
+    description: string;                 // from frontmatter
+    source: 'bundled' | 'imported' | 'created';
+    storagePath: string;                 // relative path to skill directory under documentDirectory/skills/
+    enabled: boolean;
+    trusted: boolean;                    // user has approved skills with scripts/ directory
+    hasScripts: boolean;                 // whether scripts/ directory exists
+    hasReferences: boolean;              // whether references/ directory exists
+    createdAt: number;
+    updatedAt: number;
+  }
+
+  /** Compact skill entry for system prompt catalog (progressive disclosure tier 1) */
+  interface SkillCatalogEntry {
     name: string;
     description: string;
-    icon: string;                    // lucide icon name
-    version: string;                 // semver, e.g. "1.0.0"
-    author?: string;
-    systemPrompt: string;            // injected when skill is active
-    rules?: string;                  // additional rules (appended to user rules)
-    tools?: string[];                // tool names this skill can use (from registry)
-    examplePrompts?: string[];       // suggestion chips when skill is active
-    builtin: boolean;                // shipped with app vs user-created/imported
-    enabled: boolean;
-    createdAt: number;
   }
   ```
-- [ ] **19.** Create skills storage (`src/lib/db/skills.ts`)
-  - SQLite table:
+
+- [ ] **19.2** Create SKILL.md parser (`src/lib/skills/parser.ts`)
+  - `parseSkillMd(content: string) → ParsedSkill`
+    - Find opening `---` at start of file and closing `---` after it
+    - Parse YAML block between them → extract `name`, `description` (required), plus optional fields
+    - Everything after closing `---` (trimmed) → body content
+  - Lenient validation (per spec):
+    - Name doesn't match directory → warn, load anyway
+    - Name exceeds 64 chars → warn, load anyway
+    - Description missing/empty → **skip the skill**, log error
+    - YAML completely unparseable → **skip the skill**, log error
+    - Unknown frontmatter fields → preserve in `metadata` catch-all, don't fail
+  - `generateSkillMd(frontmatter: SkillFrontmatter, body: string) → string`
+    - Renders a valid SKILL.md string from frontmatter + body
+  - `listSkillResources(skillDirPath: string) → { scripts: string[], references: string[], assets: string[] }`
+    - Lists files in skill's `scripts/`, `references/`, `assets/` subdirectories (if they exist)
+  - YAML parsing: use a lightweight YAML parser (e.g., `yaml` npm package or simple regex-based for frontmatter-only)
+
+- [ ] **19.3** Create skills file storage (`src/lib/skills/storage.ts`)
+  - Uses `expo-file-system` to manage `{documentDirectory}/skills/` directory
+  - `initSkillsDirectory()` → ensure base directory exists
+  - `saveSkill(name: string, skillMdContent: string) → string` → creates `skills/{name}/SKILL.md`, returns path
+  - `readSkillBody(name: string) → string` → reads SKILL.md from disk, parses, returns body only
+  - `readSkillFull(name: string) → ParsedSkill` → reads and parses full SKILL.md
+  - `deleteSkillDirectory(name: string) → void` → removes entire skill directory
+  - `skillDirectoryExists(name: string) → boolean`
+  - Path traversal protection: reject names containing `..`, `/`, or `\`
+
+- [ ] **19.4** Create skills DB layer (`src/lib/db/skills.ts`)
+  - SQLite table (metadata index only — body lives on disk):
     ```sql
     CREATE TABLE IF NOT EXISTS skills (
       id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      description TEXT,
-      icon TEXT DEFAULT 'Sparkles',
-      version TEXT DEFAULT '1.0.0',
-      author TEXT,
-      system_prompt TEXT NOT NULL,
-      rules TEXT,
-      tools TEXT,                 -- JSON array of tool names
-      example_prompts TEXT,       -- JSON array of strings
-      builtin INTEGER DEFAULT 0,
+      name TEXT NOT NULL UNIQUE,
+      description TEXT NOT NULL,
+      source TEXT NOT NULL DEFAULT 'created',   -- 'bundled' | 'imported' | 'created'
+      storage_path TEXT NOT NULL,                -- relative path under documentDirectory/skills/
       enabled INTEGER DEFAULT 1,
-      created_at INTEGER NOT NULL
+      trusted INTEGER DEFAULT 0,
+      has_scripts INTEGER DEFAULT 0,
+      has_references INTEGER DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
     );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_skills_name ON skills(name);
     ```
-  - CRUD: `addSkill()`, `getSkills()`, `getEnabledSkills()`, `updateSkill()`, `deleteSkill()`, `toggleSkill()`
-- [ ] **19.** Seed built-in skills
-  - "Code Reviewer" — system prompt for code analysis, uses no tools, examples: "Review this function", "Find bugs in..."
-  - "Research Assistant" — system prompt for research, uses `web_search` tool, examples: "Research topic X", "Compare A vs B"
-  - "Creative Writer" — system prompt for creative writing, no tools, examples: "Write a short story about...", "Write a poem..."
-  - "Translator" — system prompt for translation, no tools, examples: "Translate to Hindi: ...", "Translate to Japanese: ..."
-  - "Fitness Coach" — system prompt for fitness advice, no tools, examples: "Create a workout plan", "Meal plan for..."
-  - Built-in skills are read-only — user can disable but not edit or delete
-- [ ] **19.** Wire skills into system prompt injection
-  - Update `ChatScreen.streamNewResponse()`: compose system prompt as:
-    `[User Rules] → [Active Skill Prompt] → [Active Skill Rules] → [User Memory] → [Custom System Prompt]`
-  - Only inject enabled skills' prompts
-  - If multiple skills enabled, concatenate their prompts (separated by `\n---\n`)
-  - Skill tools: only send tool schemas for tools listed in active skills (scoped tool access)
-- [ ] **19.** Create skill management screen (`src/app/settings/skills.tsx`)
-  - Header: ArrowLeft + "Skills" + `lucide Plus` add button
-  - Two sections: "Built-in" and "Custom"
-  - Each skill card:
-    - `lucide` icon (from skill.icon) + name (bold) + description (muted)
-    - Toggle switch: enable/disable
-    - Tap card → skill detail bottom sheet (full prompt, rules, tools, examples)
-    - Long-press custom skill → edit/delete options
-  - Empty custom section: "Create or import a skill to customize your AI"
-- [ ] **19.** Create skill editor (`src/components/skills/SkillEditor.tsx`)
-  - Full-screen modal for creating/editing skills
-  - Fields: name, description, icon picker (grid of common lucide icons), system prompt (multiline), rules (multiline), tool selection (checkboxes from registry), example prompts (tag input)
-  - "Preview" button — shows how the skill's system prompt will look when injected
-  - "Save" button
-- [ ] **19.** Import/export skills as JSON
-  - Export: `expo-sharing` → share skill as `.skill.json` file
-  - Import: pick JSON file → validate schema → add to custom skills
-  - JSON schema:
-    ```json
-    {
-      "medha_skill": "1.0",
-      "name": "Code Reviewer",
-      "description": "...",
-      "icon": "Code",
-      "systemPrompt": "...",
-      "rules": "...",
-      "tools": ["web_search"],
-      "examplePrompts": ["Review this code", "..."]
-    }
-    ```
-  - Validation: required fields, max prompt length (4000 chars), no executable code
-- [ ] **19.** Skill activation in chat
-  - In the chat empty state (EmptyState component): show active skill name + icon above suggestion chips
-  - Suggestion chips change to skill's `examplePrompts` when a skill is active
-  - Per-conversation skill selection: store `active_skill_id` in conversations table (new column migration)
-- [ ] **19.** Verify: skill creation, activation, and import/export
+  - CRUD: `addSkillRecord()`, `getSkillRecords()`, `getEnabledSkills()`, `getSkillByName()`, `updateSkillRecord()`, `deleteSkillRecord()`, `toggleSkill()`, `setTrusted()`
+  - `getSkillCatalog() → SkillCatalogEntry[]` — returns `{ name, description }[]` for all enabled skills (used in system prompt)
 
-#### How to Test Sprint 16
+- [ ] **19.5** Seed bundled skills
+  - Ship 5 practical workflow skills as bundled assets (not personality personas):
+    - `code-review` — Review code for bugs, security, style, and performance issues
+    - `research` — Deep research with systematic investigation using web search. Uses `allowed-tools: web_search`
+    - `translate-document` — Translate text between languages with context preservation
+    - `summarize` — Summarize long text, documents, or conversations into concise formats
+    - `debug-error` — Systematic error debugging: reproduce, isolate, diagnose, fix
+  - On first launch: copy bundled SKILL.md assets → `{documentDirectory}/skills/{name}/SKILL.md`
+  - Insert metadata rows with `source: 'bundled'`
+  - Bundled skills are read-only in the UI — user can disable but not edit or delete
+  - On app update: re-copy bundled skills only if their version (from `metadata.version` in frontmatter) is newer than what's on disk
+
+**Phase 2: Runtime Integration (~1.5h)**
+
+- [ ] **19.6** Wire skill catalog into system prompt (progressive disclosure tier 1)
+  - Update `ChatScreen.streamNewResponse()`: always inject a compact skill catalog into system prompt
+  - Format (XML tags per Agent Skills client spec):
+    ```xml
+    <available_skills>
+      <skill name="code-review">Review code for bugs, security issues, style problems, and performance. Use when the user asks to review, audit, or check code quality.</skill>
+      <skill name="research">Deep research with systematic investigation using web search. Use when thorough investigation is needed.</skill>
+      <skill name="translate-document">Translate text between languages with context preservation. Use when translation is requested.</skill>
+    </available_skills>
+    ```
+  - Add behavioral instruction: "The above skills provide specialized instructions. When a task matches a skill's description, mention the skill name so the user can activate it. Do not activate skills yourself."
+  - Only include enabled skills in the catalog
+  - When no skills are enabled: inject `<available_skills/>` (empty tag)
+
+- [ ] **19.7** Wire skill activation into system prompt (progressive disclosure tier 2)
+  - When a skill is activated for a conversation, read full SKILL.md body from disk and inject it
+  - Wrap in structured tags (per Agent Skills client spec):
+    ```xml
+    <skill_content name="code-review">
+      [full SKILL.md body content here — markdown instructions]
+
+      <skill_resources>
+        <file>references/common-bugs.md</file>
+      </skill_resources>
+    </skill_content>
+    ```
+  - System prompt composition order:
+    `[User Rules] → [Skill Catalog] → [Active Skill Content] → [User Memory] → [Custom Instructions]`
+  - `allowed-tools` from frontmatter: if skill declares allowed tools, only those tool schemas are sent to the AI when that skill is active (scoped tool access)
+  - Skill content stays attached to the conversation for its lifetime (not re-read every message — cache in memory after first activation)
+
+- [ ] **19.8** Add per-conversation skill tracking
+  - New column migration on `conversations` table: `active_skill_name TEXT`
+  - When skill is activated for a conversation, store the skill name (not ID — names are unique and stable)
+  - On conversation load: if `active_skill_name` is set, read skill body and inject into system prompt
+  - If referenced skill was deleted: clear the column, conversation continues without skill
+
+**Phase 3: UI (~1.5h)**
+
+- [ ] **19.9** Create skills management screen (`src/app/settings/skills.tsx`)
+  - Header: ArrowLeft + "Skills" + `lucide Plus` add button
+  - Three sections: "Bundled" / "Imported" / "Created"
+  - Each skill card:
+    - `lucide Sparkles` icon + name in kebab-case (bold) + description (muted, 2 lines max)
+    - Toggle switch: enable/disable
+    - Trust badge (`lucide ShieldAlert` in amber) for skills with `scripts/` directory
+    - Source badge: "Bundled" (muted pill) / "Imported" (blue pill)
+    - Tap card → full-screen view showing rendered SKILL.md content (read-only markdown viewer)
+    - Long-press custom/imported skill → delete option with confirmation
+    - Bundled skills: no delete option, only enable/disable
+  - "Import Skill" button at top → document picker for `.md` files
+  - Empty imported section: "Import SKILL.md files from Claude Code, Cursor, or other tools"
+  - Link to settings row from main settings screen: `lucide Zap` + "Skills" + count badge
+
+- [ ] **19.10** Create skill SKILL.md editor (`src/components/skills/SkillEditor.tsx`)
+  - Full-screen modal for creating new skills
+  - Minimal form fields (generates a valid SKILL.md):
+    - **Name**: text input, auto-kebab-cased as user types (e.g., "Code Review" → "code-review")
+    - **Description**: multiline, with helper text "Describe what this skill does AND when to use it (important for AI to activate correctly)"
+    - **Instructions**: large multiline markdown editor — this becomes the SKILL.md body
+    - **License**: optional text input (defaults to empty)
+  - "Preview" toggle — renders the generated SKILL.md as formatted markdown
+  - "Save" → generates SKILL.md string via `generateSkillMd()` → saves to disk → inserts DB record with `source: 'created'`
+  - NOT a complex form with icon pickers, tool checkboxes, or rule editors — keep it simple, the SKILL.md body is freeform markdown
+
+- [ ] **19.11** Import/export skills
+  - **Import single SKILL.md file:**
+    1. User picks `.md` file via `expo-document-picker`
+    2. Parse frontmatter → validate (must have `name` + `description`)
+    3. Create directory `skills/{name}/` → save file as `SKILL.md`
+    4. Insert DB record with `source: 'imported'`
+    5. If skill has same name as existing → prompt "Replace existing skill?" (name collisions per spec)
+    6. Toast: "Skill '{name}' imported"
+  - **Export SKILL.md file:**
+    - Share SKILL.md file via `expo-sharing`
+    - The exported file is a standard Agent Skills SKILL.md — compatible with Claude Code, Cursor, etc.
+  - **Deferred:** zip import, GitHub URL import, marketplace browse
+
+- [ ] **19.12** Skill activation in chat
+  - **Skill picker pill in InputBar**: small `lucide Zap` pill next to existing web search/memory toggles
+    - Tap → opens bottom sheet with list of enabled skills
+    - Selecting a skill → activates it for the current conversation
+    - Pill shows active state when a skill is activated (`bg-foreground text-background`)
+    - Tap again when active → deactivate skill for this conversation
+  - **Empty state integration**: when a skill is active, show skill name + description above suggestion chips
+  - **Top bar indicator**: when skill is active, show small `lucide Zap` + skill name next to ModelPill (truncated if long)
+
+- [ ] **19.13** Verify: skill parsing, activation, import/export, and system prompt injection
+
+#### How to Test Sprint 19
 ```
-✅ Built-in skills appear in skill list (Code Reviewer, Research Assistant, etc.)
-✅ Enable "Code Reviewer" → AI responses focus on code analysis
-✅ Enable "Research Assistant" → AI uses web_search tool automatically
-✅ Create custom skill → appears in custom section
-✅ Edit custom skill → changes reflect in next conversation
-✅ Export skill → generates .skill.json file
-✅ Import .skill.json → skill added to custom list
-✅ Disable skill → its prompt and rules no longer injected
-✅ Skill suggestion chips appear in empty state
-✅ Per-conversation skill persists when reopening chat
+✅ Bundled skills appear in skills list (code-review, research, summarize, etc.)
+✅ Tap bundled skill card → shows rendered SKILL.md content
+✅ Enable/disable toggle works → disabled skills excluded from catalog
+✅ Activate "code-review" in chat → AI responses follow code review instructions
+✅ Activate "research" → AI mentions web_search tool and uses it
+✅ System prompt contains <available_skills> catalog with all enabled skills
+✅ Activated skill injects <skill_content> with full SKILL.md body
+✅ Create custom skill via editor → valid SKILL.md generated and saved to disk
+✅ Import .md file (SKILL.md from Claude Code) → skill appears in "Imported" section
+✅ Export skill → shares .md file that can be used in Claude Code/Cursor
+✅ Skill activation persists per-conversation (survives app restart)
+✅ Delete imported skill → removed from disk and DB
+✅ Skill with scripts/ directory shows trust badge
+✅ Invalid SKILL.md (missing description) → rejected with error toast
+✅ Skill name collision on import → shows replace confirmation
 ```
 
 #### 📗 Things Learned
@@ -1888,12 +2053,19 @@ These are not in scope for the current phase but documented for later (sprints 2
 - (fill after completing)
 
 #### 📘 Things to Remember
+- Skills are **files**, not just DB rows — SKILL.md on disk is the canonical source, SQLite stores only metadata
+- **Progressive disclosure**: catalog (name+description ~100 tokens each) always injected; full body (<5000 tokens) only on activation
+- Agent Skills spec requires: `name` (kebab-case) + `description` (required). All other frontmatter fields are optional
+- Lenient parsing per spec: warn on validation issues (name mismatch, too long), only skip if description missing or YAML broken
+- System prompt order: `Rules → Skill Catalog → Active Skill Content → Memory → Custom Instructions`
+- `allowed-tools` from frontmatter scopes which tool schemas are sent — don't send all tools when a skill declares specific ones
+- Bundled skills ship as assets, copied to `documentDirectory/skills/` on first launch — not hardcoded in DB
+- Path traversal protection: reject skill names containing `..`, `/`, `\` — critical for import
 - Skills compose with rules and memory — they don't replace them
-- System prompt order: Rules → Skill Prompt → Skill Rules → Memory → Custom System Prompt
-- Scoped tools: skill declares which tools it uses — only those schemas are sent to AI when skill is active
-- Built-in skills are seed data — insert on first run, don't overwrite if user disabled them
-- Import validation: reject skills with suspiciously long prompts (>4000 chars) or unknown tool names
-- `.skill.json` files are shareable — users can distribute via messaging apps or file sharing
+- Export produces standard `.md` files — users can share with Claude Code, Cursor, Gemini CLI users
+- Don't auto-execute `scripts/` — mark skills with scripts as "needs trust", show badge, never run without explicit user approval
+- Personas like "Fitness Coach" or "Creative Writer" belong in Sprint 20 (Custom Apps) — skills are procedural workflows, not personalities
+- Preserve unknown frontmatter fields (Claude extensions like `hooks`, `agent`, `paths`) — store but don't act on them
 
 ---
 
@@ -1914,7 +2086,7 @@ These are not in scope for the current phase but documented for later (sprints 2
     description: string;
     icon: string;                    // lucide icon name
     color?: string;                  // accent color for app card (CSS hsl)
-    skillId?: string;                // linked skill (from Sprint 16)
+    skillName?: string;              // linked skill name (kebab-case, from Sprint 19)
     model?: string;                  // pinned model ID (e.g. "claude-sonnet-4-20250514")
     provider?: string;               // pinned provider ID
     rules?: string;                  // app-specific rules (override global)
@@ -1933,24 +2105,23 @@ These are not in scope for the current phase but documented for later (sprints 2
       description TEXT,
       icon TEXT DEFAULT 'Bot',
       color TEXT,
-      skill_id TEXT,
+      skill_name TEXT,               -- linked skill name (kebab-case, references skills.name)
       model TEXT,
       provider TEXT,
       rules TEXT,
       greeting TEXT,
       example_prompts TEXT,       -- JSON array
       builtin INTEGER DEFAULT 0,
-      created_at INTEGER NOT NULL,
-      FOREIGN KEY (skill_id) REFERENCES skills(id) ON DELETE SET NULL
+      created_at INTEGER NOT NULL
     );
     ```
   - CRUD: `addApp()`, `getApps()`, `getApp()`, `updateApp()`, `deleteApp()`
 - [ ] **20.** Seed built-in apps
   - "Medha Default" — no pinned model, no skill, default behavior (icon: `Sparkles`)
-  - "Code Assistant" — links "Code Reviewer" skill, pins to Claude Sonnet 4 (icon: `Code`, color: `hsl(265, 80%, 60%)`)
-  - "Writing Coach" — links "Creative Writer" skill, greeting: "What would you like to write today?" (icon: `Feather`)
-  - "Language Tutor" — links "Translator" skill, rules: "Always correct grammar mistakes" (icon: `Languages`)
-  - "Research Pro" — links "Research Assistant" skill, pins to GPT-4o via OpenRouter (icon: `Search`)
+  - "Code Assistant" — links `code-review` skill, pins to Claude Sonnet 4 (icon: `Code`, color: `hsl(265, 80%, 60%)`)
+  - "Writing Coach" — custom system prompt for creative writing, greeting: "What would you like to write today?" (icon: `Feather`)
+  - "Language Tutor" — links `translate-document` skill, rules: "Always correct grammar mistakes" (icon: `Languages`)
+  - "Research Pro" — links `research` skill, pins to GPT-4o via OpenRouter (icon: `Search`)
 - [ ] **20.** Create app launcher screen (`src/app/apps.tsx`)
   - Grid layout (2 columns) of app cards
   - Each card: colored icon circle + name + description (2 lines max)
@@ -1979,7 +2150,7 @@ These are not in scope for the current phase but documented for later (sprints 2
   - Tap → navigates to app launcher screen
   - Alternatively: horizontal scroll of app icons at top of drawer (quick access)
 - [ ] **20.** Import/export apps as JSON
-  - Export: bundles app + linked skill into single `.app.json` file
+  - Export: bundles app config + linked SKILL.md into single `.app.json` file
     ```json
     {
       "medha_app": "1.0",
@@ -1987,7 +2158,7 @@ These are not in scope for the current phase but documented for later (sprints 2
       "description": "...",
       "icon": "Code",
       "color": "hsl(265, 80%, 60%)",
-      "skill": { /* embedded skill JSON from Sprint 19 */ },
+      "skill_md": "---\nname: code-review\n...",
       "model": "claude-sonnet-4-20250514",
       "provider": "anthropic",
       "rules": "...",
@@ -1995,24 +2166,24 @@ These are not in scope for the current phase but documented for later (sprints 2
       "examplePrompts": ["..."]
     }
     ```
-  - Import: parse JSON → create skill (if embedded) → create app → link
+  - Import: parse JSON → import SKILL.md (if embedded, via Sprint 19 import) → create app → link
   - Share via `expo-sharing`
 - [ ] **20.** App-scoped conversation history
   - In drawer: filter conversations by app (show app icon badge on each conversation)
   - App launcher cards show conversation count: "12 chats" subtitle
 - [ ] **20.** Verify: app creation, activation, sharing, and conversation flow
 
-#### How to Test Sprint 17
+#### How to Test Sprint 20
 ```
 ✅ App launcher shows grid of built-in apps (Medha Default, Code Assistant, etc.)
-✅ Tap "Code Assistant" → new chat with Code Reviewer skill active + Claude pinned
+✅ Tap "Code Assistant" → new chat with code-review skill active + Claude pinned
 ✅ Greeting message appears as first assistant message
 ✅ Suggestion chips show app's example prompts
 ✅ App icon + name visible in chat top bar
 ✅ Create custom app via wizard → appears in launcher grid
 ✅ Edit custom app → changes apply to new conversations (not existing ones)
-✅ Export app → .app.json file with embedded skill
-✅ Import .app.json → app + skill created
+✅ Export app → .app.json file with embedded SKILL.md
+✅ Import .app.json → SKILL.md imported + app created
 ✅ Long-press built-in app → no edit/delete (read-only)
 ✅ Drawer shows "Apps" row → navigates to launcher
 ✅ Conversations show app badge in drawer list
@@ -2025,13 +2196,14 @@ These are not in scope for the current phase but documented for later (sprints 2
 - (fill after completing)
 
 #### 📘 Things to Remember
-- Apps are a composition layer — they combine skills, rules, and model preferences into a named persona
-- App ≠ Skill: skill is the behavior (prompt + tools), app is the UX wrapper (icon, greeting, model, skill)
-- Built-in apps reference built-in skills by ID — if skill deleted, app still works but without skill's prompt
+- Apps are a composition layer — they combine skills (SKILL.md), rules, and model preferences into a named persona
+- App ≠ Skill: skill is the behavior (SKILL.md instructions + tools), app is the UX wrapper (icon, greeting, model, skill)
+- Built-in apps reference skills by `name` (kebab-case) — if skill deleted, app still works but without skill instructions
 - Greeting is a fake assistant message — it's stored in DB as a regular message, not re-injected on each open
 - App-specific rules override global rules (same as per-conversation rules from Sprint 13)
 - Model pinning is a preference, not a requirement — if user doesn't have the API key, show a warning but allow model switch
-- `.app.json` embeds the full skill — no external references that could break on import
+- `.app.json` embeds the full SKILL.md content — no external references that could break on import
+- Persona-style prompts ("Creative Writer", "Fitness Coach") live here as app `rules`, NOT as Sprint 19 Agent Skills
 
 ---
 
