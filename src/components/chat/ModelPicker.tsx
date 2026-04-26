@@ -8,7 +8,12 @@ import { useSettingsStore, getConfiguredProviders } from '@/stores/settings-stor
 import { getProvider, registerBuiltInProviders, listProviders } from '@/lib/providers/registry';
 import { getApiKey } from '@/lib/storage/secure';
 import { keepSelectedModelVisible } from '@/lib/models';
-import type { Model } from '@/types';
+import { getModelCapabilities } from '@/lib/models/capabilities';
+import { CapabilityBadges } from '@/components/chat/CapabilityBadges';
+import type { Model, ModelCapability } from '@/types';
+
+// Filter pills shown in the picker
+const FILTER_OPTIONS: ModelCapability[] = ['vision', 'thinking', 'tools', 'pdf', 'long-context'];
 
 // Fallback models per provider (shown before API fetch completes)
 const FALLBACK_MODELS: Record<string, Model[]> = {
@@ -47,6 +52,15 @@ const PROVIDER_DISPLAY: Record<string, string> = {
   minimax: 'MiniMax',
 };
 
+const FILTER_LABELS: Record<ModelCapability, string> = {
+  vision: 'Vision',
+  thinking: 'Thinking',
+  tools: 'Tools',
+  pdf: 'PDF',
+  'image-gen': 'Image Gen',
+  'long-context': 'Long Context',
+};
+
 export function ModelPicker() {
   const bottomSheetRef = useRef<BottomSheet>(null);
   const isOpen = useUIStore((s) => s.modelPickerOpen);
@@ -65,7 +79,6 @@ export function ModelPicker() {
     icon: isLight ? 'hsl(240, 4%, 46%)' : 'hsl(0, 0%, 63%)',
     text: isLight ? '#09090B' : '#FAFAFA',
     placeholder: isLight ? 'hsl(240, 4%, 60%)' : 'hsl(0, 0%, 44%)',
-    searchBg: isLight ? '#F4F4F5' : undefined, // undefined = uses className
   };
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -74,6 +87,7 @@ export function ModelPicker() {
   const [models, setModels] = useState<Record<string, Model[]>>({});
   const [loadedProviders, setLoadedProviders] = useState<Set<string>>(new Set());
   const [isLoadingModels, setIsLoadingModels] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<ModelCapability[]>([]);
 
   const snapPoints = useMemo(() => ['75%'], []);
 
@@ -139,6 +153,7 @@ export function ModelPicker() {
       if (index === -1) {
         closeModelPicker();
         setSearchQuery('');
+        setActiveFilters([]);
       }
     },
     [closeModelPicker]
@@ -150,9 +165,16 @@ export function ModelPicker() {
       await setLastProvider(providerId);
       closeModelPicker();
       setSearchQuery('');
+      setActiveFilters([]);
     },
     [setLastModel, setLastProvider, closeModelPicker]
   );
+
+  const toggleFilter = useCallback((cap: ModelCapability) => {
+    setActiveFilters((prev) =>
+      prev.includes(cap) ? prev.filter((c) => c !== cap) : [...prev, cap]
+    );
+  }, []);
 
   // Get models for the active tab
   const currentModels = useMemo(() => {
@@ -166,12 +188,26 @@ export function ModelPicker() {
   }, [activeTab, models, lastModel, lastProvider]);
 
   const filteredModels = useMemo(() => {
-    if (!searchQuery.trim()) return currentModels;
-    const q = searchQuery.toLowerCase();
-    return currentModels.filter(
-      (m) => m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q)
-    );
-  }, [currentModels, searchQuery]);
+    let result = currentModels;
+
+    // Text search
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (m) => m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q)
+      );
+    }
+
+    // Capability filters (AND logic)
+    if (activeFilters.length > 0) {
+      result = result.filter((m) => {
+        const caps = getModelCapabilities(m.id, m.provider);
+        return activeFilters.every((f) => caps.includes(f));
+      });
+    }
+
+    return result;
+  }, [currentModels, searchQuery, activeFilters]);
 
   const renderBackdrop = useCallback(
     (props: any) => (
@@ -183,31 +219,43 @@ export function ModelPicker() {
   const renderItem = useCallback(
     ({ item, index }: { item: Model; index: number }) => {
       const isSelected = item.id === lastModel && item.provider === (lastProvider || activeTab);
+      const caps = getModelCapabilities(item.id, item.provider);
       return (
         <Pressable
           onPress={() => handleSelect(item.id, item.provider)}
-          className={`mx-4 h-[52px] px-4 flex-row items-center justify-between rounded-lg ${
+          className={`mx-4 px-4 py-2.5 flex-col justify-center rounded-lg ${
             isSelected ? 'bg-surface-container-high' : ''
           } ${index < filteredModels.length - 1 ? 'border-b border-outline-variant/10' : ''}`}
         >
           {isSelected && (
             <View className="absolute left-0 top-0 bottom-0 w-[2px] bg-foreground rounded-r-full" />
           )}
-          <Text
-            className={`text-[14px] flex-1 ${
-              isSelected ? 'text-foreground font-medium' : 'text-on-surface'
-            }`}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-            style={{ minWidth: 0 }}
-          >
-            {item.name}
-          </Text>
-          {isSelected && <Check size={18} color={colors.text} />}
+          <View className="flex-row items-center justify-between">
+            <Text
+              className={`text-[14px] flex-1 ${
+                isSelected ? 'text-foreground font-medium' : 'text-on-surface'
+              }`}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              style={{ minWidth: 0 }}
+            >
+              {item.name}
+            </Text>
+            {isSelected && <Check size={18} color={colors.text} />}
+          </View>
+          <View className="mt-0.5">
+            <CapabilityBadges
+              capabilities={caps}
+              size={12}
+              color="hsl(0, 0%, 55%)"
+              gap={6}
+              showTooltip={false}
+            />
+          </View>
         </Pressable>
       );
     },
-    [lastModel, lastProvider, activeTab, handleSelect, filteredModels.length]
+    [lastModel, lastProvider, activeTab, handleSelect, filteredModels.length, colors.text]
   );
 
   const keyExtractor = useCallback((item: Model) => `${item.provider}-${item.id}`, []);
@@ -219,7 +267,7 @@ export function ModelPicker() {
         <View className="flex-row items-center justify-between px-4 pb-3">
           <Text className="text-foreground text-[16px] font-semibold">Select Model</Text>
           <Pressable
-            onPress={() => { closeModelPicker(); setSearchQuery(''); }}
+            onPress={() => { closeModelPicker(); setSearchQuery(''); setActiveFilters([]); }}
             className="p-1 rounded-full active:bg-surface-container"
           >
             <X size={20} color={colors.icon} />
@@ -282,6 +330,37 @@ export function ModelPicker() {
           </View>
         </View>
 
+        {/* Capability Filters */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          className="px-4 pb-2"
+          contentContainerStyle={{ gap: 6 }}
+        >
+          {FILTER_OPTIONS.map((cap) => {
+            const isActive = activeFilters.includes(cap);
+            return (
+              <Pressable
+                key={cap}
+                onPress={() => toggleFilter(cap)}
+                className={`rounded-full px-3 py-1 ${
+                  isActive
+                    ? 'bg-foreground'
+                    : 'bg-surface-container border border-outline-variant/20'
+                }`}
+              >
+                <Text
+                  className={`text-[11px] font-medium ${
+                    isActive ? 'text-background' : 'text-on-surface-variant'
+                  }`}
+                >
+                  {FILTER_LABELS[cap]}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
         {/* Loading indicator */}
         {isLoadingModels && (
           <View className="py-3 items-center">
@@ -299,7 +378,7 @@ export function ModelPicker() {
         )}
       </>
     ),
-    [searchQuery, closeModelPicker, configuredProviderIds, activeTab, isLoadingModels]
+    [searchQuery, closeModelPicker, configuredProviderIds, activeTab, isLoadingModels, activeFilters, toggleFilter]
   );
 
   if (!isOpen) return null;

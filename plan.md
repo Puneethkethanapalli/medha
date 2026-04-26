@@ -1576,7 +1576,7 @@ These are not in scope for the current phase but documented for later (sprints 2
 - Sprint 15 (document intelligence) and Sprint 16 (image gen) define the capabilities to surface
 
 #### Tasks
-- [ ] **17.** Define model capability types (`src/types/index.ts`)
+- [x] **17.1** Define model capability types (`src/types/index.ts`)
   ```typescript
   type ModelCapability = 'vision' | 'image-gen' | 'pdf' | 'tools' | 'thinking' | 'long-context';
 
@@ -1590,7 +1590,7 @@ These are not in scope for the current phase but documented for later (sprints 2
     contextWindow?: number;            // NEW — token limit
   }
   ```
-- [ ] **17.** Create capability detection module (`src/lib/models/capabilities.ts`)
+- [x] **17.2** Create capability detection module (`src/lib/models/capabilities.ts`)
   - `getModelCapabilities(modelId: string, provider: string) → ModelCapability[]`
   - Pattern-matching on model IDs for known capabilities:
     - **Vision**: `gpt-4o`, `gpt-4-vision`, `claude-3*`, `gemini-*` (most modern models)
@@ -1601,7 +1601,7 @@ These are not in scope for the current phase but documented for later (sprints 2
     - **Long context**: models with >100K context window
   - Hardcoded capability map for known models + heuristic fallback for unknown ones
   - Cache results in memory (Map) — capabilities don't change per session
-- [ ] **17.** Create capability icon component (`src/components/chat/CapabilityBadges.tsx`)
+- [x] **17.3** Create capability icon component (`src/components/chat/CapabilityBadges.tsx`)
   - Horizontal row of small icons representing capabilities
   - Icons (from `lucide-react-native`):
     - Vision: `lucide Eye`
@@ -1612,22 +1612,22 @@ These are not in scope for the current phase but documented for later (sprints 2
     - Long context: `lucide ScrollText`
   - Size: 12px icons, `text-muted-foreground`, 4px gap
   - Tap row → shows tooltip with capability names (e.g., "Vision • Image Generation • Tools")
-- [ ] **17.** Integrate badges into ModelPicker
+- [x] **17.4** Integrate badges into ModelPicker
   - Each model row in the picker shows capability icons below the model name
   - Layout: model name (14sp bold) on first line, capability icons (12px, muted) on second line
   - Helps users choose the right model for their task
-- [ ] **17.** Add capability filter to ModelPicker
+- [x] **17.5** Add capability filter to ModelPicker
   - Filter pills at top of model picker: "Vision", "Tools", "Thinking"
   - Tap a filter → only show models with that capability
   - Multiple filters → intersection (model must have ALL selected capabilities)
   - Active filter: `bg-foreground text-background`, inactive: `bg-muted text-muted-foreground`
-- [ ] **17.** Show active model capabilities in chat top bar
+- [x] **17.6** Show active model capabilities in chat top bar
   - ModelPill shows 1-2 most relevant capability icons alongside the model name
   - Only show icons for "premium" capabilities (vision, thinking, image-gen) — skip common ones (tools)
   - Helps users know at a glance what the current model can do
-- [ ] **17.** Verify: capability badges and filters work
+- [x] **17.7** Verify: capability badges and filters work
 
-#### How to Test Sprint 21
+#### How to Test Sprint 17
 ```
 ✅ Open model picker → each model shows capability icons
 ✅ GPT-4o shows: Eye (vision) + Wrench (tools)

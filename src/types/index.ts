@@ -43,6 +43,8 @@ export interface Message {
   created_at: number;
 }
 
+export type ModelCapability = 'vision' | 'image-gen' | 'pdf' | 'tools' | 'thinking' | 'long-context';
+
 export interface Model {
   id: string;
   name: string;
@@ -51,6 +53,8 @@ export interface Model {
     prompt: number;
     completion: number;
   };
+  capabilities?: ModelCapability[];
+  contextWindow?: number;
 }
 
 export interface Provider {
