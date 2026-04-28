@@ -440,6 +440,10 @@ export const ChatScreen = React.memo(function ChatScreen({
         convId = createConversation(title, model, pendingConversationRule ?? undefined);
         setCurrentConvId(convId);
         setActiveConversation(convId);
+        // Persist active skill to new conversation
+        if (activeSkillName) {
+          updateConversation(convId, { active_skill_name: activeSkillName });
+        }
         // Clear pending rule now that it's been applied
         if (pendingConversationRule) setPendingConversationRule(null);
       }
