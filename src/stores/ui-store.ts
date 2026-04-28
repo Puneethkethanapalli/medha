@@ -19,6 +19,8 @@ interface UIState {
   editingMessageId: string | null;
   // Pending per-conversation rule (before conversation is created)
   pendingConversationRule: string | null;
+  // Skill picker bottom sheet
+  skillPickerOpen: boolean;
 }
 
 interface UIActions {
@@ -40,6 +42,8 @@ interface UIActions {
   hideActionsMenu: () => void;
   setEditingMessage: (id: string | null) => void;
   setPendingConversationRule: (rule: string | null) => void;
+  openSkillPicker: () => void;
+  closeSkillPicker: () => void;
 }
 
 export const useUIStore = create<UIState & UIActions>((set) => ({
@@ -54,6 +58,7 @@ export const useUIStore = create<UIState & UIActions>((set) => ({
   actionsMenuMessage: null,
   editingMessageId: null,
   pendingConversationRule: null,
+  skillPickerOpen: false,
 
   openDrawer: () => set({ drawerOpen: true }),
   closeDrawer: () => set({ drawerOpen: false }),
@@ -73,4 +78,6 @@ export const useUIStore = create<UIState & UIActions>((set) => ({
   hideActionsMenu: () => set({ actionsMenuMessage: null }),
   setEditingMessage: (id) => set({ editingMessageId: id }),
   setPendingConversationRule: (rule) => set({ pendingConversationRule: rule }),
+  openSkillPicker: () => set({ skillPickerOpen: true }),
+  closeSkillPicker: () => set({ skillPickerOpen: false }),
 }));

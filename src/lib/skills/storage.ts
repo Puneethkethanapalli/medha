@@ -82,6 +82,7 @@ export function readSkillBody(name: string): string | null {
 
   try {
     const content = file.textSync();
+    if (typeof content !== 'string') return null;
     const parsed = parseSkillMd(content);
     return parsed?.body ?? null;
   } catch (e) {
@@ -102,6 +103,7 @@ export function readSkillFull(name: string): ParsedSkill | null {
 
   try {
     const content = file.textSync();
+    if (typeof content !== 'string') return null;
     return parseSkillMd(content);
   } catch (e) {
     console.error(`[SkillStorage] Failed to read skill for "${name}":`, e);

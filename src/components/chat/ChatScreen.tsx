@@ -3,7 +3,8 @@ import { View, Pressable, AppState, type AppStateStatus } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { Menu, PenSquare } from 'lucide-react-native';
+import { Menu, PenSquare, Zap } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
 import { ModelPill } from '@/components/chat/ModelPill';
 import { ChatSettingsButton } from '@/components/chat/ChatSettingsButton';
 import { ImageGenToggle } from '@/components/chat/ImageGenToggle';
@@ -13,6 +14,7 @@ import { OfflineBanner } from '@/components/chat/OfflineBanner';
 import { InputBar } from '@/components/chat/InputBar';
 import { EmptyState } from '@/components/chat/EmptyState';
 import { Toast } from '@/components/common/Toast';
+import { SkillPicker } from '@/components/skills/SkillPicker';
 import { useChatStore } from '@/stores/chat-store';
 import { useUIStore } from '@/stores/ui-store';
 import { useSettingsStore } from '@/stores/settings-store';
@@ -56,6 +58,7 @@ export const ChatScreen = React.memo(function ChatScreen({
   const [currentConvId, setCurrentConvId] = useState<string | null>(conversationId);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [hasImageGenKey, setHasImageGenKey] = useState(false);
+  const [activeSkillName, setActiveSkillName] = useState<string | null>(null);
   const abortRef = useRef<{ abort: () => void } | null>(null);
   const usageAccumRef = useRef<UsageData>({ promptTokens: 0, completionTokens: 0 });
 
@@ -70,6 +73,9 @@ export const ChatScreen = React.memo(function ChatScreen({
   const webSearchEnabled = useSettingsStore((s) => s.webSearchEnabled);
   const memoryEnabled = useSettingsStore((s) => s.memoryEnabled);
   const imageGenEnabled = useSettingsStore((s) => s.imageGenEnabled);
+  const skillPickerOpen = useUIStore((s) => s.skillPickerOpen);
+  const closeSkillPicker = useUIStore((s) => s.closeSkillPicker);
+  const openSkillPicker = useUIStore((s) => s.openSkillPicker);
 
   const {
     startStreaming,
@@ -152,9 +158,13 @@ export const ChatScreen = React.memo(function ChatScreen({
       const msgs = getMessages(currentConvId);
       setMessages(msgs);
       setActiveConversation(currentConvId);
+      // Load active skill from conversation
+      const conv = getConversation(currentConvId);
+      setActiveSkillName(conv?.active_skill_name ?? null);
     } else {
       setMessages([]);
       setActiveConversation(null);
+      setActiveSkillName(null);
     }
   }, [currentConvId, setActiveConversation]);
 
@@ -186,17 +196,17 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       const model = lastModel || getDefaultModel(providerId);
       const conversation = getConversation(convId);
-      const activeSkillName = conversation?.active_skill_name ?? null;
+      const convActiveSkill = activeSkillName ?? conversation?.active_skill_name ?? null;
       let systemPrompt = composeSystemPrompt(
         convId,
         conversation?.system_prompt,
-        activeSkillName
+        convActiveSkill
       );
 
       // If active skill declares allowed-tools, scope tool access
       let skillAllowedTools: string[] | null = null;
-      if (activeSkillName) {
-        const skillData = readSkillFull(activeSkillName);
+      if (convActiveSkill) {
+        const skillData = readSkillFull(convActiveSkill);
         if (skillData?.frontmatter['allowed-tools']) {
           skillAllowedTools = parseAllowedTools(skillData.frontmatter['allowed-tools'] as string);
         }
@@ -415,7 +425,7 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       abortRef.current = response;
     },
-    [lastModel, lastProvider, thinkingMode, webSearchEnabled, memoryEnabled, imageGenEnabled, startStreaming, appendToken, appendReasoningToken, stopStreaming, setError]
+    [lastModel, lastProvider, thinkingMode, webSearchEnabled, memoryEnabled, imageGenEnabled, activeSkillName, startStreaming, appendToken, appendReasoningToken, stopStreaming, setError]
   );
 
   const handleSend = useCallback(
@@ -501,6 +511,7 @@ export const ChatScreen = React.memo(function ChatScreen({
     setMessages([]);
     setCurrentConvId(null);
     setActiveConversation(null);
+    setActiveSkillName(null);
     setPendingConversationRule(null);
     if (router.canDismiss()) {
       router.dismissAll();
@@ -614,6 +625,24 @@ export const ChatScreen = React.memo(function ChatScreen({
           <ModelPill />
           {hasImageGenKey && <ImageGenToggle />}
           <ChatSettingsButton />
+          {/* Skill activation pill */}
+          <Pressable
+            onPress={openSkillPicker}
+            className={`flex-row items-center gap-1 rounded-full px-2.5 py-1.5 ${
+              activeSkillName ? 'bg-foreground' : 'bg-surface-container-low'
+            }`}
+          >
+            <Zap
+              size={13}
+              color={activeSkillName ? 'hsl(240, 3.7%, 7.5%)' : 'hsl(0, 0%, 50%)'}
+              fill={activeSkillName ? 'hsl(240, 3.7%, 7.5%)' : 'transparent'}
+            />
+            {activeSkillName && (
+              <Text className="text-background text-[11px] font-medium" numberOfLines={1}>
+                {activeSkillName.length > 12 ? activeSkillName.slice(0, 12) + '…' : activeSkillName}
+              </Text>
+            )}
+          </Pressable>
         </View>
         <Pressable onPress={handleNewChat} className="w-10 h-10 items-center justify-center">
           <PenSquare size={20} color="hsl(0, 0%, 63%)" />
@@ -652,6 +681,20 @@ export const ChatScreen = React.memo(function ChatScreen({
         onEditAndResend={handleEditAndResend}
         onRegenerate={handleRegenerate}
         onDelete={handleDeleteMessage}
+      />
+
+      {/* Skill Picker */}
+      <SkillPicker
+        open={skillPickerOpen}
+        onClose={closeSkillPicker}
+        activeSkillName={activeSkillName}
+        onSelectSkill={(skillName) => {
+          setActiveSkillName(skillName);
+          // Persist to conversation if one exists
+          if (currentConvId) {
+            updateConversation(currentConvId, { active_skill_name: skillName });
+          }
+        }}
       />
     </View>
   );

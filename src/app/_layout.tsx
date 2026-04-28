@@ -76,6 +76,8 @@ function AppContent() {
   const hideActionsMenu = useUIStore((s) => s.hideActionsMenu);
   const attachmentSheetOpen = useUIStore((s) => s.attachmentSheetOpen);
   const closeAttachmentSheet = useUIStore((s) => s.closeAttachmentSheet);
+  const skillPickerOpen = useUIStore((s) => s.skillPickerOpen);
+  const closeSkillPicker = useUIStore((s) => s.closeSkillPicker);
 
   // Handle Android back button: close overlays in priority order
   useEffect(() => {
@@ -96,6 +98,10 @@ function AppContent() {
         closeThemePicker();
         return true;
       }
+      if (skillPickerOpen) {
+        closeSkillPicker();
+        return true;
+      }
       if (modelPickerOpen) {
         closeModelPicker();
         return true;
@@ -107,7 +113,7 @@ function AppContent() {
       return false;
     });
     return () => handler.remove();
-  }, [drawerOpen, closeDrawer, modelPickerOpen, closeModelPicker, chatSettingsOpen, closeChatSettings, themePickerOpen, closeThemePicker, actionsMenuMessage, hideActionsMenu, attachmentSheetOpen, closeAttachmentSheet]);
+  }, [drawerOpen, closeDrawer, modelPickerOpen, closeModelPicker, chatSettingsOpen, closeChatSettings, themePickerOpen, closeThemePicker, actionsMenuMessage, hideActionsMenu, attachmentSheetOpen, closeAttachmentSheet, skillPickerOpen, closeSkillPicker]);
 
   const handleSelectConversation = useCallback(
     (id: string) => {
@@ -202,6 +208,7 @@ function AppContent() {
             <Stack.Screen name="settings/api-keys" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="settings/system-prompts" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="settings/rules" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="settings/skills" options={{ animation: 'slide_from_right' }} />
           </Stack>
         </DrawerLayout>
         <ModelPicker />
