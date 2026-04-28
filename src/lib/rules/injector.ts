@@ -1,13 +1,17 @@
 /**
- * Rules injection module — Sprint 13
+ * Rules injection module — Sprint 13, updated Sprint 19
  *
  * Builds a rules context string that is prepended to the system prompt.
  * Priority: per-conversation rules (if set) > global rules
+ *
+ * Sprint 19 additions: skill catalog + active skill content injection.
+ * Order: Rules → Skill Catalog → Active Skill Content → Memory → Custom Instructions
  */
 
 import { getConversation } from '@/lib/db/conversations';
 import { getGlobalRulesSync, type RuleItem, DEFAULT_RULES, isMemoryEnabledSync } from '@/lib/storage/mmkv';
 import { buildMemoryContext } from '@/lib/memory/injector';
+import { buildSkillCatalog, buildSkillCatalogInstruction, getActiveSkillContent } from '@/lib/skills/injector';
 
 /** Parse a rules JSON string into RuleItem array. Falls back to defaults. */
 function parseRules(json: string | null): RuleItem[] {
@@ -55,16 +59,30 @@ export function buildRulesContext(conversationId?: string | null): string {
 
 /**
  * Compose the full system prompt from multiple sources.
- * Order: Rules → Memory → User's custom system prompt
+ * Order: Rules → Skill Catalog → Active Skill Content → Memory → Custom Instructions
  */
 export function composeSystemPrompt(
   conversationId: string | null,
-  customSystemPrompt?: string | null
+  customSystemPrompt?: string | null,
+  activeSkillName?: string | null
 ): string | undefined {
   const parts: string[] = [];
 
   const rules = buildRulesContext(conversationId);
   if (rules) parts.push(rules);
+
+  // Skill catalog (Sprint 19 — tier 1: always injected)
+  const catalog = buildSkillCatalog();
+  if (catalog) parts.push(catalog);
+
+  const catalogInstruction = buildSkillCatalogInstruction();
+  if (catalogInstruction) parts.push(catalogInstruction);
+
+  // Active skill content (Sprint 19 — tier 2: only when activated)
+  if (activeSkillName) {
+    const skillContent = getActiveSkillContent(activeSkillName);
+    if (skillContent) parts.push(skillContent);
+  }
 
   // Memory injection (Sprint 14)
   if (isMemoryEnabledSync()) {
@@ -83,3 +101,4 @@ export function composeSystemPrompt(
 /** Export default rules for UI initialization */
 export { DEFAULT_RULES };
 export type { RuleItem };
+

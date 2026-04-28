@@ -1835,7 +1835,7 @@ Structure your review as:
 
 **Phase 1: Core Infrastructure (~2h)**
 
-- [ ] **19.1** Define skill types (`src/lib/skills/types.ts`)
+- [x] **19.1** Define skill types (`src/lib/skills/types.ts`)
   ```typescript
   /** Parsed frontmatter from SKILL.md */
   interface SkillFrontmatter {
@@ -1876,7 +1876,7 @@ Structure your review as:
   }
   ```
 
-- [ ] **19.2** Create SKILL.md parser (`src/lib/skills/parser.ts`)
+- [x] **19.2** Create SKILL.md parser (`src/lib/skills/parser.ts`)
   - `parseSkillMd(content: string) → ParsedSkill`
     - Find opening `---` at start of file and closing `---` after it
     - Parse YAML block between them → extract `name`, `description` (required), plus optional fields
@@ -1893,7 +1893,7 @@ Structure your review as:
     - Lists files in skill's `scripts/`, `references/`, `assets/` subdirectories (if they exist)
   - YAML parsing: use a lightweight YAML parser (e.g., `yaml` npm package or simple regex-based for frontmatter-only)
 
-- [ ] **19.3** Create skills file storage (`src/lib/skills/storage.ts`)
+- [x] **19.3** Create skills file storage (`src/lib/skills/storage.ts`)
   - Uses `expo-file-system` to manage `{documentDirectory}/skills/` directory
   - `initSkillsDirectory()` → ensure base directory exists
   - `saveSkill(name: string, skillMdContent: string) → string` → creates `skills/{name}/SKILL.md`, returns path
@@ -1903,7 +1903,7 @@ Structure your review as:
   - `skillDirectoryExists(name: string) → boolean`
   - Path traversal protection: reject names containing `..`, `/`, or `\`
 
-- [ ] **19.4** Create skills DB layer (`src/lib/db/skills.ts`)
+- [x] **19.4** Create skills DB layer (`src/lib/db/skills.ts`)
   - SQLite table (metadata index only — body lives on disk):
     ```sql
     CREATE TABLE IF NOT EXISTS skills (
@@ -1924,7 +1924,7 @@ Structure your review as:
   - CRUD: `addSkillRecord()`, `getSkillRecords()`, `getEnabledSkills()`, `getSkillByName()`, `updateSkillRecord()`, `deleteSkillRecord()`, `toggleSkill()`, `setTrusted()`
   - `getSkillCatalog() → SkillCatalogEntry[]` — returns `{ name, description }[]` for all enabled skills (used in system prompt)
 
-- [ ] **19.5** Seed bundled skills
+- [x] **19.5** Seed bundled skills
   - Ship 5 practical workflow skills as bundled assets (not personality personas):
     - `code-review` — Review code for bugs, security, style, and performance issues
     - `research` — Deep research with systematic investigation using web search. Uses `allowed-tools: web_search`
@@ -1938,7 +1938,7 @@ Structure your review as:
 
 **Phase 2: Runtime Integration (~1.5h)**
 
-- [ ] **19.6** Wire skill catalog into system prompt (progressive disclosure tier 1)
+- [x] **19.6** Wire skill catalog into system prompt (progressive disclosure tier 1)
   - Update `ChatScreen.streamNewResponse()`: always inject a compact skill catalog into system prompt
   - Format (XML tags per Agent Skills client spec):
     ```xml
@@ -1952,7 +1952,7 @@ Structure your review as:
   - Only include enabled skills in the catalog
   - When no skills are enabled: inject `<available_skills/>` (empty tag)
 
-- [ ] **19.7** Wire skill activation into system prompt (progressive disclosure tier 2)
+- [x] **19.7** Wire skill activation into system prompt (progressive disclosure tier 2)
   - When a skill is activated for a conversation, read full SKILL.md body from disk and inject it
   - Wrap in structured tags (per Agent Skills client spec):
     ```xml
@@ -1969,7 +1969,7 @@ Structure your review as:
   - `allowed-tools` from frontmatter: if skill declares allowed tools, only those tool schemas are sent to the AI when that skill is active (scoped tool access)
   - Skill content stays attached to the conversation for its lifetime (not re-read every message — cache in memory after first activation)
 
-- [ ] **19.8** Add per-conversation skill tracking
+- [x] **19.8** Add per-conversation skill tracking
   - New column migration on `conversations` table: `active_skill_name TEXT`
   - When skill is activated for a conversation, store the skill name (not ID — names are unique and stable)
   - On conversation load: if `active_skill_name` is set, read skill body and inject into system prompt

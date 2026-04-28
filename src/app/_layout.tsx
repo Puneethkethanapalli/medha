@@ -21,6 +21,7 @@ import { ThemePicker } from '@/components/chat/ThemePicker';
 import { ChatSettingsSheet } from '@/components/chat/ChatSettingsSheet';
 import { getConversations } from '@/lib/db/conversations';
 import { initializeDatabase } from '@/lib/db/schema';
+import { initializeSkills } from '@/lib/skills/init';
 import type { Conversation } from '@/types';
 import { MedhaLogo } from '@/components/branding/MedhaLogo';
 import '@/global.css';
@@ -242,6 +243,7 @@ function AuthGate() {
       try {
         await initialize();
         initializeDatabase();
+        initializeSkills();
       } catch (e) {
         console.error('Init failed:', e);
       }

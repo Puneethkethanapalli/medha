@@ -6,6 +6,7 @@ export interface Conversation {
   system_prompt: string | null;
   thinking_mode: string | null;
   rules: string | null;
+  active_skill_name: string | null;
   created_at: number;
   updated_at: number;
   pinned: number;

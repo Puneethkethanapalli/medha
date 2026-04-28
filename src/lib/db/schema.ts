@@ -125,4 +125,29 @@ export function initializeDatabase(): void {
   `);
   database.runSync('CREATE INDEX IF NOT EXISTS idx_token_usage_conv ON token_usage(conversation_id)');
   database.runSync('CREATE INDEX IF NOT EXISTS idx_token_usage_date ON token_usage(created_at)');
+
+  // Create skills table (Sprint 19)
+  database.runSync(`
+    CREATE TABLE IF NOT EXISTS skills (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      description TEXT NOT NULL,
+      source TEXT NOT NULL DEFAULT 'created',
+      storage_path TEXT NOT NULL,
+      enabled INTEGER DEFAULT 1,
+      trusted INTEGER DEFAULT 0,
+      has_scripts INTEGER DEFAULT 0,
+      has_references INTEGER DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )
+  `);
+  database.runSync('CREATE UNIQUE INDEX IF NOT EXISTS idx_skills_name ON skills(name)');
+
+  // Add active_skill_name column to conversations (Sprint 19)
+  try {
+    database.runSync('ALTER TABLE conversations ADD COLUMN active_skill_name TEXT');
+  } catch {
+    // Column already exists — ignore
+  }
 }

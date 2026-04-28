@@ -30,6 +30,8 @@ import { webSearchTool } from '@/lib/tools/web-search';
 import { generateImageTool } from '@/lib/tools/image-gen';
 import { saveMemoryTool, forgetMemoryTool } from '@/lib/tools/memory-tools';
 import { composeSystemPrompt } from '@/lib/rules/injector';
+import { parseAllowedTools } from '@/lib/skills/injector';
+import { readSkillFull } from '@/lib/skills/storage';
 import { recordUsage } from '@/lib/db/token-usage';
 import { calculateCost } from '@/lib/tokens/pricing';
 import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
@@ -184,10 +186,21 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       const model = lastModel || getDefaultModel(providerId);
       const conversation = getConversation(convId);
+      const activeSkillName = conversation?.active_skill_name ?? null;
       let systemPrompt = composeSystemPrompt(
         convId,
-        conversation?.system_prompt
+        conversation?.system_prompt,
+        activeSkillName
       );
+
+      // If active skill declares allowed-tools, scope tool access
+      let skillAllowedTools: string[] | null = null;
+      if (activeSkillName) {
+        const skillData = readSkillFull(activeSkillName);
+        if (skillData?.frontmatter['allowed-tools']) {
+          skillAllowedTools = parseAllowedTools(skillData.frontmatter['allowed-tools'] as string);
+        }
+      }
 
       // Append memory tool instruction when memory is enabled
       if (memoryEnabled) {
@@ -234,13 +247,18 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       // Build tool config — web search when enabled, memory tools always, image gen when enabled
       const useTools = (webSearchEnabled || memoryEnabled || imageGenEnabled) && listTools().length > 0;
-      const activeToolNames: string[] = [];
+      let activeToolNames: string[] = [];
       if (webSearchEnabled) activeToolNames.push('web_search');
       if (memoryEnabled) {
         activeToolNames.push('save_memory');
         activeToolNames.push('forget_memory');
       }
       if (imageGenEnabled) activeToolNames.push('generate_image');
+
+      // If active skill declares allowed-tools, restrict to only those tools
+      if (skillAllowedTools) {
+        activeToolNames = activeToolNames.filter((t) => skillAllowedTools!.includes(t));
+      }
       const toolConfig = useTools
         ? {
             tools: getOpenAIToolSchemas(activeToolNames),
