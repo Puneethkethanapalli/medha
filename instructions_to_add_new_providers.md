@@ -1,6 +1,6 @@
 # How to Add a New AI Provider to Medha
 
-This guide documents the provider architecture and gives step-by-step instructions for adding a new AI provider. It was written by analyzing the four existing providers — **OpenRouter**, **Google AI**, **Anthropic**, and **MiniMax**.
+This guide documents the provider architecture and gives step-by-step instructions for adding a new AI provider. It was written by analyzing the five existing providers — **OpenRouter**, **Google AI**, **Anthropic**, **MiniMax**, and **Cloudflare AI**.
 
 ---
 
@@ -13,7 +13,8 @@ src/lib/providers/
 ├── openrouter.ts     # OpenAI-compatible, streaming via SSE
 ├── google-ai.ts      # Dual-path: OpenAI-compat + native Gemini endpoint
 ├── anthropic.ts      # Custom SSE format, proprietary message structure
-└── minimax.ts        # OpenAI-compatible
+├── minimax.ts        # OpenAI-compatible
+└── cloudflare-ai.ts  # OpenAI-compatible, dynamic model fetch, needs Account ID
 
 src/lib/streaming/
 ├── stream.ts         # streamCompletion() — the shared SSE fetch+parse engine
@@ -37,6 +38,9 @@ src/stores/
 
 src/app/settings/
 └── api-keys.tsx      # UI for adding/deleting provider API keys
+
+src/app/
+└── onboarding.tsx    # First-run screen — provider selection + key input
 ```
 
 ### Data Flow (simplified)
@@ -106,7 +110,7 @@ These providers use the standard `/chat/completions` endpoint with `stream: true
 - Auth: `Authorization: Bearer <key>`
 - Thinking: Provider-specific body params (e.g. `reasoning: { effort: 'high' }`)
 
-**If your new provider has an OpenAI-compatible API, this is the template to follow.** MiniMax is the cleanest minimal example (~114 lines).
+**If your new provider has an OpenAI-compatible API, this is the template to follow.** MiniMax is the cleanest minimal example (~114 lines). Cloudflare AI demonstrates dynamic model fetching with a fallback list.
 
 ### Pattern B: Proprietary API (Anthropic)
 
@@ -219,19 +223,25 @@ export class ExampleProvider implements AIProvider {
   }
 
   async listModels(apiKey: string): Promise<Model[]> {
-    // Option A: Fetch from API
-    const res = await fetch(`${BASE_URL}/models`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-    if (!res.ok) throw new Error(`Failed: ${res.status}`);
-    const data = await res.json();
-    return data.data.map((m: any) => ({
-      id: m.id,
-      name: m.name || m.id,
-      provider: 'example',  // Must match this.id
-    }));
+    // PREFERRED: Fetch dynamically from the provider's API, with a hardcoded fallback
+    try {
+      const res = await fetch(`${BASE_URL}/models`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+      if (!res.ok) return FALLBACK_MODELS;
+      const data = await res.json();
+      const models: any[] = data.data || [];
+      if (models.length === 0) return FALLBACK_MODELS;
+      return models.map((m: any) => ({
+        id: m.id,
+        name: m.name || m.id,
+        provider: 'example',  // Must match this.id
+      }));
+    } catch {
+      return FALLBACK_MODELS;
+    }
 
-    // Option B: Hardcode (if no public endpoint)
+    // FALLBACK-ONLY: Use when the provider has no public model-listing API
     // return EXAMPLE_MODELS;
   }
 
@@ -320,7 +330,24 @@ Edit `src/stores/settings-store.ts` — update the hardcoded provider ID arrays:
  }
 ```
 
-### Step 5: Add Model Capabilities
+### Step 5: Add to the Onboarding Screen
+
+Edit `src/app/onboarding.tsx` — this is the first-run screen that new users see:
+
+```diff
+ type ProviderId = 'openrouter' | 'google-ai' | 'anthropic' | 'minimax'
+-  | 'cloudflare-ai';
++  | 'cloudflare-ai' | 'example';
+
+ const PROVIDERS: ProviderOption[] = [
+   // ...existing...
++  { id: 'example', name: 'Example AI', placeholder: 'sk-ex-...', hint: 'example.com/keys' },
+ ];
+```
+
+> **If your provider needs extra config** (like Cloudflare's Account ID), add a conditional input field that appears when the provider is selected. See `cloudflare-ai` in `onboarding.tsx` for the pattern.
+
+### Step 6: Add Model Capabilities
 
 Edit `src/lib/models/capabilities.ts`:
 
@@ -341,7 +368,7 @@ Edit `src/lib/models/capabilities.ts`:
 
 3. **Update heuristics** — add patterns to `heuristicCapabilities()` and `LONG_CONTEXT_MODELS` if the model family has consistent naming.
 
-### Step 6: Handle Non-OpenAI SSE Formats (if needed)
+### Step 7: Handle Non-OpenAI SSE Formats (if needed)
 
 If the provider uses a proprietary streaming format, you have two options:
 
@@ -384,7 +411,7 @@ export function buildExampleMessages(messages: Message[]): ExampleMessage[] {
 }
 ```
 
-### Step 7: Handle Tool Call Format Differences (if needed)
+### Step 8: Handle Tool Call Format Differences (if needed)
 
 Most providers use OpenAI-format tools (`config.tools`). If your provider needs a different schema:
 
@@ -417,7 +444,9 @@ Use this checklist when adding a new provider:
 - [ ] **Registry** — Added to `registerBuiltInProviders()` in `registry.ts`
 - [ ] **API Keys UI** — Added to `ProviderId` type, `PROVIDERS` array, and `keys` state in `api-keys.tsx`
 - [ ] **Settings store** — Added to `hasAnyProviderKey()` and `getConfiguredProviders()` arrays in `settings-store.ts`
+- [ ] **Onboarding screen** — Added to `ProviderId` type and `PROVIDERS` array in `onboarding.tsx`
 - [ ] **Model capabilities** — Added entries to `KNOWN_CAPABILITIES`, `CONTEXT_WINDOW_MAP`, and heuristics in `capabilities.ts`
+- [ ] **Model listing** — Prefer dynamic fetch with hardcoded fallback; pure hardcoding only when no API exists
 - [ ] **SSE format** — If non-OpenAI: new format in `stream.ts` + extractor in `sse-parser.ts`
 - [ ] **Message format** — If non-OpenAI: new builder in `multimodal.ts`
 - [ ] **Tool format** — If non-OpenAI: new converter in `tools/registry.ts` + `StreamConfig` field
@@ -437,7 +466,7 @@ Use this checklist when adding a new provider:
 
 4. **Key validation pattern** — Don't make expensive API calls. Hit the lightest endpoint possible. Return `true` for any non-401/403 status (even 400 = key is valid, just bad request).
 
-5. **Hardcoded model lists are fine** — Anthropic and MiniMax both hardcode their model lists. Not every provider has a public `/models` endpoint.
+5. **Dynamic model fetching is preferred** — Always try to fetch models from the provider's API, with a hardcoded fallback list. This ensures users automatically see new models as the provider adds them. See `cloudflare-ai.ts` for the pattern. Only use pure hardcoding when the provider truly has no model listing endpoint (e.g. Anthropic).
 
 6. **Tool call loop is handled externally** — Your provider just needs to emit `onToolCalls` with the accumulated calls. The ChatScreen handles execution and re-submission.
 
@@ -446,6 +475,8 @@ Use this checklist when adding a new provider:
 8. **Abort handling is free** — Just wire `abortController.signal` into the fetch options. The `streamCompletion()` engine handles `AbortError` silently.
 
 9. **Thinking mode has three states** — `'auto'` means the provider decides. `'on'` means explicitly enable. `'off'` means swallow reasoning tokens client-side (via no-op handler). Always implement the no-op pattern for `'off'`.
+
+10. **Providers needing extra config** — If a provider needs more than just an API key (e.g. Cloudflare needs an Account ID), store the extra config in MMKV (`src/lib/storage/mmkv.ts`) and add conditional input fields in both `api-keys.tsx` and `onboarding.tsx`.
 
 ---
 
@@ -461,6 +492,8 @@ Use this checklist when adding a new provider:
 | `src/lib/tools/registry.ts` | Tool schema converters | Only if provider needs non-OpenAI tool format |
 | `src/lib/models/capabilities.ts` | Model capability inference | Always — add known capabilities |
 | `src/lib/storage/secure.ts` | API key CRUD | Never — generic, works for any provider ID |
+| `src/lib/storage/mmkv.ts` | Non-secret config (e.g. Account IDs) | Only if provider needs extra config beyond an API key |
 | `src/stores/settings-store.ts` | Provider lists + key validation | Always — update provider ID arrays |
 | `src/app/settings/api-keys.tsx` | API key management UI | Always — add provider to UI list |
+| `src/app/onboarding.tsx` | First-run provider selection | Always — add provider to onboarding UI |
 | `src/types/index.ts` | `Model`, `Message`, `Provider` types | Rarely — only if types need extension |

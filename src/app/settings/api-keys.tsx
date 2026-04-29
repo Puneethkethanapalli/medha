@@ -6,8 +6,9 @@ import { useRouter } from 'expo-router';
 import { ArrowLeft, Plus, Trash2, Shield, X, Check } from 'lucide-react-native';
 import { cn } from '@/lib/utils';
 import { useSettingsStore, hasProviderKey, deleteProviderKey, maskKey } from '@/stores/settings-store';
+import { setCloudflareAccountId, getCloudflareAccountId } from '@/lib/storage/mmkv';
 
-type ProviderId = 'openrouter' | 'google-ai' | 'anthropic' | 'minimax' | 'tavily' | 'image-gen';
+type ProviderId = 'openrouter' | 'google-ai' | 'anthropic' | 'minimax' | 'cloudflare-ai' | 'tavily' | 'image-gen';
 
 interface ProviderConfig {
   id: ProviderId;
@@ -20,6 +21,7 @@ const PROVIDERS: ProviderConfig[] = [
   { id: 'google-ai', name: 'Google AI', description: 'Gemini models via Google AI Studio' },
   { id: 'anthropic', name: 'Anthropic', description: 'Claude models via Anthropic API' },
   { id: 'minimax', name: 'MiniMax', description: 'MiniMax M2.7 and M1 models' },
+  { id: 'cloudflare-ai', name: 'Cloudflare AI', description: 'Free tier: 10K neurons/day — Llama, Mistral, Gemma' },
   { id: 'tavily', name: 'Web Search (Tavily)', description: 'Enable AI web search — free tier: 1000/mo' },
   { id: 'image-gen', name: 'Image Generation', description: 'DALL-E 3 or Stability AI — generate images in chat' },
 ];
@@ -35,12 +37,14 @@ export default function ApiKeysScreen() {
     'google-ai': '',
     anthropic: '',
     minimax: '',
+    'cloudflare-ai': '',
     tavily: '',
     'image-gen': '',
   });
   const [testingProvider, setTestingProvider] = useState<ProviderId | null>(null);
   const [isAddingKey, setIsAddingKey] = useState<ProviderId | null>(null);
   const [isValidating, setIsValidating] = useState(false);
+  const [cloudflareAccountId, setCloudflareAccountIdState] = useState('');
 
   useEffect(() => {
     const checkConnectedProviders = async () => {
@@ -85,6 +89,9 @@ export default function ApiKeysScreen() {
           style: 'destructive',
           onPress: async () => {
             await deleteProviderKey(provider.id);
+            if (provider.id === 'cloudflare-ai') {
+              await setCloudflareAccountId(null);
+            }
             setConnectedProviders(prev => {
               const next = new Set(prev);
               next.delete(provider.id);
@@ -115,6 +122,16 @@ export default function ApiKeysScreen() {
         setKeys(prev => ({ ...prev, [provider.id]: '' }));
         Alert.alert('Success', `${provider.name} key saved successfully!`);
         return;
+      }
+
+      // Cloudflare requires Account ID to be saved before key validation
+      if (provider.id === 'cloudflare-ai') {
+        if (!cloudflareAccountId.trim()) {
+          Alert.alert('Error', 'Please enter your Cloudflare Account ID');
+          setIsValidating(false);
+          return;
+        }
+        await setCloudflareAccountId(cloudflareAccountId.trim());
       }
 
       const isValid = await validateApiKey(provider.id, key.trim());
@@ -214,6 +231,21 @@ export default function ApiKeysScreen() {
                 </View>
               ) : isAdding ? (
                 <View className="mt-3 z-10 relative">
+                  {/* Cloudflare Account ID field */}
+                  {provider.id === 'cloudflare-ai' && (
+                    <>
+                      <Text className="text-xs text-on-surface-variant mb-1.5 ml-1">Account ID</Text>
+                      <TextInput
+                        className="w-full bg-surface-container-high border border-outline-variant/40 rounded-lg px-4 py-2.5 text-primary font-mono text-sm placeholder-on-surface-variant/50 mb-3"
+                        placeholder="Cloudflare Account ID"
+                        value={cloudflareAccountId}
+                        onChangeText={setCloudflareAccountIdState}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
+                      <Text className="text-xs text-on-surface-variant mb-1.5 ml-1">API Token</Text>
+                    </>
+                  )}
                   <TextInput
                     className="w-full bg-surface-container-high border border-outline-variant/40 rounded-lg px-4 py-2.5 text-primary font-mono text-sm placeholder-on-surface-variant/50"
                     placeholder={`Enter ${provider.name} API key`}
@@ -229,6 +261,7 @@ export default function ApiKeysScreen() {
                       onPress={() => {
                         setIsAddingKey(null);
                         setKeys(prev => ({ ...prev, [provider.id]: '' }));
+                        setCloudflareAccountIdState('');
                       }}
                     >
                       <X size={14} className="text-on-surface-variant" color="#c6c6c6" />

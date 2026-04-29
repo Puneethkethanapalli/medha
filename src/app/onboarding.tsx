@@ -5,10 +5,11 @@ import { useRouter } from 'expo-router';
 import { ClipboardPaste, Check, TriangleAlert, ArrowRight } from 'lucide-react-native';
 import { cn } from '@/lib/utils';
 import { useSettingsStore, saveProviderKey, hasAnyProviderKey } from '@/stores/settings-store';
+import { setCloudflareAccountId } from '@/lib/storage/mmkv';
 import { MedhaLogo } from '@/components/branding/MedhaLogo';
 import * as Clipboard from 'expo-clipboard';
 
-type ProviderId = 'openrouter' | 'google-ai' | 'anthropic' | 'minimax';
+type ProviderId = 'openrouter' | 'google-ai' | 'anthropic' | 'minimax' | 'cloudflare-ai';
 
 interface ProviderOption {
   id: ProviderId;
@@ -22,6 +23,7 @@ const PROVIDERS: ProviderOption[] = [
   { id: 'google-ai', name: 'Google AI', placeholder: 'AIza...', hint: 'aistudio.google.com/apikey' },
   { id: 'anthropic', name: 'Anthropic', placeholder: 'sk-ant-...', hint: 'console.anthropic.com/settings/keys' },
   { id: 'minimax', name: 'MiniMax', placeholder: 'eyJ...', hint: 'platform.minimax.io' },
+  { id: 'cloudflare-ai', name: 'Cloudflare AI', placeholder: 'Bearer token...', hint: 'dash.cloudflare.com/profile/api-tokens' },
 ];
 
 export default function OnboardingScreen() {
@@ -32,6 +34,7 @@ export default function OnboardingScreen() {
   const [apiKey, setApiKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cloudflareAccountId, setCfAccountId] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
   const [isCheckingExisting, setIsCheckingExisting] = useState(true);
   const [successProvider, setSuccessProvider] = useState<string | null>(null);
@@ -66,6 +69,15 @@ export default function OnboardingScreen() {
     if (apiKey.trim().length < 10) {
       setError('Invalid API key format');
       return;
+    }
+
+    // Cloudflare requires Account ID before validation
+    if (selectedProvider === 'cloudflare-ai') {
+      if (!cloudflareAccountId.trim()) {
+        setError('Please enter your Cloudflare Account ID');
+        return;
+      }
+      await setCloudflareAccountId(cloudflareAccountId.trim());
     }
 
     setIsLoading(true);
@@ -183,6 +195,7 @@ export default function OnboardingScreen() {
                     setSelectedProvider(provider.id);
                     setApiKey('');
                     setError(null);
+                    setCfAccountId('');
                   }}
                 >
                   <Text
@@ -196,6 +209,26 @@ export default function OnboardingScreen() {
                 </Pressable>
               ))}
             </ScrollView>
+
+            {/* Cloudflare Account ID field */}
+            {selectedProvider === 'cloudflare-ai' && (
+              <View className="mt-4">
+                <TextInput
+                  className="w-full bg-surface-container-high rounded-lg py-3 pl-3 pr-3 text-primary font-body text-sm placeholder-on-surface-variant/50 border border-outline-variant/40"
+                  placeholder="Cloudflare Account ID"
+                  value={cloudflareAccountId}
+                  onChangeText={(text) => {
+                    setCfAccountId(text);
+                    setError(null);
+                  }}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <Text className="font-body text-[11px] text-on-surface-variant/60 mt-1 ml-1">
+                  Found in your Cloudflare dashboard URL
+                </Text>
+              </View>
+            )}
 
             {/* Input Field */}
             <View className="mt-4 relative">

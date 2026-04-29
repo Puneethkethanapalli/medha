@@ -18,6 +18,7 @@ const KEYS = {
   memoryEnabled: 'medha:memoryEnabled',
   imageGenService: 'medha:imageGenService',
   imageGenEnabled: 'medha:imageGenEnabled',
+  cloudflareAccountId: 'medha:cloudflareAccountId',
 };
 
 export type ImageGenService = 'openai' | 'stability';
@@ -221,6 +222,7 @@ let _globalRules: RuleItem[] = DEFAULT_RULES.map((r) => ({ ...r }));
 let _memoryEnabled = false;
 let _imageGenService: ImageGenService = 'openai';
 let _imageGenEnabled = false;
+let _cloudflareAccountId: string | null = null;
 let _initialized = false;
 
 export function getThemeSync(): Theme {
@@ -271,6 +273,24 @@ export function isImageGenEnabledSync(): boolean {
   return _imageGenEnabled;
 }
 
+// Cloudflare Account ID
+export async function getCloudflareAccountId(): Promise<string | null> {
+  return await AsyncStorage.getItem(KEYS.cloudflareAccountId);
+}
+
+export async function setCloudflareAccountId(accountId: string | null): Promise<void> {
+  if (accountId) {
+    await AsyncStorage.setItem(KEYS.cloudflareAccountId, accountId);
+  } else {
+    await AsyncStorage.removeItem(KEYS.cloudflareAccountId);
+  }
+  _cloudflareAccountId = accountId;
+}
+
+export function getCloudflareAccountIdSync(): string | null {
+  return _cloudflareAccountId;
+}
+
 export async function initStorage(): Promise<void> {
   if (_initialized) return;
   const theme = await getTheme();
@@ -285,6 +305,7 @@ export async function initStorage(): Promise<void> {
   const memoryEnabled = await isMemoryEnabled();
   const imageGenService = await getImageGenService();
   const imageGenEnabled = await isImageGenEnabled();
+  const cfAccountId = await getCloudflareAccountId();
   _theme = theme;
   _lastModel = lastModel;
   _lastProvider = lastProvider;
@@ -297,5 +318,6 @@ export async function initStorage(): Promise<void> {
   _memoryEnabled = memoryEnabled;
   _imageGenService = imageGenService;
   _imageGenEnabled = imageGenEnabled;
+  _cloudflareAccountId = cfAccountId;
   _initialized = true;
 }

@@ -165,7 +165,7 @@ export async function hasProviderKey(provider: string): Promise<boolean> {
 }
 
 export async function hasAnyProviderKey(): Promise<boolean> {
-  const providers = ['openrouter', 'google-ai', 'anthropic', 'minimax'];
+  const providers = ['openrouter', 'google-ai', 'anthropic', 'minimax', 'cloudflare-ai'];
   for (const p of providers) {
     if (await hasProviderKey(p)) return true;
   }
@@ -173,7 +173,7 @@ export async function hasAnyProviderKey(): Promise<boolean> {
 }
 
 export async function getConfiguredProviders(): Promise<string[]> {
-  const allProviders = ['openrouter', 'google-ai', 'anthropic', 'minimax'];
+  const allProviders = ['openrouter', 'google-ai', 'anthropic', 'minimax', 'cloudflare-ai'];
   const configured: string[] = [];
   for (const p of allProviders) {
     if (await hasProviderKey(p)) configured.push(p);

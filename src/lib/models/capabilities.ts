@@ -57,6 +57,15 @@ const KNOWN_CAPABILITIES: Record<string, ModelCapability[]> = {
   'MiniMax-M1-80k': ['tools', 'thinking', 'long-context'],
   'MiniMax-M1-40k': ['tools', 'thinking', 'long-context'],
 
+  // Cloudflare Workers AI
+  '@cf/meta/llama-3.3-70b-instruct-fp8-fast': ['tools', 'long-context'],
+  '@cf/meta/llama-3.1-8b-instruct': ['tools', 'long-context'],
+  '@cf/meta/llama-3.1-70b-instruct': ['tools', 'long-context'],
+  '@cf/meta/llama-3.2-3b-instruct': ['tools'],
+  '@cf/meta/llama-3.2-1b-instruct': ['tools'],
+  '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b': ['thinking'],
+  '@cf/openai/gpt-oss-120b': ['tools', 'long-context'],
+
   // Mistral
   'mistral/mistral-large': ['tools', 'long-context'],
   'mistral/mistral-medium': ['tools', 'long-context'],
@@ -94,6 +103,9 @@ const LONG_CONTEXT_MODELS = [
   'mistral-large',
   'grok-2',
   'MiniMax',
+  '@cf/meta/llama-3.1',
+  '@cf/meta/llama-3.3',
+  '@cf/openai/gpt-oss',
 ];
 
 const CONTEXT_WINDOW_MAP: Record<string, number> = {

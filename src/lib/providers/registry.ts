@@ -20,8 +20,10 @@ export function registerBuiltInProviders(): void {
   const { GoogleAIProvider } = require('./google-ai');
   const { AnthropicProvider } = require('./anthropic');
   const { MiniMaxProvider } = require('./minimax');
+  const { CloudflareAIProvider } = require('./cloudflare-ai');
   registerProvider(new OpenRouterProvider());
   registerProvider(new GoogleAIProvider());
   registerProvider(new AnthropicProvider());
   registerProvider(new MiniMaxProvider());
+  registerProvider(new CloudflareAIProvider());
 }
