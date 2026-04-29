@@ -150,4 +150,30 @@ export function initializeDatabase(): void {
   } catch {
     // Column already exists — ignore
   }
+
+  // Create apps table (Sprint 20)
+  database.runSync(`
+    CREATE TABLE IF NOT EXISTS apps (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      icon TEXT DEFAULT 'Bot',
+      color TEXT,
+      skill_name TEXT,
+      model TEXT,
+      provider TEXT,
+      rules TEXT,
+      greeting TEXT,
+      example_prompts TEXT,
+      builtin INTEGER DEFAULT 0,
+      created_at INTEGER NOT NULL
+    )
+  `);
+
+  // Add app_id column to conversations (Sprint 20)
+  try {
+    database.runSync('ALTER TABLE conversations ADD COLUMN app_id TEXT');
+  } catch {
+    // Column already exists — ignore
+  }
 }

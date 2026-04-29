@@ -46,10 +46,10 @@ export class OpenRouterProvider implements AIProvider {
       body.reasoning = { effort: 'high' };
     }
 
-    // Native web search — uses OpenRouter's built-in web plugin
-    // Handles search server-side (Exa for most models, native for Anthropic/OpenAI/Perplexity)
+    // Tool schemas (OpenAI format) — tool calls go through the standard
+    // tool-call loop with Tavily for consistent cross-provider behavior.
     if (config.tools && config.tools.length > 0) {
-      body.plugins = [{ id: 'web' }];
+      body.tools = config.tools;
     }
 
     // When thinking is off, swallow reasoning tokens silently

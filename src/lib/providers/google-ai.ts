@@ -24,15 +24,9 @@ export class GoogleAIProvider implements AIProvider {
   ) {
     const abortController = new AbortController();
 
-    // When web search is enabled, use native Gemini endpoint with google_search grounding
-    // The OpenAI-compat endpoint doesn't support google_search
-    const useNativeSearch = config.tools && config.tools.length > 0;
-
-    if (useNativeSearch) {
-      this._streamNative(messages, config, onContent, onReasoning, onDone, onError, abortController, onUsage);
-    } else {
-      this._streamOpenAICompat(messages, config, onContent, onReasoning, onDone, onError, onToolCalls, abortController, onUsage);
-    }
+    // Always use OpenAI-compat endpoint — tool calls (including web_search)
+    // go through the standard tool-call loop with Tavily for consistency.
+    this._streamOpenAICompat(messages, config, onContent, onReasoning, onDone, onError, onToolCalls, abortController, onUsage);
 
     return {
       abort: () => abortController.abort(),
@@ -147,6 +141,11 @@ export class GoogleAIProvider implements AIProvider {
     }
     if (config.maxTokens !== undefined) {
       body.max_tokens = config.maxTokens;
+    }
+
+    // Tool schemas (OpenAI format) — enables tool-call loop for web search, memory, etc.
+    if (config.tools && config.tools.length > 0) {
+      body.tools = config.tools;
     }
 
     // Thinking mode — only for thinking-capable models (Gemini 2.5+, 3.x)

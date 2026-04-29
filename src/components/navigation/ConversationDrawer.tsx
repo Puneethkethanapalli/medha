@@ -2,10 +2,12 @@ import React, { useMemo, useCallback } from 'react';
 import { View, Pressable, FlatList, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
-import { PenSquare, Search, Pin, MessageCircle, Settings } from 'lucide-react-native';
+import { PenSquare, Search, Pin, MessageCircle, Settings, Grid3X3 } from 'lucide-react-native';
 import { MedhaLogo } from '@/components/branding/MedhaLogo';
 import { deleteConversation } from '@/lib/db/conversations';
 import { getConversationUsage } from '@/lib/db/token-usage';
+import { getApp } from '@/lib/db/apps';
+import { getIconByName } from '@/lib/apps/icons';
 import { formatCost } from '@/lib/tokens/pricing';
 import type { Conversation } from '@/types';
 
@@ -16,6 +18,7 @@ interface ConversationDrawerProps {
   onNewChat: () => void;
   onOpenSearch: () => void;
   onOpenSettings: () => void;
+  onOpenApps: () => void;
   onOpenRules: (conversationId: string) => void;
   onRefresh: () => void;
 }
@@ -101,11 +104,19 @@ function ConversationItem({
           style={{ top: '20%' }}
         />
       )}
-      {conversation.pinned ? (
-        <Pin size={18} color="hsl(0, 0%, 44%)" />
-      ) : (
-        <MessageCircle size={18} color={isActive ? 'hsl(0, 0%, 98%)' : 'hsl(0, 0%, 44%)'} />
-      )}
+      {(() => {
+        if (conversation.pinned) {
+          return <Pin size={18} color="hsl(0, 0%, 44%)" />;
+        }
+        if (conversation.app_id) {
+          const app = getApp(conversation.app_id);
+          if (app) {
+            const AppIcon = getIconByName(app.icon);
+            return <AppIcon size={18} color={app.color ?? 'hsl(0, 0%, 44%)'} />;
+          }
+        }
+        return <MessageCircle size={18} color={isActive ? 'hsl(0, 0%, 98%)' : 'hsl(0, 0%, 44%)'} />;
+      })()}
       <Text
         className={`text-[14px] font-medium flex-1 ${
           isActive ? 'text-foreground' : 'text-on-surface-variant'
@@ -142,6 +153,7 @@ export function ConversationDrawer({
   onNewChat,
   onOpenSearch,
   onOpenSettings,
+  onOpenApps,
   onOpenRules,
   onRefresh,
 }: ConversationDrawerProps) {
@@ -232,8 +244,15 @@ export function ConversationDrawer({
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Footer — Settings */}
-      <View className="pt-4 border-t border-outline-variant/20">
+      {/* Footer — Apps & Settings */}
+      <View className="pt-4 border-t border-outline-variant/20 gap-1">
+        <Pressable
+          onPress={onOpenApps}
+          className="flex-row items-center gap-3 px-2 py-2.5 rounded-lg active:bg-surface-container-low"
+        >
+          <Grid3X3 size={20} color="hsl(0, 0%, 63%)" />
+          <Text className="text-on-surface-variant text-[14px] font-medium">Apps</Text>
+        </Pressable>
         <Pressable
           onPress={onOpenSettings}
           className="flex-row items-center gap-3 px-2 py-2.5 rounded-lg active:bg-surface-container-low"

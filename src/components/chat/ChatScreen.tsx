@@ -36,6 +36,9 @@ import { parseAllowedTools } from '@/lib/skills/injector';
 import { readSkillFull } from '@/lib/skills/storage';
 import { recordUsage } from '@/lib/db/token-usage';
 import { calculateCost } from '@/lib/tokens/pricing';
+import { getApp } from '@/lib/db/apps';
+import { getIconByName } from '@/lib/apps/icons';
+import { parseExamplePrompts } from '@/lib/apps/types';
 import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { useRouter } from 'expo-router';
 import type { Message, Attachment } from '@/types';
@@ -46,14 +49,17 @@ interface ChatScreenProps {
   conversationId: string | null;
   focusMessageId?: string | null;
   focusRequestKey?: string | null;
+  appId?: string | null;
 }
 
 export const ChatScreen = React.memo(function ChatScreen({
   conversationId,
   focusMessageId = null,
   focusRequestKey = null,
+  appId = null,
 }: ChatScreenProps) {
   const router = useRouter();
+  const [activeApp, setActiveApp] = useState<ReturnType<typeof getApp>>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentConvId, setCurrentConvId] = useState<string | null>(conversationId);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
@@ -76,6 +82,7 @@ export const ChatScreen = React.memo(function ChatScreen({
   const skillPickerOpen = useUIStore((s) => s.skillPickerOpen);
   const closeSkillPicker = useUIStore((s) => s.closeSkillPicker);
   const openSkillPicker = useUIStore((s) => s.openSkillPicker);
+  const openModelPicker = useUIStore((s) => s.openModelPicker);
 
   const {
     startStreaming,
@@ -161,12 +168,31 @@ export const ChatScreen = React.memo(function ChatScreen({
       // Load active skill from conversation
       const conv = getConversation(currentConvId);
       setActiveSkillName(conv?.active_skill_name ?? null);
+      // Load linked app
+      if (conv?.app_id) {
+        setActiveApp(getApp(conv.app_id));
+      }
     } else {
       setMessages([]);
       setActiveConversation(null);
       setActiveSkillName(null);
     }
   }, [currentConvId, setActiveConversation]);
+
+  // Handle app-based conversation creation
+  useEffect(() => {
+    if (!appId || currentConvId) return;
+
+    const app = getApp(appId);
+    if (!app) return;
+
+    setActiveApp(app);
+
+    // Set skill from app config
+    if (app.skill_name) {
+      setActiveSkillName(app.skill_name);
+    }
+  }, [appId, currentConvId]);
 
   useEffect(() => {
     if (!focusMessageId) {
@@ -430,20 +456,49 @@ export const ChatScreen = React.memo(function ChatScreen({
 
   const handleSend = useCallback(
     async (text: string, attachments?: Attachment[]) => {
-      const providerId = lastProvider || 'openrouter';
-      const model = lastModel || getDefaultModel(providerId);
+      // Use app-pinned model/provider if available, otherwise user defaults
+      const providerId = activeApp?.provider || lastProvider || 'openrouter';
+      const model = activeApp?.model || lastModel || getDefaultModel(providerId);
       let convId = currentConvId;
 
       // Create new conversation if needed
       if (!convId) {
+        // Use app rules as system prompt, or pending conversation rule
+        const systemPrompt = activeApp?.rules || pendingConversationRule || undefined;
         const title = text.replace(/\n/g, ' ').slice(0, 50);
-        convId = createConversation(title, model, pendingConversationRule ?? undefined);
+        convId = createConversation(title, model, systemPrompt);
         setCurrentConvId(convId);
         setActiveConversation(convId);
+
+        // Link app to conversation
+        if (activeApp) {
+          updateConversation(convId, { app_id: activeApp.id });
+        }
         // Persist active skill to new conversation
         if (activeSkillName) {
           updateConversation(convId, { active_skill_name: activeSkillName });
         }
+
+        // Insert greeting as first assistant message (if app has one and this is the first message)
+        if (activeApp?.greeting) {
+          const greetingId = addMessage(convId, 'assistant', activeApp.greeting, model);
+          const greetingMsg: Message = {
+            id: greetingId,
+            conversation_id: convId,
+            role: 'assistant',
+            content: activeApp.greeting,
+            reasoning: null,
+            attachments: null,
+            status: 'complete',
+            model,
+            tokens_used: null,
+            tool_call_id: null,
+            tool_calls: null,
+            created_at: Date.now() - 1, // Ensure it appears before user message
+          };
+          setMessages((prev) => [...prev, greetingMsg]);
+        }
+
         // Clear pending rule now that it's been applied
         if (pendingConversationRule) setPendingConversationRule(null);
       }
@@ -478,7 +533,7 @@ export const ChatScreen = React.memo(function ChatScreen({
       // Stream assistant response
       await streamNewResponse(convId);
     },
-    [currentConvId, lastModel, lastProvider, setActiveConversation, streamNewResponse, pendingConversationRule, setPendingConversationRule]
+    [currentConvId, lastModel, lastProvider, activeApp, setActiveConversation, streamNewResponse, pendingConversationRule, setPendingConversationRule, activeSkillName]
   );
 
   const handleStop = useCallback(() => {
@@ -516,6 +571,7 @@ export const ChatScreen = React.memo(function ChatScreen({
     setCurrentConvId(null);
     setActiveConversation(null);
     setActiveSkillName(null);
+    setActiveApp(null);
     setPendingConversationRule(null);
     if (router.canDismiss()) {
       router.dismissAll();
@@ -626,7 +682,23 @@ export const ChatScreen = React.memo(function ChatScreen({
           <Menu size={24} color="hsl(0, 0%, 63%)" />
         </Pressable>
         <View className="flex-1 flex-row items-center justify-center gap-2 px-2">
-          <ModelPill />
+          {/* Active app indicator */}
+          {activeApp ? (
+            <Pressable
+              onPress={openModelPicker}
+              className="flex-row items-center gap-1.5 bg-surface-container-low rounded-full px-3 py-1.5 active:opacity-70"
+            >
+              {React.createElement(getIconByName(activeApp.icon), {
+                size: 14,
+                color: activeApp.color ?? 'hsl(0, 0%, 63%)',
+              })}
+              <Text className="text-foreground text-[12px] font-medium" numberOfLines={1}>
+                {activeApp.name.length > 14 ? activeApp.name.slice(0, 14) + '…' : activeApp.name}
+              </Text>
+            </Pressable>
+          ) : (
+            <ModelPill />
+          )}
           {hasImageGenKey && <ImageGenToggle />}
           <ChatSettingsButton />
           {/* Skill activation pill */}
@@ -669,7 +741,12 @@ export const ChatScreen = React.memo(function ChatScreen({
             onRetry={handleRetry}
           />
         ) : (
-          <EmptyState onSuggestionPress={handleSuggestion} />
+          <EmptyState
+            onSuggestionPress={handleSuggestion}
+            appName={activeApp?.name}
+            appGreeting={activeApp?.greeting}
+            appPrompts={activeApp?.example_prompts ? parseExamplePrompts(activeApp.example_prompts) : undefined}
+          />
         )}
       </View>
 

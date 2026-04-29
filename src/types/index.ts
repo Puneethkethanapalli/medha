@@ -7,6 +7,7 @@ export interface Conversation {
   thinking_mode: string | null;
   rules: string | null;
   active_skill_name: string | null;
+  app_id: string | null;
   created_at: number;
   updated_at: number;
   pinned: number;

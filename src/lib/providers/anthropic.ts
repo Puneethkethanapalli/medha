@@ -72,10 +72,10 @@ export class AnthropicProvider implements AIProvider {
       }
     }
 
-    // Native web search — uses Anthropic's built-in server-side search
-    // Claude decides when to search, results come as text with citations
+    // Tool schemas (Anthropic format) — tool calls go through the standard
+    // tool-call loop with Tavily for consistent cross-provider behavior.
     if (config.anthropicTools && config.anthropicTools.length > 0) {
-      body.tools = [{ name: 'web_search', type: 'web_search_20260209' }];
+      body.tools = config.anthropicTools;
     }
 
     // When thinking is off, swallow reasoning tokens silently

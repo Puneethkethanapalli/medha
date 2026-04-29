@@ -2065,7 +2065,6 @@ Structure your review as:
 - Export produces standard `.md` files — users can share with Claude Code, Cursor, Gemini CLI users
 - Don't auto-execute `scripts/` — mark skills with scripts as "needs trust", show badge, never run without explicit user approval
 - Personas like "Fitness Coach" or "Creative Writer" belong in Sprint 20 (Custom Apps) — skills are procedural workflows, not personalities
-- Preserve unknown frontmatter fields (Claude extensions like `hooks`, `agent`, `paths`) — store but don't act on them
 
 ---
 
@@ -2078,7 +2077,7 @@ Structure your review as:
 - Skill system, tool registry, and rules injection all working
 
 #### Tasks
-- [ ] **20.** Define app types (`src/lib/apps/types.ts`)
+- [x] **20.1** Define app types (`src/lib/apps/types.ts`)
   ```typescript
   interface MedhaApp {
     id: string;
@@ -2096,7 +2095,7 @@ Structure your review as:
     createdAt: number;
   }
   ```
-- [ ] **20.** Create apps storage (`src/lib/db/apps.ts`)
+- [x] **20.2** Create apps storage (`src/lib/db/apps.ts`)
   - SQLite table:
     ```sql
     CREATE TABLE IF NOT EXISTS apps (
@@ -2116,13 +2115,13 @@ Structure your review as:
     );
     ```
   - CRUD: `addApp()`, `getApps()`, `getApp()`, `updateApp()`, `deleteApp()`
-- [ ] **20.** Seed built-in apps
+- [x] **20.3** Seed built-in apps
   - "Medha Default" — no pinned model, no skill, default behavior (icon: `Sparkles`)
   - "Code Assistant" — links `code-review` skill, pins to Claude Sonnet 4 (icon: `Code`, color: `hsl(265, 80%, 60%)`)
   - "Writing Coach" — custom system prompt for creative writing, greeting: "What would you like to write today?" (icon: `Feather`)
   - "Language Tutor" — links `translate-document` skill, rules: "Always correct grammar mistakes" (icon: `Languages`)
   - "Research Pro" — links `research` skill, pins to GPT-4o via OpenRouter (icon: `Search`)
-- [ ] **20.** Create app launcher screen (`src/app/apps.tsx`)
+- [x] **20.4** Create app launcher screen (`src/app/apps.tsx`)
   - Grid layout (2 columns) of app cards
   - Each card: colored icon circle + name + description (2 lines max)
   - Card style: `bg-surface-container-low`, `border-outline-variant/10`, rounded-2xl, shadow
@@ -2130,14 +2129,14 @@ Structure your review as:
   - Long-press → edit/delete (custom apps only), share
   - "Create App" card at end: dashed border + `lucide Plus` icon
   - Header: "Apps" + search icon (filters by name)
-- [ ] **20.** Wire app activation into conversation creation
+- [x] **20.5** Wire app activation into conversation creation
   - When user taps an app:
     1. Create new conversation with `model`, `provider`, `system_prompt` (from linked skill), `rules` pre-set
     2. If `greeting` is set, insert it as first assistant message
     3. Navigate to `chat/[id]` with app's `examplePrompts` as suggestion chips
     4. Store `app_id` on conversation (new column migration)
   - Active app shown in chat top bar: app icon + name (replaces or sits next to ModelPill)
-- [ ] **20.** Create app editor (`src/app/apps/create.tsx`)
+- [x] **20.6** Create app editor (`src/app/apps/create.tsx`)
   - Full-screen wizard flow (3 steps):
     1. **Identity**: name, description, icon picker (lucide grid), color picker (preset palette of 8 colors)
     2. **Behavior**: skill selector (dropdown from Sprint 19 skills), custom rules (multiline), greeting message
@@ -2145,11 +2144,11 @@ Structure your review as:
   - "Preview" step: shows how the app card will look + test conversation
   - "Save" button → inserts into SQLite
   - Edit mode: pre-fills all fields from existing app
-- [ ] **20.** Add app launcher to drawer
+- [x] **20.7** Add app launcher to drawer
   - New section in ConversationDrawer: "Apps" row with `lucide Grid3X3` icon
   - Tap → navigates to app launcher screen
   - Alternatively: horizontal scroll of app icons at top of drawer (quick access)
-- [ ] **20.** Import/export apps as JSON
+- [x] **20.8** Import/export apps as JSON
   - Export: bundles app config + linked SKILL.md into single `.app.json` file
     ```json
     {
@@ -2168,10 +2167,10 @@ Structure your review as:
     ```
   - Import: parse JSON → import SKILL.md (if embedded, via Sprint 19 import) → create app → link
   - Share via `expo-sharing`
-- [ ] **20.** App-scoped conversation history
+- [x] **20.9** App-scoped conversation history
   - In drawer: filter conversations by app (show app icon badge on each conversation)
   - App launcher cards show conversation count: "12 chats" subtitle
-- [ ] **20.** Verify: app creation, activation, sharing, and conversation flow
+- [x] **20.10** Verify: app creation, activation, sharing, and conversation flow
 
 #### How to Test Sprint 20
 ```

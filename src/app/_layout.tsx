@@ -22,6 +22,7 @@ import { ChatSettingsSheet } from '@/components/chat/ChatSettingsSheet';
 import { getConversations } from '@/lib/db/conversations';
 import { initializeDatabase } from '@/lib/db/schema';
 import { initializeSkills } from '@/lib/skills/init';
+import { seedBuiltinApps } from '@/lib/apps/seed';
 import type { Conversation } from '@/types';
 import { MedhaLogo } from '@/components/branding/MedhaLogo';
 import '@/global.css';
@@ -156,6 +157,11 @@ function AppContent() {
     [closeDrawer, router]
   );
 
+  const handleOpenApps = useCallback(() => {
+    closeDrawer();
+    router.push('/apps' as any);
+  }, [closeDrawer, router]);
+
   const renderDrawerContent = useCallback(
     () => (
         <ConversationDrawer
@@ -165,6 +171,7 @@ function AppContent() {
         onNewChat={handleNewChat}
         onOpenSearch={handleOpenSearch}
         onOpenSettings={handleOpenSettings}
+        onOpenApps={handleOpenApps}
         onOpenRules={handleOpenRules}
         onRefresh={refreshConversations}
       />
@@ -176,6 +183,7 @@ function AppContent() {
       handleNewChat,
       handleOpenSearch,
       handleOpenSettings,
+      handleOpenApps,
       handleOpenRules,
       refreshConversations,
     ]
@@ -209,6 +217,8 @@ function AppContent() {
             <Stack.Screen name="settings/system-prompts" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="settings/rules" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="settings/skills" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="apps" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="apps/create" options={{ animation: 'slide_from_right' }} />
           </Stack>
         </DrawerLayout>
         <ModelPicker />
@@ -251,6 +261,7 @@ function AuthGate() {
         await initialize();
         initializeDatabase();
         initializeSkills();
+        seedBuiltinApps();
       } catch (e) {
         console.error('Init failed:', e);
       }
