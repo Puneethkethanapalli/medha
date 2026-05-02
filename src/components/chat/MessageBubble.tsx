@@ -11,7 +11,9 @@ import { ThinkingBlock } from './ThinkingBlock';
 import { MarkdownMessage } from './MarkdownMessage';
 import { StreamingCursor } from './StreamingCursor';
 import { SearchResults } from './SearchResults';
+import { ToolResultCard } from './ToolResultCard';
 import type { Message } from '@/types';
+import type { Citation, ToolDisplay } from '@/lib/tools/types';
 
 const waitingAnimation = require('../../../lottie/glow waiting.json');
 const STATIC_PROGRESS = 0.58;
@@ -113,15 +115,22 @@ export const MessageBubble = React.memo(function MessageBubble({
     }
   }, [isEditing, message.content]);
 
-  // Tool messages render as SearchResults if they contain citations
+  // Tool messages render as rich tool cards when metadata is available.
   if (message.role === 'tool') {
     if (!message.tool_calls) return null;
     try {
-      const citations = JSON.parse(message.tool_calls);
-      if (Array.isArray(citations) && citations.length > 0) {
+      const metadata = JSON.parse(message.tool_calls);
+      if (isToolDisplay(metadata)) {
         return (
           <View className={`w-[85%] mb-4 ${dimmed ? 'opacity-40' : ''}`}>
-            <SearchResults citations={citations} />
+            <ToolResultCard display={metadata} />
+          </View>
+        );
+      }
+      if (isCitationArray(metadata)) {
+        return (
+          <View className={`w-[85%] mb-4 ${dimmed ? 'opacity-40' : ''}`}>
+            <SearchResults citations={metadata} />
           </View>
         );
       }
@@ -309,3 +318,19 @@ export const MessageBubble = React.memo(function MessageBubble({
     </View>
   );
 });
+
+function isToolDisplay(value: unknown): value is ToolDisplay {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const maybeDisplay = value as Partial<ToolDisplay>;
+  return typeof maybeDisplay.kind === 'string' && typeof maybeDisplay.title === 'string';
+}
+
+function isCitationArray(value: unknown): value is Citation[] {
+  return Array.isArray(value)
+    && value.every((item) =>
+      item
+      && typeof item === 'object'
+      && typeof (item as Citation).title === 'string'
+      && typeof (item as Citation).url === 'string'
+    );
+}

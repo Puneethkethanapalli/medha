@@ -2417,3 +2417,11 @@ Structure your review as:
   - Auto-retry on next provider when primary fails (rate limit, timeout, auth error)
   - Visual indicator showing which provider served the response
   - Configurable timeout + error classification
+
+### Future Tool Platform Sprints (deferred)
+
+- **Connectors / MCP ecosystem** — Continue Sprint 21 with OAuth-capable connectors, tool discovery, remote MCP servers, and app-directory style setup.
+- **Tool approvals and permissions** — Add per-tool modes (`auto`, `ask`, `deny`), destructive/open-world flags, and user confirmation before external write actions.
+- **Built-in tool breadth** — Add file/vector search, image editing, computer/browser use, calendar/email/cloud-document actions, and provider-native hosted tools where available.
+- **Data analysis without code execution** — Add spreadsheet/table parsing, summaries, chart previews, and data-cleaning helpers without shipping a Python/code execution runtime.
+- **Scheduled/background tasks** — Add one-off/recurring prompts, local notifications, task history, and completion cards.

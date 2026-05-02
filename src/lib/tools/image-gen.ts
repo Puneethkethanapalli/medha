@@ -44,6 +44,17 @@ async function executeGenerateImage(args: Record<string, unknown>): Promise<Tool
     return {
       content: `![Generated image](${imageUri})`,
       raw: imageUri,
+      display: {
+        kind: 'image',
+        title: 'Image generated',
+        status: 'success',
+        summary: prompt,
+        imageUri,
+        metadata: [
+          { label: 'Service', value: service === 'stability' ? 'Stability AI' : 'OpenAI' },
+          { label: 'Size', value: size },
+        ],
+      },
     };
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error';

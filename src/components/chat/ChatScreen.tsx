@@ -28,9 +28,10 @@ import {
 import { getApiKey } from '@/lib/storage/secure';
 import { getProvider, registerBuiltInProviders, listProviders } from '@/lib/providers/registry';
 import { registerTool, listTools, getOpenAIToolSchemas, getAnthropicToolSchemas, getTool } from '@/lib/tools/registry';
-import { webSearchTool } from '@/lib/tools/web-search';
+import { deepResearchTool, webSearchTool } from '@/lib/tools/web-search';
 import { generateImageTool } from '@/lib/tools/image-gen';
 import { saveMemoryTool, forgetMemoryTool } from '@/lib/tools/memory-tools';
+import { describeToolCalls, executeToolCall } from '@/lib/tools/orchestrator';
 import { composeSystemPrompt } from '@/lib/rules/injector';
 import { parseAllowedTools } from '@/lib/skills/injector';
 import { readSkillFull } from '@/lib/skills/storage';
@@ -43,7 +44,7 @@ import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { useRouter } from 'expo-router';
 import type { Message, Attachment } from '@/types';
 
-const MAX_TOOL_ROUNDS = 3;
+const MAX_TOOL_ROUNDS = 5;
 
 interface ChatScreenProps {
   conversationId: string | null;
@@ -106,8 +107,11 @@ export const ChatScreen = React.memo(function ChatScreen({
       registerBuiltInProviders();
     }
     // Register built-in tools
-    if (listTools().length === 0) {
+    if (!getTool('web_search')) {
       registerTool(webSearchTool);
+    }
+    if (!getTool('deep_research')) {
+      registerTool(deepResearchTool);
     }
     // Register image generation tool
     if (!getTool('generate_image')) {
@@ -284,7 +288,10 @@ export const ChatScreen = React.memo(function ChatScreen({
       // Build tool config — web search when enabled, memory tools always, image gen when enabled
       const useTools = (webSearchEnabled || memoryEnabled || imageGenEnabled) && listTools().length > 0;
       let activeToolNames: string[] = [];
-      if (webSearchEnabled) activeToolNames.push('web_search');
+      if (webSearchEnabled) {
+        activeToolNames.push('web_search');
+        activeToolNames.push('deep_research');
+      }
       if (memoryEnabled) {
         activeToolNames.push('save_memory');
         activeToolNames.push('forget_memory');
@@ -293,9 +300,20 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       // If active skill declares allowed-tools, restrict to only those tools
       if (skillAllowedTools) {
-        activeToolNames = activeToolNames.filter((t) => skillAllowedTools!.includes(t));
+        activeToolNames = activeToolNames.filter((t) =>
+          skillAllowedTools!.includes(t)
+          || (t === 'deep_research' && skillAllowedTools!.includes('web_search'))
+        );
       }
-      const toolConfig = useTools
+      if (activeToolNames.length > 0) {
+        const toolInstruction =
+          'When using tools, give a short preamble before the call when possible, use the narrowest useful tool, and cite sources from tool results in the final answer. Prefer deep_research over web_search for broad comparisons, investigations, or multi-source analysis.';
+        systemPrompt = systemPrompt
+          ? `${systemPrompt}\n\n${toolInstruction}`
+          : toolInstruction;
+      }
+      const enableToolCalls = useTools && activeToolNames.length > 0;
+      const toolConfig = enableToolCalls
         ? {
             tools: getOpenAIToolSchemas(activeToolNames),
             anthropicTools: providerId === 'anthropic' ? getAnthropicToolSchemas(activeToolNames) : undefined,
@@ -377,14 +395,14 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       const handleToolCalls = async (toolCalls: AccumulatedToolCall[]) => {
         if (toolRound >= MAX_TOOL_ROUNDS) {
-          // Max rounds reached — finalize with whatever content we have
+          const fallback = accumulated || 'I reached the tool-use limit for this response. Please ask me to continue if you want me to keep working from the available results.';
+          accumulated = fallback;
           handleDone();
           return;
         }
 
         // Update the assistant message to show tool usage status + save tool_calls metadata
-        const toolNames = toolCalls.map((tc) => tc.name).join(', ');
-        const statusText = accumulated || `Using ${toolNames}...`;
+        const statusText = accumulated || describeToolCalls(toolCalls);
         const toolCallsJson = JSON.stringify(toolCalls);
         updateMessage(assistantMsgId, {
           content: statusText,
@@ -401,21 +419,18 @@ export const ChatScreen = React.memo(function ChatScreen({
         );
         stopStreaming();
 
-        // Execute each tool and save results as tool messages
-        for (const tc of toolCalls) {
-          const toolDef = getTool(tc.name);
-          if (!toolDef) continue;
-
-          try {
-            const result = await toolDef.execute(tc.arguments);
-            // Save tool result — use raw data for AI context, content for display
-            // We repurpose the tool_calls column on the tool message to store citations
-            const citationsJson = result.citations ? JSON.stringify(result.citations) : null;
-            addMessage(convId, 'tool', result.raw ? String(result.raw) : result.content, model, null, tc.id, citationsJson);
-          } catch (err) {
-            const errMsg = err instanceof Error ? err.message : 'Tool execution failed';
-            addMessage(convId, 'tool', `Error: ${errMsg}`, model, null, tc.id);
-          }
+        // Execute tool calls in parallel, then save results in model-emitted order.
+        const outcomes = await Promise.all(toolCalls.map((tc) => executeToolCall(tc)));
+        for (const outcome of outcomes) {
+          addMessage(
+            convId,
+            'tool',
+            outcome.content,
+            model,
+            null,
+            outcome.call.id,
+            JSON.stringify(outcome.display)
+          );
         }
 
         // Reload messages to include tool results, then re-stream for final response
@@ -445,7 +460,7 @@ export const ChatScreen = React.memo(function ChatScreen({
         },
         handleDone,
         handleError,
-        useTools ? handleToolCalls : undefined,
+        enableToolCalls ? handleToolCalls : undefined,
         handleUsage
       );
 

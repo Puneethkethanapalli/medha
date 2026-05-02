@@ -31,17 +31,11 @@ export function getOpenAIToolSchemas(toolNames?: string[]): OpenAIToolSchema[] {
     : listTools();
 
   return defs.map((tool) => {
-    const properties: Record<string, { type: string; description: string; enum?: string[] }> = {};
+    const properties: Record<string, ReturnType<typeof parameterToJsonSchema>> = {};
     const required: string[] = [];
 
     for (const [key, param] of Object.entries(tool.parameters)) {
-      properties[key] = {
-        type: param.type,
-        description: param.description,
-      };
-      if (param.enum) {
-        properties[key].enum = param.enum;
-      }
+      properties[key] = parameterToJsonSchema(param);
       if (param.required !== false) {
         required.push(key);
       }
@@ -72,17 +66,11 @@ export function getAnthropicToolSchemas(toolNames?: string[]) {
     : listTools();
 
   return defs.map((tool) => {
-    const properties: Record<string, { type: string; description: string; enum?: string[] }> = {};
+    const properties: Record<string, ReturnType<typeof parameterToJsonSchema>> = {};
     const required: string[] = [];
 
     for (const [key, param] of Object.entries(tool.parameters)) {
-      properties[key] = {
-        type: param.type,
-        description: param.description,
-      };
-      if (param.enum) {
-        properties[key].enum = param.enum;
-      }
+      properties[key] = parameterToJsonSchema(param);
       if (param.required !== false) {
         required.push(key);
       }
@@ -98,4 +86,33 @@ export function getAnthropicToolSchemas(toolNames?: string[]) {
       },
     };
   });
+}
+
+function parameterToJsonSchema(param: ToolDefinition['parameters'][string]) {
+  const schema: {
+    type: string;
+    description: string;
+    enum?: string[];
+    properties?: Record<string, unknown>;
+    items?: Record<string, unknown>;
+    minimum?: number;
+    maximum?: number;
+    default?: unknown;
+  } = {
+    type: param.type,
+    description: param.description,
+  };
+
+  if (param.enum) schema.enum = param.enum;
+  if (param.minimum !== undefined) schema.minimum = param.minimum;
+  if (param.maximum !== undefined) schema.maximum = param.maximum;
+  if (param.default !== undefined) schema.default = param.default;
+  if (param.items) schema.items = parameterToJsonSchema(param.items);
+  if (param.properties) {
+    schema.properties = Object.fromEntries(
+      Object.entries(param.properties).map(([key, value]) => [key, parameterToJsonSchema(value)])
+    );
+  }
+
+  return schema;
 }

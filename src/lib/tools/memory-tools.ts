@@ -25,6 +25,14 @@ async function executeSaveMemory(args: Record<string, unknown>): Promise<ToolRes
   return {
     content: `Memory saved (ID: ${id.slice(0, 8)}): "${content}"`,
     raw: { id, content, category: normalizedCategory },
+    display: {
+      kind: 'memory',
+      title: 'Memory saved',
+      subtitle: normalizedCategory,
+      status: 'success',
+      summary: content,
+      metadata: [{ label: 'ID', value: id.slice(0, 8) }],
+    },
   };
 }
 
@@ -47,6 +55,14 @@ async function executeForgetMemory(args: Record<string, unknown>): Promise<ToolR
   return {
     content: `Forgot memory: "${best.content}"`,
     raw: { deletedId: best.id, content: best.content },
+    display: {
+      kind: 'memory',
+      title: 'Memory removed',
+      subtitle: best.category,
+      status: 'success',
+      summary: best.content,
+      metadata: [{ label: 'ID', value: best.id.slice(0, 8) }],
+    },
   };
 }
 

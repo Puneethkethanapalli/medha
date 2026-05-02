@@ -5,12 +5,13 @@
  * Priority: per-conversation rules (if set) > global rules
  *
  * Sprint 19 additions: skill catalog + active skill content injection.
- * Order: Rules → Skill Catalog → Active Skill Content → Memory → Custom Instructions
+ * Order: Rules → Skill Catalog → Active Skill Content → Project Context → Memory → Custom Instructions
  */
 
 import { getConversation } from '@/lib/db/conversations';
 import { getGlobalRulesSync, type RuleItem, DEFAULT_RULES, isMemoryEnabledSync } from '@/lib/storage/mmkv';
 import { buildMemoryContext } from '@/lib/memory/injector';
+import { buildProjectContext } from '@/lib/projects/context';
 import { buildSkillCatalog, buildSkillCatalogInstruction, getActiveSkillContent } from '@/lib/skills/injector';
 
 /** Parse a rules JSON string into RuleItem array. Falls back to defaults. */
@@ -59,7 +60,7 @@ export function buildRulesContext(conversationId?: string | null): string {
 
 /**
  * Compose the full system prompt from multiple sources.
- * Order: Rules → Skill Catalog → Active Skill Content → Memory → Custom Instructions
+ * Order: Rules → Skill Catalog → Active Skill Content → Project Context → Memory → Custom Instructions
  */
 export function composeSystemPrompt(
   conversationId: string | null,
@@ -84,6 +85,10 @@ export function composeSystemPrompt(
     if (skillContent) parts.push(skillContent);
   }
 
+  // Project workspace memory (Sprint 20+): app-scoped context from related chats
+  const projectContext = buildProjectContext(conversationId);
+  if (projectContext) parts.push(projectContext);
+
   // Memory injection (Sprint 14)
   if (isMemoryEnabledSync()) {
     const memory = buildMemoryContext();
@@ -101,4 +106,3 @@ export function composeSystemPrompt(
 /** Export default rules for UI initialization */
 export { DEFAULT_RULES };
 export type { RuleItem };
-
