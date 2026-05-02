@@ -3,6 +3,7 @@ import type { AIProvider, StreamConfig } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
 import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { buildOpenAIMessages } from '@/lib/attachments/multimodal';
+import { capabilitiesFromMetadata } from '@/lib/models/capability-metadata';
 import type { Message } from '@/types';
 
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
@@ -100,13 +101,24 @@ export class OpenRouterProvider implements AIProvider {
     }
 
     const data = await response.json();
-    return (data.data || []).map((m: Record<string, unknown>) => ({
-      id: m.id as string,
-      name: (m.name as string) || (m.id as string),
-      provider: 'openrouter',
-      pricing: parsePricing(m.pricing),
-      contextWindow: typeof m.context_length === 'number' ? m.context_length : undefined,
-    }));
+    return (data.data || []).map((m: Record<string, unknown>) => {
+      const contextWindow = typeof m.context_length === 'number' ? m.context_length : undefined;
+      const architecture = isRecord(m.architecture) ? m.architecture : undefined;
+
+      return {
+        id: m.id as string,
+        name: (m.name as string) || (m.id as string),
+        provider: 'openrouter',
+        pricing: parsePricing(m.pricing),
+        contextWindow,
+        capabilities: capabilitiesFromMetadata({
+          contextWindow,
+          inputModalities: toStringArray(architecture?.input_modalities),
+          outputModalities: toStringArray(architecture?.output_modalities),
+          supportedParameters: toStringArray(m.supported_parameters),
+        }),
+      };
+    });
   }
 
   async validateKey(apiKey: string): Promise<boolean> {
@@ -146,4 +158,13 @@ function parsePricing(pricing: unknown) {
   }
 
   return undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function toStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  return value.filter((item): item is string => typeof item === 'string');
 }

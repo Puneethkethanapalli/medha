@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text as RNText, View } from 'react-native';
 import { ChevronDown } from 'lucide-react-native';
 import { useUIStore } from '@/stores/ui-store';
 import { useSettingsStore } from '@/stores/settings-store';
 import { getModelDisplayName } from '@/lib/models';
 import { getModelCapabilities, getPremiumCapabilities } from '@/lib/models/capabilities';
+import { loadLiteLLMRegistry } from '@/lib/models/litellm-registry';
 import { CapabilityBadges } from '@/components/chat/CapabilityBadges';
 
 const PROVIDER_SHORT: Record<string, string> = {
@@ -20,12 +21,30 @@ export function ModelPill() {
   const openModelPicker = useUIStore((s) => s.openModelPicker);
   const lastModel = useSettingsStore((s) => s.lastModel);
   const lastProvider = useSettingsStore((s) => s.lastProvider);
+  const [metadataVersion, setMetadataVersion] = useState(0);
   const displayName = getModelDisplayName(lastModel);
   const providerBadge = lastProvider ? PROVIDER_SHORT[lastProvider] : null;
 
-  const caps = lastModel && lastProvider
-    ? getModelCapabilities(lastModel, lastProvider)
-    : [];
+  useEffect(() => {
+    let cancelled = false;
+    void loadLiteLLMRegistry().then(() => {
+      if (!cancelled) setMetadataVersion((version) => version + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const caps = useMemo(
+    () => {
+      // Re-read capability fallback data after async LiteLLM metadata loads.
+      void metadataVersion;
+      return lastModel && lastProvider
+        ? getModelCapabilities(lastModel, lastProvider)
+        : [];
+    },
+    [lastModel, lastProvider, metadataVersion]
+  );
   const premiumCaps = getPremiumCapabilities(caps);
 
   return (

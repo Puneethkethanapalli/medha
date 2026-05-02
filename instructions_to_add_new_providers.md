@@ -28,7 +28,9 @@ src/lib/tools/
 └── registry.ts       # getOpenAIToolSchemas() / getAnthropicToolSchemas()
 
 src/lib/models/
-└── capabilities.ts   # KNOWN_CAPABILITIES map + heuristic capability inference
+├── capabilities.ts        # Dynamic metadata cache + metadata lookup helpers
+├── capability-metadata.ts # Provider/LiteLLM metadata → app capability flags
+└── litellm-registry.ts    # LiteLLM community model metadata fallback
 
 src/lib/storage/
 └── secure.ts         # expo-secure-store wrappers for API key CRUD
@@ -347,19 +349,37 @@ Edit `src/app/onboarding.tsx` — this is the first-run screen that new users se
 
 > **If your provider needs extra config** (like Cloudflare's Account ID), add a conditional input field that appears when the provider is selected. See `cloudflare-ai` in `onboarding.tsx` for the pattern.
 
-### Step 6: Add Model Capabilities
+### Step 6: Add Model Metadata
 
-Edit `src/lib/models/capabilities.ts`:
+Model capabilities and context windows should come from model metadata, not local model-name lists.
 
-1. **Add known capabilities** to `KNOWN_CAPABILITIES` (if the model's API doesn't provide them):
+1. **Provider API metadata (preferred)** — If your provider's model-listing API returns capability fields, map them into `Model.capabilities` from `listModels()` using `capabilitiesFromMetadata()`:
 
 ```typescript
-// Example AI
-'example/model-large': ['vision', 'tools', 'thinking', 'long-context'],
-'example/model-small': ['tools', 'long-context'],
+import { capabilitiesFromMetadata } from '@/lib/models/capability-metadata';
+
+return models.map((m: any) => {
+  const contextWindow = typeof m.context_length === 'number' ? m.context_length : undefined;
+  return {
+    id: m.id,
+    name: m.name,
+    provider: 'example',
+    contextWindow,
+    capabilities: capabilitiesFromMetadata({
+      contextWindow,
+      inputModalities: m.input_modalities,
+      outputModalities: m.output_modalities,
+      supportedParameters: m.supported_parameters,
+      supportsFunctionCalling: m.supports_function_calling,
+      supportsReasoning: m.supports_reasoning,
+      supportsVision: m.supports_vision,
+      supportsPdfInput: m.supports_pdf_input,
+    }),
+  };
+});
 ```
 
-2. **Update heuristics** — add patterns to `heuristicCapabilities()` and `LONG_CONTEXT_MODELS` if the model family has consistent naming.
+2. **LiteLLM fallback** — If the provider API does not return capability fields, leave `capabilities` unset. Medha will fall back to LiteLLM's community-maintained `model_prices_and_context_window.json` and derive app capabilities from fields like `supports_vision`, `supports_function_calling`, `supports_reasoning`, `supports_pdf_input`, `supported_modalities`, `supported_output_modalities`, and `mode`.
 
 3. **Context windows** — You do NOT need to hardcode context windows. They are resolved automatically via:
    - **Provider API** (preferred): If your `listModels()` returns `contextWindow` on `Model` objects, these are registered into the dynamic cache automatically.
@@ -442,7 +462,7 @@ Use this checklist when adding a new provider:
 - [ ] **API Keys UI** — Added to `ProviderId` type, `PROVIDERS` array, and `keys` state in `api-keys.tsx`
 - [ ] **Settings store** — Added to `hasAnyProviderKey()` and `getConfiguredProviders()` arrays in `settings-store.ts`
 - [ ] **Onboarding screen** — Added to `ProviderId` type and `PROVIDERS` array in `onboarding.tsx`
-- [ ] **Model capabilities** — Added entries to `KNOWN_CAPABILITIES` and heuristics in `capabilities.ts`
+- [ ] **Model capabilities** — If the provider API returns capability metadata, populate `capabilities` on returned `Model` objects via `capabilitiesFromMetadata()`. If not, the LiteLLM fallback handles it automatically — no hardcoding needed.
 - [ ] **Context windows** — If your provider's API returns context info in `listModels()`, populate `contextWindow` on `Model` objects. If not, the LiteLLM fallback handles it automatically — no hardcoding needed.
 - [ ] **Model listing** — Prefer dynamic fetch with hardcoded fallback; pure hardcoding only when no API exists
 - [ ] **SSE format** — If non-OpenAI: new format in `stream.ts` + extractor in `sse-parser.ts`
@@ -488,8 +508,9 @@ Use this checklist when adding a new provider:
 | `src/lib/streaming/sse-parser.ts` | SSE line parsing + token extraction | Only if adding a new SSE format |
 | `src/lib/attachments/multimodal.ts` | Message format builders | Only if provider needs non-OpenAI message format |
 | `src/lib/tools/registry.ts` | Tool schema converters | Only if provider needs non-OpenAI tool format |
-| `src/lib/models/capabilities.ts` | Model capability inference + dynamic metadata cache | Always — add known capabilities |
-| `src/lib/models/litellm-registry.ts` | LiteLLM community model metadata (context windows) | Never — auto-fetched from GitHub |
+| `src/lib/models/capabilities.ts` | Dynamic model metadata cache + metadata lookup | Rarely — only for metadata resolution behavior |
+| `src/lib/models/capability-metadata.ts` | Converts provider/LiteLLM metadata fields into app capability flags | Rarely — only for new capability field shapes |
+| `src/lib/models/litellm-registry.ts` | LiteLLM community model metadata fallback (context windows + capabilities) | Only to add provider prefix mappings |
 | `src/lib/storage/secure.ts` | API key CRUD | Never — generic, works for any provider ID |
 | `src/lib/storage/mmkv.ts` | Non-secret config (e.g. Account IDs) | Only if provider needs extra config beyond an API key |
 | `src/stores/settings-store.ts` | Provider lists + key validation | Always — update provider ID arrays |
@@ -571,3 +592,36 @@ If you add a new provider and its models are in the LiteLLM registry, add the pr
 | `src/lib/models/litellm-registry.ts` | Fetches, caches, and queries the LiteLLM JSON |
 | `src/components/chat/ModelPicker.tsx` | Calls `registerModelsMetadata()` + `loadLiteLLMRegistry()` on open |
 | `src/components/chat/ContextWindowCircle.tsx` | Renders the visual context usage indicator |
+
+---
+
+## Model Capability Architecture
+
+Medha resolves model capabilities dynamically — **no hardcoded capability maps or model-name heuristics to maintain**.
+
+### Resolution Priority
+
+```
+1. Provider API response (dynamic cache)
+   ↓ missing fields
+2. LiteLLM community registry (fetched from GitHub, cached locally)
+   ↓ miss
+3. Unknown — no badge/filter match for that capability
+```
+
+### How It Works
+
+When `listModels()` returns `Model` objects with a `capabilities` field, `ModelPicker` calls `registerModelsMetadata()` and stores those capabilities in the dynamic metadata cache. `getModelCapabilities()` reads that cache first, then supplements missing/unknown metadata from LiteLLM.
+
+Capabilities are derived from metadata fields, not model IDs:
+
+| App Capability | Provider/LiteLLM metadata examples |
+|---|---|
+| `vision` | `supports_vision`, `supported_modalities: ['image']`, `input_modalities: ['image']` |
+| `image-gen` | `mode: 'image_generation'`, `supported_output_modalities: ['image']`, image cost fields |
+| `pdf` | `supports_pdf_input`, `max_pdf_size_mb`, `input_modalities: ['file'/'pdf'/'document']` |
+| `tools` | `supports_function_calling`, `supports_tool_choice`, `supported_parameters: ['tools']` |
+| `thinking` | `supports_reasoning`, `supported_parameters: ['reasoning'/'include_reasoning']` |
+| `long-context` | Resolved context window greater than 100K tokens |
+
+**To add capability support for a new provider:** In `listModels()`, extract capability-related fields from the API response and pass them to `capabilitiesFromMetadata()`. If the provider does not expose these fields, leave `capabilities` unset and make sure the provider has a LiteLLM prefix mapping if needed.

@@ -3,6 +3,7 @@ import type { AIProvider, StreamConfig } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
 import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { buildOpenAIMessages } from '@/lib/attachments/multimodal';
+import { capabilitiesFromMetadata } from '@/lib/models/capability-metadata';
 import type { Message, Model } from '@/types';
 
 const GOOGLE_AI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
@@ -197,12 +198,20 @@ export class GoogleAIProvider implements AIProvider {
         const methods: string[] = m.supportedGenerationMethods || [];
         return methods.includes('generateContent');
       })
-      .map((m: any) => ({
-        id: m.name?.replace('models/', '') || m.name,
-        name: m.displayName || m.name?.replace('models/', '') || m.name,
-        provider: 'google-ai',
-        contextWindow: typeof m.inputTokenLimit === 'number' ? m.inputTokenLimit : undefined,
-      }));
+      .map((m: any) => {
+        const contextWindow = typeof m.inputTokenLimit === 'number' ? m.inputTokenLimit : undefined;
+        return {
+          id: m.name?.replace('models/', '') || m.name,
+          name: m.displayName || m.name?.replace('models/', '') || m.name,
+          provider: 'google-ai',
+          contextWindow,
+          capabilities: capabilitiesFromMetadata({
+            contextWindow,
+            inputModalities: toStringArray(m.inputModalities ?? m.supportedInputModalities),
+            outputModalities: toStringArray(m.outputModalities ?? m.supportedOutputModalities),
+          }),
+        };
+      });
   }
 
   async validateKey(apiKey: string): Promise<boolean> {
@@ -252,6 +261,11 @@ function readAttachmentBase64(uri: string): string | null {
   } catch {
     return null;
   }
+}
+
+function toStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  return value.filter((item): item is string => typeof item === 'string');
 }
 
 /**

@@ -1,145 +1,6 @@
 import type { ModelCapability } from '@/types';
-
-// Known model capability overrides — these take precedence over heuristics
-const KNOWN_CAPABILITIES: Record<string, ModelCapability[]> = {
-  // OpenRouter / OpenAI
-  'openai/gpt-4o': ['vision', 'tools', 'long-context'],
-  'openai/gpt-4o-mini': ['vision', 'tools', 'long-context'],
-  'openai/o1': ['tools', 'thinking', 'long-context'],
-  'openai/o1-mini': ['tools', 'thinking', 'long-context'],
-  'openai/o3': ['tools', 'thinking', 'long-context'],
-  'openai/o3-mini': ['tools', 'thinking', 'long-context'],
-  'openai/o4-mini': ['tools', 'thinking', 'long-context'],
-  'openai/gpt-4-vision-preview': ['vision', 'tools'],
-  'openai/gpt-4-turbo': ['vision', 'tools', 'long-context'],
-  'openai/dall-e-3': ['image-gen'],
-  'openai/gpt-4.1': ['vision', 'tools', 'long-context'],
-  'openai/gpt-4.1-mini': ['vision', 'tools', 'long-context'],
-  'openai/gpt-4.1-nano': ['vision', 'tools', 'long-context'],
-  'openai/gpt-5.5': ['vision', 'tools', 'thinking', 'long-context'],
-  'openai/gpt-5.4': ['vision', 'tools', 'thinking', 'long-context'],
-  'openai/gpt-5.4-mini': ['vision', 'tools', 'thinking', 'long-context'],
-  'openai/gpt-5.4-nano': ['vision', 'tools', 'thinking', 'long-context'],
-  'openai/gpt-5.3-chat-latest': ['vision', 'tools', 'long-context'],
-  'openai/gpt-5.1': ['vision', 'tools', 'thinking', 'long-context'],
-  'openai/gpt-5': ['vision', 'tools', 'thinking', 'long-context'],
-
-  // OpenAI direct
-  'gpt-5.5': ['vision', 'tools', 'thinking', 'long-context'],
-  'gpt-5.4': ['vision', 'tools', 'thinking', 'long-context'],
-  'gpt-5.4-mini': ['vision', 'tools', 'thinking', 'long-context'],
-  'gpt-5.4-nano': ['vision', 'tools', 'thinking', 'long-context'],
-  'gpt-5.3-chat-latest': ['vision', 'tools', 'long-context'],
-  'gpt-5.1': ['vision', 'tools', 'thinking', 'long-context'],
-  'gpt-5': ['vision', 'tools', 'thinking', 'long-context'],
-  'gpt-5-chat-latest': ['vision', 'tools', 'long-context'],
-  'gpt-5-mini': ['vision', 'tools', 'thinking', 'long-context'],
-  'gpt-5-nano': ['vision', 'tools', 'thinking', 'long-context'],
-  'gpt-4o': ['vision', 'tools', 'long-context'],
-  'gpt-4o-mini': ['vision', 'tools', 'long-context'],
-  'gpt-4.1': ['vision', 'tools', 'long-context'],
-  'gpt-4.1-mini': ['vision', 'tools', 'long-context'],
-  'gpt-4.1-nano': ['vision', 'tools', 'long-context'],
-  'o3': ['tools', 'thinking', 'long-context'],
-  'o3-mini': ['tools', 'thinking', 'long-context'],
-  'o4-mini': ['tools', 'thinking', 'long-context'],
-  'gpt-5.3-codex': ['vision', 'tools', 'thinking', 'long-context'],
-  'gpt-5.2-codex': ['vision', 'tools', 'thinking', 'long-context'],
-  'gpt-5.1-codex-max': ['vision', 'tools', 'thinking', 'long-context'],
-  'gpt-5.1-codex': ['vision', 'tools', 'thinking', 'long-context'],
-  'gpt-5.1-codex-mini': ['vision', 'tools', 'thinking', 'long-context'],
-
-  // Anthropic
-  'anthropic/claude-3-opus': ['vision', 'tools', 'pdf', 'long-context'],
-  'anthropic/claude-3-5-sonnet': ['vision', 'tools', 'pdf', 'long-context'],
-  'anthropic/claude-3-5-sonnet-20241022': ['vision', 'tools', 'pdf', 'long-context'],
-  'anthropic/claude-3-7-sonnet': ['vision', 'tools', 'pdf', 'thinking', 'long-context'],
-  'anthropic/claude-3-7-sonnet-20250219': ['vision', 'tools', 'pdf', 'thinking', 'long-context'],
-  'anthropic/claude-sonnet-4': ['vision', 'tools', 'pdf', 'thinking', 'long-context'],
-  'anthropic/claude-sonnet-4-20250514': ['vision', 'tools', 'pdf', 'thinking', 'long-context'],
-  'anthropic/claude-3-5-haiku': ['tools', 'long-context'],
-  'anthropic/claude-3-haiku': ['tools', 'long-context'],
-
-  // Google AI
-  'gemini-2.0-flash': ['vision', 'tools', 'pdf', 'image-gen', 'long-context'],
-  'gemini-2.0-flash-exp': ['vision', 'tools', 'pdf', 'image-gen', 'long-context'],
-  'gemini-2.0-pro': ['vision', 'tools', 'pdf', 'long-context'],
-  'gemini-2.5-flash-preview-04-17': ['vision', 'tools', 'pdf', 'thinking', 'long-context'],
-  'gemini-2.5-pro-preview-03-25': ['vision', 'tools', 'pdf', 'thinking', 'long-context'],
-  'gemini-2.5-pro': ['vision', 'tools', 'pdf', 'thinking', 'long-context'],
-  'gemini-2.5-flash': ['vision', 'tools', 'pdf', 'thinking', 'long-context'],
-  'gemini-1.5-pro': ['vision', 'tools', 'pdf', 'long-context'],
-  'gemini-1.5-flash': ['vision', 'tools', 'pdf', 'long-context'],
-  'gemini-1.0-pro': ['tools', 'long-context'],
-
-  // DeepSeek
-  'deepseek/deepseek-chat': ['tools', 'long-context'],
-  'deepseek/deepseek-chat-v3': ['tools', 'long-context'],
-  'deepseek/deepseek-r1': ['thinking', 'long-context'],
-  'deepseek/deepseek-r1-distill': ['thinking', 'long-context'],
-
-  // Qwen
-  'qwen/qwen-2.5-72b-instruct': ['vision', 'tools', 'long-context'],
-  'qwen/qwen-2.5-vl': ['vision', 'tools', 'long-context'],
-  'qwen/qwen-vl': ['vision', 'tools'],
-
-  // MiniMax
-  'MiniMax-M2.7': ['tools', 'thinking', 'long-context'],
-  'MiniMax-M2.7-highspeed': ['tools', 'thinking', 'long-context'],
-  'MiniMax-M1-80k': ['tools', 'thinking', 'long-context'],
-  'MiniMax-M1-40k': ['tools', 'thinking', 'long-context'],
-
-  // Cloudflare Workers AI
-  '@cf/meta/llama-3.3-70b-instruct-fp8-fast': ['tools', 'long-context'],
-  '@cf/meta/llama-3.1-8b-instruct': ['tools', 'long-context'],
-  '@cf/meta/llama-3.1-70b-instruct': ['tools', 'long-context'],
-  '@cf/meta/llama-3.2-3b-instruct': ['tools'],
-  '@cf/meta/llama-3.2-1b-instruct': ['tools'],
-  '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b': ['thinking'],
-  '@cf/openai/gpt-oss-120b': ['tools', 'long-context'],
-
-  // Mistral
-  'mistral/mistral-large': ['tools', 'long-context'],
-  'mistral/mistral-medium': ['tools', 'long-context'],
-  'mistral/mistral-small': ['tools', 'long-context'],
-  'mistral/pixtral': ['vision', 'tools'],
-
-  // Meta
-  'meta/llama-3.1-70b': ['tools', 'long-context'],
-  'meta/llama-3.1-405b': ['tools', 'long-context'],
-  'meta/llama-3.2-90b-vision': ['vision', 'tools'],
-  'meta/llama-3.2-11b-vision': ['vision', 'tools'],
-
-  // Grok
-  'x-ai/grok-2': ['vision', 'tools', 'long-context'],
-  'x-ai/grok-2-mini': ['vision', 'tools', 'long-context'],
-  'x-ai/grok-vision': ['vision', 'tools'],
-};
-
-// Long-context threshold (>100K tokens)
-const LONG_CONTEXT_MODELS = [
-  'claude-3',
-  'claude-sonnet-4',
-  'gemini-1.5',
-  'gemini-2.0',
-  'gemini-2.5',
-  'gpt-4o',
-  'gpt-5',
-  'gpt-4-turbo',
-  'gpt-4.1',
-  'o1',
-  'o3',
-  'o4',
-  'deepseek',
-  'llama-3.1',
-  'llama-3.2',
-  'mistral-large',
-  'grok-2',
-  'MiniMax',
-  '@cf/meta/llama-3.1',
-  '@cf/meta/llama-3.3',
-  '@cf/openai/gpt-oss',
-];
+import { getLiteLLMCapabilities, getLiteLLMContextWindow } from '@/lib/models/litellm-registry';
+import { sortCapabilities } from '@/lib/models/capability-metadata';
 
 // ── Dynamic model metadata cache (populated from provider API responses) ─────
 const dynamicMetadataCache = new Map<string, { contextWindow?: number; capabilities?: ModelCapability[] }>();
@@ -151,163 +12,55 @@ const dynamicMetadataCache = new Map<string, { contextWindow?: number; capabilit
 export function registerModelsMetadata(models: import('@/types').Model[]): void {
   for (const model of models) {
     if (model.contextWindow || model.capabilities) {
-      dynamicMetadataCache.set(model.id, {
+      const cacheKey = getMetadataKey(model.id, model.provider);
+      dynamicMetadataCache.set(cacheKey, {
         contextWindow: model.contextWindow,
         capabilities: model.capabilities,
       });
+      capabilityCache.delete(cacheKey);
     }
   }
 }
 
 const capabilityCache = new Map<string, ModelCapability[]>();
 
-function normalizeModelId(modelId: string): string {
-  // Strip provider prefix and :free suffix for lookup
-  let normalized = modelId;
-
-  // Cloudflare models use @cf/org/model format — strip entire @cf/org/ prefix
-  // For standard provider/model format (e.g. openai/gpt-4o), strip provider/
-  if (normalized.startsWith('@cf/')) {
-    // Take only the last segment: @cf/meta/llama-3.3-70b → llama-3.3-70b
-    const lastSlash = normalized.lastIndexOf('/');
-    normalized = normalized.slice(lastSlash + 1);
-  } else {
-    const slashIdx = normalized.indexOf('/');
-    if (slashIdx !== -1) normalized = normalized.slice(slashIdx + 1);
-  }
-
-  normalized = normalized.replace(/:free$/, '');
-  return normalized;
-}
-
-function heuristicCapabilities(modelId: string, provider: string): ModelCapability[] {
-  const caps: Set<ModelCapability> = new Set();
-  const lowerId = modelId.toLowerCase();
-  const normalized = normalizeModelId(modelId);
-  const lowerNormalized = normalized.toLowerCase();
-
-  // Vision: most modern models with 'vision', 'vl', 'gpt-4o', 'claude-3', 'gemini', 'pixtral', 'grok-vision', 'llama-3.2-vision' in name
-  if (
-    lowerNormalized.includes('vision') ||
-    lowerNormalized.includes('vl') ||
-    lowerNormalized.includes('gpt-5') ||
-    lowerNormalized.includes('gpt-4o') ||
-    lowerNormalized.includes('gpt-4.1') ||
-    lowerNormalized.includes('pixtral') ||
-    lowerNormalized.includes('grok-vision') ||
-    lowerNormalized.includes('llama-3.2') ||
-    (lowerNormalized.includes('claude-3') && !lowerNormalized.includes('haiku')) ||
-    (lowerNormalized.includes('gemini') && !lowerNormalized.includes('1.0'))
-  ) {
-    caps.add('vision');
-  }
-
-  // Image gen: native image generation models (Gemini Imagen, DALL-E)
-  if (
-    lowerNormalized.includes('imagen') ||
-    lowerNormalized.includes('dall-e') ||
-    lowerId.includes('image-gen')
-  ) {
-    caps.add('image-gen');
-  }
-
-  // PDF: Anthropic and Gemini natively support PDFs
-  if (
-    provider === 'anthropic' ||
-    provider === 'google-ai' ||
-    lowerNormalized.includes('claude') ||
-    lowerNormalized.includes('gemini')
-  ) {
-    caps.add('pdf');
-  }
-
-  // Tools: most modern instruction-tuned models
-  if (
-    lowerNormalized.includes('gpt-4') ||
-    lowerNormalized.includes('gpt-5') ||
-    lowerNormalized.includes('claude-3') ||
-    lowerNormalized.includes('claude-sonnet') ||
-    lowerNormalized.includes('gemini') ||
-    lowerNormalized.includes('mistral') ||
-    lowerNormalized.includes('llama-3') ||
-    lowerNormalized.includes('deepseek') ||
-    lowerNormalized.includes('qwen') ||
-    lowerNormalized.includes('grok') ||
-    lowerNormalized.includes('minimax')
-  ) {
-    caps.add('tools');
-  }
-
-  // Thinking: reasoning models
-  if (
-    lowerNormalized.includes('o1') ||
-    lowerNormalized.includes('o3') ||
-    lowerNormalized.includes('o4') ||
-    (lowerNormalized.includes('gpt-5') && !lowerNormalized.includes('chat-latest')) ||
-    lowerNormalized.includes('r1') ||
-    lowerNormalized.includes('thinking') ||
-    lowerNormalized.includes('codex') ||
-    lowerNormalized.includes('deepseek-reasoner') ||
-    lowerNormalized.includes('deepseek-r1') ||
-    (lowerNormalized.includes('claude-3-7') || lowerNormalized.includes('claude-sonnet-4')) ||
-    lowerNormalized.includes('gemini-2.5')
-  ) {
-    caps.add('thinking');
-  }
-
-  // Long context
-  const isLongContext = LONG_CONTEXT_MODELS.some((pattern) =>
-    lowerNormalized.includes(pattern.toLowerCase())
-  );
-  if (isLongContext) {
-    caps.add('long-context');
-  }
-
-  return Array.from(caps);
-}
-
 export function getModelCapabilities(modelId: string, provider: string): ModelCapability[] {
-  const cacheKey = `${provider}:${modelId}`;
+  const cacheKey = getMetadataKey(modelId, provider);
   if (capabilityCache.has(cacheKey)) {
     return capabilityCache.get(cacheKey)!;
   }
 
   // 1. Check dynamic metadata cache (API-provided)
-  const dynamic = dynamicMetadataCache.get(modelId);
-  if (dynamic?.capabilities && dynamic.capabilities.length > 0) {
-    capabilityCache.set(cacheKey, dynamic.capabilities);
-    return dynamic.capabilities;
+  const dynamic = dynamicMetadataCache.get(cacheKey);
+  const dynamicCapabilities = dynamic?.capabilities ?? [];
+
+  // 2. LiteLLM community registry fallback (fetched from GitHub, cached locally)
+  const litellmCapabilities = getLiteLLMCapabilities(modelId, provider);
+  const capabilities = sortCapabilities([
+    ...dynamicCapabilities,
+    ...(litellmCapabilities ?? []),
+  ]);
+
+  // Do not cache a registry miss before LiteLLM has loaded; the same call can
+  // become more informative once the async registry fetch completes.
+  if (litellmCapabilities !== undefined) {
+    capabilityCache.set(cacheKey, capabilities);
   }
 
-  // 2. Check exact known overrides
-  const known = KNOWN_CAPABILITIES[modelId];
-  if (known) {
-    capabilityCache.set(cacheKey, known);
-    return known;
-  }
-
-  // 3. Check normalized known overrides (without provider prefix / :free)
-  const normalized = normalizeModelId(modelId);
-  const normalizedKnown = KNOWN_CAPABILITIES[normalized];
-  if (normalizedKnown) {
-    capabilityCache.set(cacheKey, normalizedKnown);
-    return normalizedKnown;
-  }
-
-  // 4. Fallback to heuristics
-  const caps = heuristicCapabilities(modelId, provider);
-  capabilityCache.set(cacheKey, caps);
-  return caps;
+  return capabilities;
 }
 
 export function getModelContextWindow(modelId: string, provider?: string): number | undefined {
   // 1. Dynamic cache (populated from provider API responses — most accurate)
-  const dynamic = dynamicMetadataCache.get(modelId);
+  const dynamic = provider ? dynamicMetadataCache.get(getMetadataKey(modelId, provider)) : undefined;
   if (dynamic?.contextWindow) return dynamic.contextWindow;
 
   // 2. LiteLLM community registry (fetched from GitHub, cached locally)
-  const { getLiteLLMContextWindow } = require('./litellm-registry');
   return getLiteLLMContextWindow(modelId, provider);
+}
+
+function getMetadataKey(modelId: string, provider: string): string {
+  return `${provider}:${modelId}`;
 }
 
 export function hasCapability(

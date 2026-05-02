@@ -3,11 +3,13 @@
  *
  * Fetches model_prices_and_context_window.json from GitHub on first use,
  * caches it in AsyncStorage, and serves as a fallback for providers whose
- * APIs don't return context window info (OpenAI, MiniMax, OpenAI Codex).
+ * APIs don't return model metadata (OpenAI, MiniMax, OpenAI Codex).
  *
  * Source: https://github.com/BerriAI/litellm
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { ModelCapability } from '@/types';
+import { capabilitiesFromMetadata } from '@/lib/models/capability-metadata';
 
 const LITELLM_URL =
   'https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json';
@@ -31,6 +33,19 @@ type LiteLLMEntry = {
   max_output_tokens?: number;
   max_tokens?: number;
   litellm_provider?: string;
+  mode?: string;
+  supported_modalities?: string[];
+  supported_output_modalities?: string[];
+  supports_function_calling?: boolean;
+  supports_parallel_function_calling?: boolean;
+  supports_tool_choice?: boolean;
+  supports_vision?: boolean;
+  supports_reasoning?: boolean;
+  supports_pdf_input?: boolean;
+  max_pdf_size_mb?: number;
+  input_cost_per_image?: number;
+  output_cost_per_image?: number;
+  output_cost_per_image_token?: number;
 };
 
 let registry: Record<string, LiteLLMEntry> | null = null;
@@ -111,24 +126,90 @@ export function getLiteLLMContextWindow(
   modelId: string,
   provider?: string
 ): number | undefined {
+  const entry = findLiteLLMEntry(modelId, provider);
+  return getEntryContextWindow(entry);
+}
+
+/**
+ * Look up model capabilities from the LiteLLM registry.
+ *
+ * Returns undefined only when the registry has not loaded yet; once loaded,
+ * a missing model resolves to an empty capability list.
+ */
+export function getLiteLLMCapabilities(
+  modelId: string,
+  provider?: string
+): ModelCapability[] | undefined {
   if (!registry) return undefined;
 
-  // 1. Try exact model ID (works for OpenAI, Anthropic)
-  const direct = registry[modelId];
-  if (direct?.max_input_tokens) return direct.max_input_tokens;
+  const entry = findLiteLLMEntry(modelId, provider);
+  if (!entry) return [];
 
-  // 2. Try with provider prefix
+  return capabilitiesFromMetadata({
+    contextWindow: getEntryContextWindow(entry),
+    inputModalities: entry.supported_modalities,
+    outputModalities: entry.supported_output_modalities,
+    mode: entry.mode,
+    supportsFunctionCalling: entry.supports_function_calling || entry.supports_parallel_function_calling,
+    supportsToolChoice: entry.supports_tool_choice,
+    supportsVision: entry.supports_vision,
+    supportsReasoning: entry.supports_reasoning,
+    supportsPdfInput: entry.supports_pdf_input,
+    maxPdfSizeMb: entry.max_pdf_size_mb,
+    inputCostPerImage: entry.input_cost_per_image,
+    outputCostPerImage: entry.output_cost_per_image,
+    outputCostPerImageToken: entry.output_cost_per_image_token,
+  });
+}
+
+function findLiteLLMEntry(modelId: string, provider?: string): LiteLLMEntry | undefined {
+  if (!registry) return undefined;
+
+  for (const key of getLookupKeys(modelId, provider)) {
+    const entry = registry[key];
+    if (entry) return entry;
+  }
+
+  return undefined;
+}
+
+function getEntryContextWindow(entry?: LiteLLMEntry): number | undefined {
+  if (!entry) return undefined;
+  return entry.max_input_tokens ?? entry.max_tokens;
+}
+
+function getLookupKeys(modelId: string, provider?: string): string[] {
+  const keys: string[] = [];
+  const normalized = modelId.replace(/:free$/, '');
+  const add = (key?: string) => {
+    if (key && !keys.includes(key)) keys.push(key);
+  };
+
+  add(modelId);
+  add(normalized);
+
   if (provider) {
     const prefix = PROVIDER_PREFIX_MAP[provider];
-    if (prefix) {
-      const prefixed = `${prefix}/${modelId}`;
-      const entry = registry[prefixed];
-      if (entry?.max_input_tokens) return entry.max_input_tokens;
+    if (prefix) add(`${prefix}/${normalized}`);
+  }
+
+  const slashIdx = normalized.indexOf('/');
+  if (slashIdx !== -1) {
+    const upstreamProvider = normalized.slice(0, slashIdx);
+    const upstreamModelId = normalized.slice(slashIdx + 1);
+
+    if (provider === 'openrouter') {
+      add(`openrouter/${normalized}`);
+    }
+
+    if (upstreamProvider === 'openai' || upstreamProvider === 'anthropic') {
+      add(upstreamModelId);
+    } else if (upstreamProvider === 'google') {
+      add(`gemini/${upstreamModelId}`);
+    } else {
+      add(normalized);
     }
   }
 
-  // 3. Fallback: try max_tokens if max_input_tokens isn't set
-  if (direct?.max_tokens) return direct.max_tokens;
-
-  return undefined;
+  return keys;
 }

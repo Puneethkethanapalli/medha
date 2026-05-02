@@ -3,6 +3,7 @@ import type { AIProvider, StreamConfig } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
 import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { buildOpenAIMessages } from '@/lib/attachments/multimodal';
+import { capabilitiesFromMetadata } from '@/lib/models/capability-metadata';
 import type { Message, Model } from '@/types';
 
 /**
@@ -141,12 +142,24 @@ export class CloudflareAIProvider implements AIProvider {
       return models
         .filter((m: any) => m.name && !m.properties?.deprecated)
         .map((m: any) => {
-          const ctxLen = m.properties?.max_total_tokens ?? m.properties?.context_length;
+          const properties = isRecord(m.properties) ? m.properties : {};
+          const ctxLen = properties.max_total_tokens ?? properties.context_length;
+          const contextWindow = typeof ctxLen === 'number' ? ctxLen : undefined;
           return {
             id: m.name as string,
             name: (m.description || m.name) as string,
             provider: 'cloudflare-ai',
-            contextWindow: typeof ctxLen === 'number' ? ctxLen : undefined,
+            contextWindow,
+            capabilities: capabilitiesFromMetadata({
+              contextWindow,
+              inputModalities: toStringArray(properties.input_modalities ?? properties.supported_modalities),
+              outputModalities: toStringArray(properties.output_modalities ?? properties.supported_output_modalities),
+              supportsFunctionCalling: properties.supports_function_calling === true,
+              supportsToolChoice: properties.supports_tool_choice === true,
+              supportsVision: properties.supports_vision === true,
+              supportsReasoning: properties.supports_reasoning === true,
+              supportsPdfInput: properties.supports_pdf_input === true,
+            }),
           };
         });
     } catch {
@@ -178,4 +191,13 @@ export class CloudflareAIProvider implements AIProvider {
       return false;
     }
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function toStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  return value.filter((item): item is string => typeof item === 'string');
 }

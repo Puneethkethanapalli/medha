@@ -110,6 +110,7 @@ export function ModelPicker() {
   const [loadedProviders, setLoadedProviders] = useState<Set<string>>(new Set());
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [activeFilters, setActiveFilters] = useState<ModelCapability[]>([]);
+  const [metadataVersion, setMetadataVersion] = useState(0);
 
   const snapPoints = useMemo(() => ['75%'], []);
 
@@ -118,7 +119,13 @@ export function ModelPicker() {
     if (listProviders().length === 0) {
       registerBuiltInProviders();
     }
-    loadLiteLLMRegistry();
+    let cancelled = false;
+    void loadLiteLLMRegistry().then(() => {
+      if (!cancelled) setMetadataVersion((version) => version + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // On open: detect which providers have keys
@@ -212,6 +219,8 @@ export function ModelPicker() {
   }, [activeTab, models, lastModel, lastProvider]);
 
   const filteredModels = useMemo(() => {
+    // Re-run capability filters after async LiteLLM metadata loads.
+    void metadataVersion;
     let result = currentModels;
 
     // Text search
@@ -231,7 +240,7 @@ export function ModelPicker() {
     }
 
     return result;
-  }, [currentModels, searchQuery, activeFilters]);
+  }, [currentModels, searchQuery, activeFilters, metadataVersion]);
 
   const renderBackdrop = useCallback(
     (props: any) => (
@@ -425,6 +434,7 @@ export function ModelPicker() {
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         ListHeaderComponent={ListHeader}
+        extraData={metadataVersion}
         contentContainerStyle={{ paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
