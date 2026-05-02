@@ -14,6 +14,17 @@ interface MarkdownMessageProps {
   isStreaming?: boolean;
 }
 
+interface ParsedMarkdownContentProps {
+  content: string;
+  isStreaming: boolean;
+  onCopyCode: (code: string) => void;
+  onImagePress: (uri: string) => void;
+}
+
+type StreamingBlock =
+  | { type: 'text'; text: string }
+  | { type: 'code'; language: string; code: string; open: boolean };
+
 const COLORS = {
   background: '#09090B',
   foreground: '#FAFAFA',
@@ -590,11 +601,6 @@ export function MarkdownMessage({ content, isStreaming = false }: MarkdownMessag
   const showToast = useUIStore((s) => s.showToast);
   const [imageViewerUri, setImageViewerUri] = useState<string | null>(null);
 
-  const renderedContent = useMemo(
-    () => completeStreamingMarkdown(content, isStreaming),
-    [content, isStreaming]
-  );
-
   const copyCode = useCallback(
     async (code: string) => {
       await Clipboard.setStringAsync(code);
@@ -622,34 +628,20 @@ export function MarkdownMessage({ content, isStreaming = false }: MarkdownMessag
     }
   }, [imageViewerUri]);
 
-  const renderer = new NovaMarkdownRenderer(copyCode, handleImagePress);
-
-  const elements = useMarkdown(renderedContent, {
-    renderer,
-    styles: markedStyles,
-    theme: {
-      colors: {
-        border: COLORS.border,
-        code: COLORS.codeSurface,
-        link: COLORS.foreground,
-        text: COLORS.foreground,
-      },
-      spacing: {
-        xs: 4,
-        s: 8,
-        m: 12,
-        l: 16,
-      },
-    },
-  });
+  const useStreamingPreview = isStreaming && content.length > 0;
 
   return (
     <>
-      <View style={renderStyles.markdownRoot}>
-        {elements.map((element, index) => (
-          <Fragment key={`markdown-${index}`}>{element}</Fragment>
-        ))}
-      </View>
+      {useStreamingPreview ? (
+        <StreamingMarkdownPreview content={content} />
+      ) : (
+        <ParsedMarkdownContent
+          content={content}
+          isStreaming={isStreaming}
+          onCopyCode={copyCode}
+          onImagePress={handleImagePress}
+        />
+      )}
 
       {/* Full-screen image viewer */}
       <Modal visible={!!imageViewerUri} transparent animationType="fade">
@@ -671,6 +663,190 @@ export function MarkdownMessage({ content, isStreaming = false }: MarkdownMessag
       </Modal>
     </>
   );
+}
+
+function ParsedMarkdownContent({
+  content,
+  isStreaming,
+  onCopyCode,
+  onImagePress,
+}: ParsedMarkdownContentProps) {
+  const renderedContent = useMemo(
+    () => completeStreamingMarkdown(content, isStreaming),
+    [content, isStreaming]
+  );
+  const renderer = useMemo(
+    () => new NovaMarkdownRenderer(onCopyCode, onImagePress),
+    [onCopyCode, onImagePress]
+  );
+  const elements = useMarkdown(renderedContent, {
+    renderer,
+    styles: markedStyles,
+    theme: {
+      colors: {
+        border: COLORS.border,
+        code: COLORS.codeSurface,
+        link: COLORS.foreground,
+        text: COLORS.foreground,
+      },
+      spacing: {
+        xs: 4,
+        s: 8,
+        m: 12,
+        l: 16,
+      },
+    },
+  });
+
+  return (
+    <View style={renderStyles.markdownRoot}>
+      {elements.map((element, index) => (
+        <Fragment key={`markdown-${index}`}>{element}</Fragment>
+      ))}
+    </View>
+  );
+}
+
+function StreamingMarkdownPreview({ content }: { content: string }) {
+  const blocks = useMemo(() => parseStreamingBlocks(content), [content]);
+
+  return (
+    <View style={renderStyles.streamingRoot}>
+      {blocks.map((block, index) =>
+        block.type === 'code' ? (
+          <StreamingCodeBlock block={block} key={`stream-code-${index}`} />
+        ) : (
+          <StreamingTextBlock key={`stream-text-${index}`} text={block.text} />
+        )
+      )}
+    </View>
+  );
+}
+
+function StreamingTextBlock({ text }: { text: string }) {
+  const lines = text.split('\n');
+
+  return (
+    <View style={renderStyles.streamingParagraph}>
+      {lines.map((line, index) => {
+        if (!line.trim()) {
+          return <View key={`line-${index}`} style={renderStyles.streamingBreak} />;
+        }
+
+        const heading = line.match(/^(#{1,3})\s+(.+)$/);
+        if (heading) {
+          return (
+            <Text key={`line-${index}`} selectable style={renderStyles.streamingHeading}>
+              {heading[2]}
+            </Text>
+          );
+        }
+
+        const listItem = line.match(/^(\s*)([-*+]|\d+[.)])\s+(.+)$/);
+        if (listItem) {
+          return (
+            <View key={`line-${index}`} style={renderStyles.streamingListRow}>
+              <Text selectable style={renderStyles.streamingListMarker}>
+                {listItem[2].match(/\d/) ? listItem[2].replace(')', '.') : '\u2022'}
+              </Text>
+              <Text selectable style={renderStyles.streamingText}>
+                {listItem[3]}
+              </Text>
+            </View>
+          );
+        }
+
+        return (
+          <Text key={`line-${index}`} selectable style={renderStyles.streamingText}>
+            {line}
+          </Text>
+        );
+      })}
+    </View>
+  );
+}
+
+function StreamingCodeBlock({ block }: { block: Extract<StreamingBlock, { type: 'code' }> }) {
+  return (
+    <View style={renderStyles.streamingCodeBlock}>
+      <View style={renderStyles.streamingCodeHeader}>
+        <Text selectable style={renderStyles.codeLanguage}>
+          {block.language || 'text'}
+        </Text>
+      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={renderStyles.streamingCodeScroller}
+      >
+        <Text selectable style={renderStyles.streamingCodeText}>
+          {block.code}
+          {block.open ? '\n' : ''}
+        </Text>
+      </ScrollView>
+    </View>
+  );
+}
+
+function parseStreamingBlocks(content: string): StreamingBlock[] {
+  const blocks: StreamingBlock[] = [];
+  const lines = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  let textLines: string[] = [];
+  let codeLines: string[] = [];
+  let codeLanguage = 'text';
+  let activeFence: string | null = null;
+
+  const flushText = () => {
+    if (textLines.length === 0) return;
+    blocks.push({ type: 'text', text: textLines.join('\n') });
+    textLines = [];
+  };
+
+  const flushCode = (open: boolean) => {
+    blocks.push({
+      type: 'code',
+      language: codeLanguage,
+      code: codeLines.join('\n'),
+      open,
+    });
+    codeLines = [];
+    codeLanguage = 'text';
+  };
+
+  for (const line of lines) {
+    const fenceMatch = line.match(/^ {0,3}(```+|~~~+)\s*([^`]*)?$/);
+
+    if (fenceMatch) {
+      const fenceMarker = fenceMatch[1].startsWith('~') ? '~~~' : '```';
+
+      if (!activeFence) {
+        flushText();
+        activeFence = fenceMarker;
+        codeLanguage = fenceMatch[2]?.trim().split(/\s+/)[0] || 'text';
+        continue;
+      }
+
+      if (activeFence === fenceMarker) {
+        flushCode(false);
+        activeFence = null;
+        continue;
+      }
+    }
+
+    if (activeFence) {
+      codeLines.push(line);
+    } else {
+      textLines.push(line);
+    }
+  }
+
+  if (activeFence) {
+    flushCode(true);
+  } else {
+    flushText();
+  }
+
+  return blocks;
 }
 
 function completeStreamingMarkdown(content: string, isStreaming: boolean) {
@@ -768,6 +944,69 @@ const renderStyles = StyleSheet.create({
   },
   markdownRoot: {
     width: '100%',
+  },
+  streamingBreak: {
+    height: 10,
+  },
+  streamingCodeBlock: {
+    backgroundColor: COLORS.codeSurface,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 14,
+    overflow: 'hidden',
+  },
+  streamingCodeHeader: {
+    alignItems: 'center',
+    backgroundColor: COLORS.codeSurface,
+    borderBottomColor: COLORS.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  streamingCodeScroller: {
+    maxWidth: '100%',
+  },
+  streamingCodeText: {
+    color: COLORS.foreground,
+    fontFamily: MONO_FONT,
+    fontSize: 13,
+    lineHeight: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  streamingHeading: {
+    color: COLORS.foreground,
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 23,
+    marginBottom: 6,
+  },
+  streamingListMarker: {
+    color: COLORS.subtle,
+    fontSize: 15,
+    lineHeight: 24,
+    marginRight: 8,
+    minWidth: 18,
+    textAlign: 'right',
+  },
+  streamingListRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+  },
+  streamingParagraph: {
+    marginBottom: 12,
+  },
+  streamingRoot: {
+    width: '100%',
+  },
+  streamingText: {
+    color: COLORS.foreground,
+    flexShrink: 1,
+    fontSize: 15,
+    lineHeight: 24,
   },
   table: {
     backgroundColor: COLORS.codeSurface,

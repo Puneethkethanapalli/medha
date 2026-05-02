@@ -77,24 +77,6 @@ export const MessageBubble = React.memo(function MessageBubble({
   const displayReasoning = isStreaming ? streamingReasoning : message.reasoning;
   const isUser = message.role === 'user';
 
-  // Tool messages render as SearchResults if they contain citations
-  if (message.role === 'tool') {
-    if (!message.tool_calls) return null;
-    try {
-      const citations = JSON.parse(message.tool_calls);
-      if (Array.isArray(citations) && citations.length > 0) {
-        return (
-          <View className={`w-[85%] mb-4 ${dimmed ? 'opacity-40' : ''}`}>
-            <SearchResults citations={citations} />
-          </View>
-        );
-      }
-    } catch {
-      // Ignore parse errors
-    }
-    return null;
-  }
-
   // Edit mode state
   const [editText, setEditText] = useState(message.content);
 
@@ -121,6 +103,24 @@ export const MessageBubble = React.memo(function MessageBubble({
       setEditText(message.content);
     }
   }, [isEditing, message.content]);
+
+  // Tool messages render as SearchResults if they contain citations
+  if (message.role === 'tool') {
+    if (!message.tool_calls) return null;
+    try {
+      const citations = JSON.parse(message.tool_calls);
+      if (Array.isArray(citations) && citations.length > 0) {
+        return (
+          <View className={`w-[85%] mb-4 ${dimmed ? 'opacity-40' : ''}`}>
+            <SearchResults citations={citations} />
+          </View>
+        );
+      }
+    } catch {
+      // Ignore parse errors
+    }
+    return null;
+  }
 
   // User message — edit mode
   if (isUser && isEditing) {

@@ -9,21 +9,24 @@
  */
 
 export interface TokenStreamConfig {
-  /** Characters revealed per frame at normal speed (default: 3) */
+  /** Characters revealed per presentation tick at normal speed (default: 5) */
   baseSpeed?: number;
-  /** Minimum chars per frame when backlog is small (default: 1) */
+  /** Minimum chars per presentation tick when backlog is small (default: 2) */
   minSpeed?: number;
-  /** Maximum chars per frame when backlog is large (default: 12) */
+  /** Maximum chars per presentation tick when backlog is large (default: 36) */
   maxSpeed?: number;
-  /** Backlog size threshold for dynamic speed (default: 20) */
+  /** Character backlog threshold for dynamic speed (default: 240) */
   speedUpThreshold?: number;
+  /** Minimum time between React state updates (default: 32ms) */
+  frameIntervalMs?: number;
 }
 
 const DEFAULT_CONFIG: Required<TokenStreamConfig> = {
-  baseSpeed: 3,
-  minSpeed: 1,
-  maxSpeed: 12,
-  speedUpThreshold: 20,
+  baseSpeed: 5,
+  minSpeed: 2,
+  maxSpeed: 36,
+  speedUpThreshold: 240,
+  frameIntervalMs: 32,
 };
 
 export interface TokenStreamState {
@@ -42,16 +45,16 @@ interface QueueItem {
 
 export class TokenStream {
   private queue: QueueItem[] = [];
+  private pendingCharCount = 0;
   private visibleContent = '';
   private visibleReasoning = '';
   private running = false;
   private rafId: number | null = null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private setState: (fn: (state: any) => Partial<TokenStreamState>) => void;
+  private lastEmitAt = 0;
+  private setState: (fn: () => Partial<TokenStreamState>) => void;
   private config: Required<TokenStreamConfig>;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  constructor(setState: (fn: (state: any) => Partial<TokenStreamState>) => void, config: TokenStreamConfig = {}) {
+  constructor(setState: (fn: () => Partial<TokenStreamState>) => void, config: TokenStreamConfig = {}) {
     this.setState = setState;
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
@@ -60,6 +63,7 @@ export class TokenStream {
   pushToken(token: string): void {
     if (!token) return;
     this.queue.push({ kind: 'content', text: token });
+    this.pendingCharCount += token.length;
     this.start();
   }
 
@@ -67,55 +71,83 @@ export class TokenStream {
   pushReasoning(token: string): void {
     if (!token) return;
     this.queue.push({ kind: 'reasoning', text: token });
+    this.pendingCharCount += token.length;
     this.start();
   }
 
   private start(): void {
     if (this.running) return;
     this.running = true;
-    this.drain();
+    this.lastEmitAt = 0;
+    this.scheduleNextFrame();
   }
 
-  private get charsPerFrame(): number {
+  private get charsPerTick(): number {
     const { baseSpeed, minSpeed, maxSpeed, speedUpThreshold } = this.config;
-    const backlog = this.queue.length;
-    if (backlog > speedUpThreshold) {
-      return Math.min(maxSpeed, baseSpeed + Math.floor((backlog - speedUpThreshold) / 10));
+    const backlog = this.pendingCharCount;
+    if (backlog <= 0) return 0;
+
+    if (backlog <= baseSpeed) {
+      return backlog;
     }
-    return backlog <= 3 ? minSpeed : baseSpeed;
+
+    if (backlog > speedUpThreshold) {
+      const pressure = Math.ceil((backlog - speedUpThreshold) / 120);
+      return Math.min(maxSpeed, baseSpeed + pressure * baseSpeed);
+    }
+
+    return Math.min(maxSpeed, Math.max(minSpeed, baseSpeed));
   }
 
-  private drain = (): void => {
+  private drain = (timestamp: number): void => {
+    if (this.lastEmitAt > 0 && timestamp - this.lastEmitAt < this.config.frameIntervalMs) {
+      this.scheduleNextFrame();
+      return;
+    }
+
     if (this.queue.length === 0) {
       this.running = false;
       this.rafId = null;
       return;
     }
 
-    const item = this.queue[0];
-    const chars = Math.min(this.charsPerFrame, item.text.length);
-    const revealed = item.text.slice(0, chars);
-
-    if (item.kind === 'reasoning') {
-      this.visibleReasoning += revealed;
-    } else {
-      this.visibleContent += revealed;
-    }
-
-    if (chars >= item.text.length) {
-      // Fully consumed this item
-      this.queue.shift();
-    } else {
-      // Partially consumed — trim in-place
-      item.text = item.text.slice(chars);
-    }
-
+    this.lastEmitAt = timestamp;
+    this.consume(this.charsPerTick);
     this.emit();
 
     if (this.running) {
-      this.rafId = requestAnimationFrame(this.drain);
+      this.scheduleNextFrame();
     }
   };
+
+  private scheduleNextFrame(): void {
+    this.rafId = requestAnimationFrame(this.drain);
+  }
+
+  private consume(charBudget: number): void {
+    let remainingBudget = charBudget;
+
+    while (remainingBudget > 0 && this.queue.length > 0) {
+      const item = this.queue[0];
+      const chars = Math.min(remainingBudget, item.text.length);
+      const revealed = item.text.slice(0, chars);
+
+      if (item.kind === 'reasoning') {
+        this.visibleReasoning += revealed;
+      } else {
+        this.visibleContent += revealed;
+      }
+
+      this.pendingCharCount -= chars;
+      remainingBudget -= chars;
+
+      if (chars >= item.text.length) {
+        this.queue.shift();
+      } else {
+        item.text = item.text.slice(chars);
+      }
+    }
+  }
 
   private emit(): void {
     this.setState(() => ({
@@ -139,8 +171,10 @@ export class TokenStream {
     }
 
     this.queue = [];
+    this.pendingCharCount = 0;
     this.running = false;
     this.rafId = null;
+    this.lastEmitAt = 0;
     this.emit();
   }
 
@@ -150,10 +184,12 @@ export class TokenStream {
       cancelAnimationFrame(this.rafId);
     }
     this.queue = [];
+    this.pendingCharCount = 0;
     this.visibleContent = '';
     this.visibleReasoning = '';
     this.running = false;
     this.rafId = null;
+    this.lastEmitAt = 0;
   }
 
   get content(): string {

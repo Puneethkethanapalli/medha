@@ -28,10 +28,11 @@ function getOrCreateStream(
   let stream = streams.get(messageId);
   if (!stream) {
     const config: TokenStreamConfig = {
-      baseSpeed: 3,
-      minSpeed: 1,
-      maxSpeed: 12,
-      speedUpThreshold: 20,
+      baseSpeed: 5,
+      minSpeed: 2,
+      maxSpeed: 36,
+      speedUpThreshold: 240,
+      frameIntervalMs: 32,
     };
     stream = new TokenStream(setState, config);
     streams.set(messageId, stream);

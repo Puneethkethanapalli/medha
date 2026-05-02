@@ -34,6 +34,8 @@ const FOLLOW_BOTTOM_THRESHOLD = 24;
 const SCROLL_AWAY_THRESHOLD = 8;
 /** Content must exceed viewport by this much before we show the jump button. */
 const JUMP_BUTTON_THRESHOLD = 64;
+/** Auto-follow cadence during streaming; avoids fighting layout every token. */
+const STREAM_SCROLL_INTERVAL_MS = 96;
 
 export function MessageList({
   messages,
@@ -48,6 +50,7 @@ export function MessageList({
   const scrollFrameRef = useRef<number | null>(null);
   const pendingScrollTargetRef = useRef<string | null>(null);
   const lastAppliedTargetKeyRef = useRef<string | null>(null);
+  const lastScrollToBottomAtRef = useRef(0);
   const shouldFollowBottomRef = useRef(true);
   const isUserScrollingRef = useRef(false);
   const dragStartOffsetYRef = useRef(0);
@@ -93,7 +96,13 @@ export function MessageList({
     [hasScrollableContent, setJumpButtonVisible]
   );
 
-  const scrollToBottom = useCallback((animated: boolean) => {
+  const scrollToBottom = useCallback((animated: boolean, minIntervalMs = 0) => {
+    const now = Date.now();
+    if (minIntervalMs > 0 && now - lastScrollToBottomAtRef.current < minIntervalMs) {
+      return;
+    }
+    lastScrollToBottomAtRef.current = now;
+
     if (scrollFrameRef.current !== null) {
       cancelAnimationFrame(scrollFrameRef.current);
     }
@@ -183,7 +192,7 @@ export function MessageList({
 
   useEffect(() => {
     if (isStreaming && shouldFollowBottomRef.current && !isUserScrollingRef.current) {
-      scrollToBottom(false);
+      scrollToBottom(false, STREAM_SCROLL_INTERVAL_MS);
     }
   }, [isStreaming, scrollToBottom, streamingContentLength, streamingReasoningLength]);
 
@@ -194,10 +203,10 @@ export function MessageList({
       metricsRef.current.viewportHeight = event.nativeEvent.layout.height;
       setJumpButtonVisible(!shouldFollowBottomRef.current && hasScrollableContent());
       if (shouldFollowBottomRef.current && !isUserScrollingRef.current) {
-        scrollToBottom(false);
+        scrollToBottom(false, isStreaming ? STREAM_SCROLL_INTERVAL_MS : 0);
       }
     },
-    [hasScrollableContent, scrollToBottom, setJumpButtonVisible]
+    [hasScrollableContent, isStreaming, scrollToBottom, setJumpButtonVisible]
   );
 
   const handleContentSizeChange = useCallback(
@@ -205,10 +214,10 @@ export function MessageList({
       metricsRef.current.contentHeight = height;
       setJumpButtonVisible(!shouldFollowBottomRef.current && hasScrollableContent());
       if (shouldFollowBottomRef.current && !isUserScrollingRef.current) {
-        scrollToBottom(false);
+        scrollToBottom(false, isStreaming ? STREAM_SCROLL_INTERVAL_MS : 0);
       }
     },
-    [hasScrollableContent, scrollToBottom, setJumpButtonVisible]
+    [hasScrollableContent, isStreaming, scrollToBottom, setJumpButtonVisible]
   );
 
   const handleScroll = useCallback(

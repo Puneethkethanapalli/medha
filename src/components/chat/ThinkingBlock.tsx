@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { View, Pressable, Animated, LayoutAnimation, UIManager, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { ChevronDown, Brain } from 'lucide-react-native';
@@ -24,9 +24,18 @@ interface ThinkingBlockProps {
   isStreaming: boolean;
 }
 
+const MAX_LIVE_REASONING_CHARS = 1200;
+
 export function ThinkingBlock({ reasoning, isStreaming }: ThinkingBlockProps) {
   const [expanded, setExpanded] = useState(isStreaming);
   const chevronRotation = useRef(new Animated.Value(isStreaming ? 1 : 0)).current;
+  const visibleReasoning = useMemo(() => {
+    if (!isStreaming || reasoning.length <= MAX_LIVE_REASONING_CHARS) {
+      return reasoning;
+    }
+
+    return `...\n${reasoning.slice(-MAX_LIVE_REASONING_CHARS)}`;
+  }, [isStreaming, reasoning]);
 
   // Keep live thinking readable, then collapse it once the answer begins.
   useEffect(() => {
@@ -79,7 +88,7 @@ export function ThinkingBlock({ reasoning, isStreaming }: ThinkingBlockProps) {
       {expanded && (
         <View className="bg-surface-container-lowest border border-outline-variant/10 rounded-lg px-3 py-2.5 mt-1">
           <Text className="text-on-surface-variant text-[13px] leading-relaxed">
-            {reasoning}
+            {visibleReasoning}
             {isStreaming && <PulsingCursor />}
           </Text>
         </View>
