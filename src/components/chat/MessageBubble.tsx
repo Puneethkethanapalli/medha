@@ -5,13 +5,20 @@ import * as Clipboard from 'expo-clipboard';
 import LottieView from 'lottie-react-native';
 import { Copy, RefreshCw, TriangleAlert, FileText } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
-import { useStreamingContent, useStreamingReasoning } from '@/stores/chat-store';
+import {
+  useStreamingActivity,
+  useStreamingContent,
+  useStreamingReasoning,
+  useStreamingTokensPerSecond,
+  useToolActivity,
+} from '@/stores/chat-store';
 import { useUIStore } from '@/stores/ui-store';
 import { ThinkingBlock } from './ThinkingBlock';
 import { MarkdownMessage } from './MarkdownMessage';
 import { StreamingCursor } from './StreamingCursor';
 import { SearchResults } from './SearchResults';
 import { ToolResultCard } from './ToolResultCard';
+import { formatTokensPerSecond, parseResponseTokenMetrics, type ResponseTokenMetrics } from '@/lib/tokens/metrics';
 import type { Message } from '@/types';
 import type { Citation, ToolDisplay } from '@/lib/tools/types';
 
@@ -74,12 +81,21 @@ export const MessageBubble = React.memo(function MessageBubble({
 }: MessageBubbleProps) {
   const streamingContent = useStreamingContent(message.id);
   const streamingReasoning = useStreamingReasoning(message.id);
+  const streamingActivity = useStreamingActivity(message.id);
+  const streamingTokensPerSecond = useStreamingTokensPerSecond(message.id);
+  const toolActivity = useToolActivity(message.id);
   const showActionsMenu = useUIStore((s) => s.showActionsMenu);
   const isStreaming = message.status === 'streaming';
   const displayContent = isStreaming ? streamingContent : message.content;
   const displayReasoning = isStreaming ? streamingReasoning : message.reasoning;
+  const isStreamingActivityVisible = isStreaming && !displayContent && !!streamingActivity;
+  const isToolActivityVisible = !!toolActivity;
+  const displayActivity = toolActivity || (isStreamingActivityVisible ? streamingActivity : null);
   const isUser = message.role === 'user';
   const showToast = useUIStore((s) => s.showToast);
+  const responseMetrics = parseResponseTokenMetrics(message.tokens_used);
+  const responseMetricsLabel = formatResponseMetricsLabel(responseMetrics);
+  const liveTokensPerSecondLabel = formatTokensPerSecond(streamingTokensPerSecond);
 
   // Edit mode state
   const [editText, setEditText] = useState(message.content);
@@ -229,7 +245,8 @@ export const MessageBubble = React.memo(function MessageBubble({
 
   // Assistant message
   const hasReasoning = !!displayReasoning;
-  const isReasoningOnly = isStreaming && hasReasoning && !displayContent;
+  const showThinkingBlock = hasReasoning || isStreamingActivityVisible || isToolActivityVisible;
+  const isThinkingOnly = showThinkingBlock && !displayContent;
 
   return (
     <View className={`flex-row items-start w-full mb-4 ${dimmed ? 'opacity-40' : ''}`}>
@@ -237,22 +254,24 @@ export const MessageBubble = React.memo(function MessageBubble({
 
       <View className="flex-1 items-start">
         {/* Thinking block */}
-        {hasReasoning && (
+        {showThinkingBlock && (
           <ThinkingBlock
-            reasoning={displayReasoning!}
-            isStreaming={isStreaming && !displayContent}
+            reasoning={displayReasoning}
+            activity={displayActivity}
+            isActive={isStreamingActivityVisible || isToolActivityVisible}
+            expandReasoning={isStreamingActivityVisible && hasReasoning}
           />
         )}
 
         {/* Content */}
-        {(displayContent || !isReasoningOnly) && (
+        {(displayContent || !isThinkingOnly) && (
           <View
             className={`w-full rounded-2xl ${
               highlighted ? 'bg-surface-container-low border border-outline-variant/30 px-3 py-2' : ''
             }`}
           >
             <MarkdownMessage content={displayContent} isStreaming={isStreaming} />
-            {isStreaming && !isReasoningOnly && <StreamingCursor />}
+            {isStreaming && !isThinkingOnly && <StreamingCursor />}
           </View>
         )}
 
@@ -282,6 +301,15 @@ export const MessageBubble = React.memo(function MessageBubble({
           </View>
         )}
 
+        {/* Live throughput while streaming */}
+        {isStreaming && liveTokensPerSecondLabel && (
+          <View className="mt-1 flex-row items-center gap-2 pt-1">
+            <Text className="text-muted-foreground text-[10px] opacity-50">
+              {liveTokensPerSecondLabel} tokens/s
+            </Text>
+          </View>
+        )}
+
         {/* Copy button + token usage for completed messages */}
         {!!displayContent && !isStreaming && message.status !== 'error' && (
           <View className="mt-1 flex-row items-center gap-2 pt-1">
@@ -295,23 +323,11 @@ export const MessageBubble = React.memo(function MessageBubble({
               <Copy size={15} color="hsl(0, 0%, 44%)" strokeWidth={2} />
             </Pressable>
             {/* Token usage indicator */}
-            {message.tokens_used && (() => {
-              try {
-                const usage = JSON.parse(message.tokens_used);
-                if (usage.prompt > 0 || usage.completion > 0) {
-                  return (
-                    <Text className="text-muted-foreground text-[10px] opacity-50">
-                      {usage.prompt > 0 && `~${usage.prompt.toLocaleString()}↑`}
-                      {usage.prompt > 0 && usage.completion > 0 && ' '}
-                      {usage.completion > 0 && `~${usage.completion.toLocaleString()}↓`}
-                    </Text>
-                  );
-                }
-              } catch {
-                // Ignore malformed JSON
-              }
-              return null;
-            })()}
+            {responseMetricsLabel && (
+              <Text className="text-muted-foreground text-[10px] opacity-50">
+                {responseMetricsLabel}
+              </Text>
+            )}
           </View>
         )}
       </View>
@@ -333,4 +349,20 @@ function isCitationArray(value: unknown): value is Citation[] {
       && typeof (item as Citation).title === 'string'
       && typeof (item as Citation).url === 'string'
     );
+}
+
+function formatResponseMetricsLabel(metrics: ResponseTokenMetrics | null): string | null {
+  if (!metrics) return null;
+
+  const parts: string[] = [];
+  const tokenParts: string[] = [];
+
+  if (metrics.prompt > 0) tokenParts.push(`~${metrics.prompt.toLocaleString()}↑`);
+  if (metrics.completion > 0) tokenParts.push(`~${metrics.completion.toLocaleString()}↓`);
+  if (tokenParts.length > 0) parts.push(tokenParts.join(' '));
+
+  const tokensPerSecond = formatTokensPerSecond(metrics.tokensPerSecond);
+  if (tokensPerSecond) parts.push(`${tokensPerSecond} tokens/s`);
+
+  return parts.length > 0 ? parts.join(' · ') : null;
 }

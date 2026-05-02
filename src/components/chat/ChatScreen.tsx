@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Pressable, AppState, type AppStateStatus } from 'react-native';
-import { KeyboardStickyView } from 'react-native-keyboard-controller';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { View, Pressable, AppState, type AppStateStatus, type LayoutChangeEvent } from 'react-native';
+import { KeyboardStickyView, useKeyboardState } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Menu, PenSquare, Zap } from 'lucide-react-native';
@@ -8,6 +8,7 @@ import { Text } from '@/components/ui/text';
 import { ModelPill } from '@/components/chat/ModelPill';
 import { ChatSettingsButton } from '@/components/chat/ChatSettingsButton';
 import { ImageGenToggle } from '@/components/chat/ImageGenToggle';
+import { ContextWindowCircle } from '@/components/chat/ContextWindowCircle';
 import { MessageList } from '@/components/chat/MessageList';
 import { MessageActionsMenu } from '@/components/chat/MessageActionsMenu';
 import { OfflineBanner } from '@/components/chat/OfflineBanner';
@@ -32,14 +33,22 @@ import { deepResearchTool, webSearchTool } from '@/lib/tools/web-search';
 import { generateImageTool } from '@/lib/tools/image-gen';
 import { saveMemoryTool, forgetMemoryTool } from '@/lib/tools/memory-tools';
 import { describeToolCalls, executeToolCall } from '@/lib/tools/orchestrator';
+import {
+  deriveThinkingActivity,
+  describeToolActivity,
+  WRITING_RESPONSE_ACTIVITY,
+} from '@/lib/streaming/thinking-activity';
 import { composeSystemPrompt } from '@/lib/rules/injector';
 import { parseAllowedTools } from '@/lib/skills/injector';
 import { readSkillFull } from '@/lib/skills/storage';
 import { recordUsage } from '@/lib/db/token-usage';
 import { calculateCost } from '@/lib/tokens/pricing';
+import { estimateMessageTokens, estimateTokens } from '@/lib/tokens/estimator';
+import { serializeResponseTokenMetrics } from '@/lib/tokens/metrics';
 import { getApp } from '@/lib/db/apps';
 import { getIconByName } from '@/lib/apps/icons';
 import { parseExamplePrompts } from '@/lib/apps/types';
+import { getModelContextWindow } from '@/lib/models/capabilities';
 import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { useRouter } from 'expo-router';
 import type { Message, Attachment } from '@/types';
@@ -66,6 +75,7 @@ export const ChatScreen = React.memo(function ChatScreen({
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [hasImageGenKey, setHasImageGenKey] = useState(false);
   const [activeSkillName, setActiveSkillName] = useState<string | null>(null);
+  const [inputBarHeight, setInputBarHeight] = useState(0);
   const abortRef = useRef<{ abort: () => void } | null>(null);
   const usageAccumRef = useRef<UsageData>({ promptTokens: 0, completionTokens: 0 });
 
@@ -86,9 +96,16 @@ export const ChatScreen = React.memo(function ChatScreen({
   const openModelPicker = useUIStore((s) => s.openModelPicker);
 
   const {
+    streamingMessageId,
+    streamingContent,
+    streamingReasoning,
     startStreaming,
     appendToken,
     appendReasoningToken,
+    setStreamingActivity,
+    setStreamingTokensPerSecond,
+    startToolActivity,
+    stopToolActivity,
     stopStreaming,
     setError,
   } = useChatStore();
@@ -217,14 +234,14 @@ export const ChatScreen = React.memo(function ChatScreen({
   // ─── Core streaming logic (with tool call loop) ─────────────────────
   const streamNewResponse = useCallback(
     async (convId: string, toolRound = 0) => {
-      const providerId = lastProvider || 'openrouter';
+      const providerId = activeApp?.provider || lastProvider || 'openrouter';
       const apiKey = await getApiKey(providerId);
       if (!apiKey) return;
 
       const provider = getProvider(providerId);
       if (!provider) return;
 
-      const model = lastModel || getDefaultModel(providerId);
+      const model = activeApp?.model || lastModel || getDefaultModel(providerId);
       const conversation = getConversation(convId);
       const convActiveSkill = activeSkillName ?? conversation?.active_skill_name ?? null;
       let systemPrompt = composeSystemPrompt(
@@ -324,12 +341,19 @@ export const ChatScreen = React.memo(function ChatScreen({
       let accumulated = '';
       let accumulatedReasoning = '';
       let firstTokenFired = false;
+      let currentActivity = '';
+      let firstOutputAt = 0;
+      let lastSpeedUpdateAt = 0;
+      let roundCompletionTokens = 0;
       // Reset usage accumulator for this response (accumulates across tool call rounds)
       if (toolRound === 0) {
         usageAccumRef.current = { promptTokens: 0, completionTokens: 0 };
       }
 
       const fireFirstTokenHaptic = () => {
+        if (!firstOutputAt) {
+          firstOutputAt = Date.now();
+        }
         if (!firstTokenFired) {
           firstTokenFired = true;
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -339,19 +363,54 @@ export const ChatScreen = React.memo(function ChatScreen({
       const handleUsage = (usage: UsageData) => {
         usageAccumRef.current.promptTokens += usage.promptTokens;
         usageAccumRef.current.completionTokens += usage.completionTokens;
+        roundCompletionTokens += usage.completionTokens;
+      };
+
+      const updateActivity = (activity: string) => {
+        if (activity === currentActivity) return;
+        currentActivity = activity;
+        setStreamingActivity(activity);
+      };
+
+      const calculateTokensPerSecond = (now: number) => {
+        if (!firstOutputAt) return null;
+        const elapsedSeconds = Math.max((now - firstOutputAt) / 1000, 0.1);
+        const outputTokens = roundCompletionTokens > 0
+          ? roundCompletionTokens
+          : estimateTokens(`${accumulated}\n${accumulatedReasoning}`);
+
+        if (outputTokens <= 0) return null;
+        return outputTokens / elapsedSeconds;
+      };
+
+      const updateTokensPerSecond = () => {
+        const now = Date.now();
+        if (!firstOutputAt || now - firstOutputAt < 750) return;
+        if (now - lastSpeedUpdateAt < 500) return;
+
+        const tokensPerSecond = calculateTokensPerSecond(now);
+        if (!tokensPerSecond) return;
+
+        lastSpeedUpdateAt = now;
+        setStreamingTokensPerSecond(tokensPerSecond);
       };
 
       const handleDone = () => {
         // Save usage data
         const { promptTokens, completionTokens } = usageAccumRef.current;
-        const tokensUsedJson = JSON.stringify({ prompt: promptTokens, completion: completionTokens });
+        const tokensPerSecond = calculateTokensPerSecond(Date.now());
+        const tokensUsedJson = serializeResponseTokenMetrics({
+          prompt: promptTokens,
+          completion: completionTokens,
+          ...(tokensPerSecond ? { tokensPerSecond } : {}),
+        });
         const costUsd = calculateCost(promptTokens, completionTokens, model);
 
         updateMessage(assistantMsgId, {
           content: accumulated,
           reasoning: accumulatedReasoning || null,
           status: 'complete',
-          tokens_used: (promptTokens > 0 || completionTokens > 0) ? tokensUsedJson : null,
+          tokens_used: tokensUsedJson,
         });
 
         // Record to token_usage table
@@ -368,7 +427,7 @@ export const ChatScreen = React.memo(function ChatScreen({
                   content: accumulated,
                   reasoning: accumulatedReasoning || null,
                   status: 'complete',
-                  tokens_used: (promptTokens > 0 || completionTokens > 0) ? tokensUsedJson : null,
+                  tokens_used: tokensUsedJson,
                 }
               : m
           )
@@ -401,6 +460,9 @@ export const ChatScreen = React.memo(function ChatScreen({
           return;
         }
 
+        const toolActivity = describeToolActivity(toolCalls.map((call) => call.name));
+        updateActivity(toolActivity);
+
         // Update the assistant message to show tool usage status + save tool_calls metadata
         const statusText = accumulated || describeToolCalls(toolCalls);
         const toolCallsJson = JSON.stringify(toolCalls);
@@ -418,6 +480,7 @@ export const ChatScreen = React.memo(function ChatScreen({
           )
         );
         stopStreaming();
+        startToolActivity(assistantMsgId, toolActivity);
 
         // Execute tool calls in parallel, then save results in model-emitted order.
         const outcomes = await Promise.all(toolCalls.map((tc) => executeToolCall(tc)));
@@ -436,6 +499,7 @@ export const ChatScreen = React.memo(function ChatScreen({
         // Reload messages to include tool results, then re-stream for final response
         const updatedMessages = getMessages(convId);
         setMessages(updatedMessages);
+        stopToolActivity(assistantMsgId);
         await streamNewResponse(convId, toolRound + 1);
       };
 
@@ -450,13 +514,17 @@ export const ChatScreen = React.memo(function ChatScreen({
         },
         (token) => {
           fireFirstTokenHaptic();
+          updateActivity(WRITING_RESPONSE_ACTIVITY);
           accumulated += token;
           appendToken(token);
+          updateTokensPerSecond();
         },
         (reasoningToken) => {
           fireFirstTokenHaptic();
           accumulatedReasoning += reasoningToken;
+          updateActivity(deriveThinkingActivity(accumulatedReasoning));
           appendReasoningToken(reasoningToken);
+          updateTokensPerSecond();
         },
         handleDone,
         handleError,
@@ -466,7 +534,7 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       abortRef.current = response;
     },
-    [lastModel, lastProvider, thinkingMode, webSearchEnabled, memoryEnabled, imageGenEnabled, activeSkillName, startStreaming, appendToken, appendReasoningToken, stopStreaming, setError]
+    [activeApp?.model, activeApp?.provider, lastModel, lastProvider, thinkingMode, webSearchEnabled, memoryEnabled, imageGenEnabled, activeSkillName, startStreaming, appendToken, appendReasoningToken, setStreamingActivity, setStreamingTokensPerSecond, startToolActivity, stopToolActivity, stopStreaming, setError]
   );
 
   const handleSend = useCallback(
@@ -633,6 +701,13 @@ export const ChatScreen = React.memo(function ChatScreen({
     setEditingMessage(null);
   }, [setEditingMessage]);
 
+  const handleInputBarLayout = useCallback((event: LayoutChangeEvent) => {
+    const nextHeight = Math.ceil(event.nativeEvent.layout.height);
+    setInputBarHeight((currentHeight) =>
+      currentHeight === nextHeight ? currentHeight : nextHeight
+    );
+  }, []);
+
   // ─── Regenerate ─────────────────────────────────────────────────────
 
   const handleRegenerate = useCallback(
@@ -684,7 +759,41 @@ export const ChatScreen = React.memo(function ChatScreen({
   );
 
   const insets = useSafeAreaInsets();
+  const isKeyboardVisible = useKeyboardState((state) => state.isVisible);
   const hasMessages = messages.length > 0;
+  const effectiveProviderId = activeApp?.provider || lastProvider || 'openrouter';
+  const effectiveModelId = activeApp?.model || lastModel || getDefaultModel(effectiveProviderId);
+  const contextCircleBottomOffset = (inputBarHeight || Math.max(insets.bottom, 12) + 72) + 12;
+  const contextWindow = useMemo(
+    () => getModelContextWindow(effectiveModelId),
+    [effectiveModelId]
+  );
+  const contextSystemPrompt = useMemo(() => {
+    if (!currentConvId) return activeApp?.rules || pendingConversationRule || undefined;
+
+    const conversation = getConversation(currentConvId);
+    return composeSystemPrompt(
+      currentConvId,
+      conversation?.system_prompt,
+      activeSkillName ?? conversation?.active_skill_name ?? null
+    );
+  }, [activeApp?.rules, activeSkillName, currentConvId, pendingConversationRule]);
+  const contextMessages = useMemo(() => {
+    if (!streamingMessageId) return messages;
+
+    return messages.map((message) => {
+      if (message.id !== streamingMessageId) return message;
+      return {
+        ...message,
+        content: streamingContent,
+        reasoning: streamingReasoning || message.reasoning,
+      };
+    });
+  }, [messages, streamingContent, streamingMessageId, streamingReasoning]);
+  const contextUsedTokens = useMemo(() => {
+    if (!contextWindow || contextMessages.length === 0) return 0;
+    return estimateMessageTokens(contextMessages, contextSystemPrompt);
+  }, [contextMessages, contextSystemPrompt, contextWindow]);
 
   return (
     <View className="flex-1 bg-background">
@@ -765,8 +874,25 @@ export const ChatScreen = React.memo(function ChatScreen({
         )}
       </View>
 
+      <View
+        pointerEvents={isKeyboardVisible ? 'none' : 'box-none'}
+        style={{
+          position: 'absolute',
+          right: 16,
+          bottom: contextCircleBottomOffset,
+          opacity: isKeyboardVisible ? 0 : 1,
+          zIndex: 1000,
+          elevation: 1000,
+        }}
+      >
+        <ContextWindowCircle
+          usedTokens={contextUsedTokens}
+          contextWindow={contextWindow}
+        />
+      </View>
+
       {/* Input — sticks above keyboard */}
-      <KeyboardStickyView offset={{ closed: 0, opened: 0 }}>
+      <KeyboardStickyView offset={{ closed: 0, opened: 0 }} onLayout={handleInputBarLayout}>
         <InputBar onSend={handleSend} onStop={handleStop} />
       </KeyboardStickyView>
 

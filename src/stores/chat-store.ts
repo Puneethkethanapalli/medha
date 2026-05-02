@@ -1,17 +1,26 @@
 import { create } from 'zustand';
 import { TokenStream, type TokenStreamConfig } from '@/lib/streaming/TokenStream';
+import { DEFAULT_THINKING_ACTIVITY } from '@/lib/streaming/thinking-activity';
 
 interface ChatState {
   isStreaming: boolean;
   streamingMessageId: string | null;
   streamingContent: string;
   streamingReasoning: string;
+  streamingActivity: string;
+  streamingTokensPerSecond: number;
+  toolActivityMessageId: string | null;
+  toolActivity: string;
   error: string | null;
 
   // Actions
   startStreaming: (messageId: string) => void;
   appendToken: (token: string) => void;
   appendReasoningToken: (token: string) => void;
+  setStreamingActivity: (activity: string) => void;
+  setStreamingTokensPerSecond: (tokensPerSecond: number) => void;
+  startToolActivity: (messageId: string, activity: string) => void;
+  stopToolActivity: (messageId?: string) => void;
   stopStreaming: () => void;
   cancelStreaming: () => void;
   setError: (error: string | null) => void;
@@ -45,6 +54,10 @@ export const useChatStore = create<ChatState>((set, _get) => ({
   streamingMessageId: null,
   streamingContent: '',
   streamingReasoning: '',
+  streamingActivity: '',
+  streamingTokensPerSecond: 0,
+  toolActivityMessageId: null,
+  toolActivity: '',
   error: null,
 
   startStreaming: (messageId: string) => {
@@ -60,6 +73,8 @@ export const useChatStore = create<ChatState>((set, _get) => ({
       streamingMessageId: messageId,
       streamingContent: '',
       streamingReasoning: '',
+      streamingActivity: DEFAULT_THINKING_ACTIVITY,
+      streamingTokensPerSecond: 0,
       error: null,
     });
   },
@@ -80,6 +95,38 @@ export const useChatStore = create<ChatState>((set, _get) => ({
     stream.pushReasoning(token);
   },
 
+  setStreamingActivity: (activity: string) => {
+    const { streamingMessageId, streamingActivity } = _get();
+    if (!streamingMessageId || !activity || streamingActivity === activity) return;
+    set({ streamingActivity: activity });
+  },
+
+  setStreamingTokensPerSecond: (tokensPerSecond: number) => {
+    const { streamingMessageId, streamingTokensPerSecond } = _get();
+    if (!streamingMessageId || !Number.isFinite(tokensPerSecond) || tokensPerSecond <= 0) return;
+
+    const rounded = Number(tokensPerSecond.toFixed(1));
+    if (streamingTokensPerSecond === rounded) return;
+    set({ streamingTokensPerSecond: rounded });
+  },
+
+  startToolActivity: (messageId: string, activity: string) => {
+    if (!messageId || !activity) return;
+    set({
+      toolActivityMessageId: messageId,
+      toolActivity: activity,
+    });
+  },
+
+  stopToolActivity: (messageId?: string) => {
+    const { toolActivityMessageId } = _get();
+    if (messageId && toolActivityMessageId !== messageId) return;
+    set({
+      toolActivityMessageId: null,
+      toolActivity: '',
+    });
+  },
+
   stopStreaming: () => {
     const { streamingMessageId } = _get();
     if (streamingMessageId) {
@@ -96,6 +143,10 @@ export const useChatStore = create<ChatState>((set, _get) => ({
       streamingMessageId: null,
       streamingContent: '',
       streamingReasoning: '',
+      streamingActivity: '',
+      streamingTokensPerSecond: 0,
+      toolActivityMessageId: null,
+      toolActivity: '',
     });
   },
 
@@ -113,11 +164,15 @@ export const useChatStore = create<ChatState>((set, _get) => ({
       streamingMessageId: null,
       streamingContent: '',
       streamingReasoning: '',
+      streamingActivity: '',
+      streamingTokensPerSecond: 0,
+      toolActivityMessageId: null,
+      toolActivity: '',
     });
   },
 
   setError: (error: string | null) => {
-    set({ error, isStreaming: false });
+    set({ error, isStreaming: false, streamingTokensPerSecond: 0 });
   },
 
   clearError: () => {
@@ -137,5 +192,26 @@ export function useStreamingReasoning(messageId: string | null) {
   return useChatStore((state) => {
     if (state.streamingMessageId !== messageId) return '';
     return state.streamingReasoning;
+  });
+}
+
+export function useStreamingActivity(messageId: string | null) {
+  return useChatStore((state) => {
+    if (state.streamingMessageId !== messageId) return '';
+    return state.streamingActivity;
+  });
+}
+
+export function useStreamingTokensPerSecond(messageId: string | null) {
+  return useChatStore((state) => {
+    if (state.streamingMessageId !== messageId) return 0;
+    return state.streamingTokensPerSecond;
+  });
+}
+
+export function useToolActivity(messageId: string | null) {
+  return useChatStore((state) => {
+    if (state.toolActivityMessageId !== messageId) return '';
+    return state.toolActivity;
   });
 }

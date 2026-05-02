@@ -37,7 +37,7 @@ export interface Message {
   attachments: Attachment[] | null;
   status: 'complete' | 'streaming' | 'cancelled' | 'error';
   model: string | null;
-  /** JSON string: {"prompt": N, "completion": N} or null */
+  /** JSON string: {"prompt": N, "completion": N, "tokensPerSecond"?: N} or null */
   tokens_used: string | null;
   /** Tool call ID — set when role is 'tool' to correlate result with the call */
   tool_call_id: string | null;
