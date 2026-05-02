@@ -15,6 +15,7 @@ const PROVIDER_SHORT: Record<string, string> = {
   'google-ai': 'G',
   anthropic: 'A',
   minimax: 'MM',
+  'cloudflare-ai': 'CF',
 };
 
 export function ModelPill() {

@@ -24,7 +24,7 @@ const PROVIDER_PREFIX_MAP: Record<string, string> = {
   'google-ai': 'gemini',   // LiteLLM keys: "gemini/gemini-2.0-flash"
   anthropic: '',           // LiteLLM keys: "claude-sonnet-4-20250514" (no prefix)
   minimax: 'minimax',      // LiteLLM keys: "minimax/MiniMax-M2.5"
-  'cloudflare-ai': '',     // Not in LiteLLM typically
+  'cloudflare-ai': 'cloudflare', // LiteLLM keys: "cloudflare/@cf/..."
   openrouter: 'openrouter', // LiteLLM keys: "openrouter/..." (but OpenRouter has its own API)
 };
 
@@ -191,6 +191,10 @@ function getLookupKeys(modelId: string, provider?: string): string[] {
   if (provider) {
     const prefix = PROVIDER_PREFIX_MAP[provider];
     if (prefix) add(`${prefix}/${normalized}`);
+
+    if (provider === 'minimax' && normalized.endsWith('-highspeed')) {
+      add(`minimax/${normalized.replace(/-highspeed$/, '-lightning')}`);
+    }
   }
 
   const slashIdx = normalized.indexOf('/');

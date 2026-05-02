@@ -49,6 +49,7 @@ import { getApp } from '@/lib/db/apps';
 import { getIconByName } from '@/lib/apps/icons';
 import { parseExamplePrompts } from '@/lib/apps/types';
 import { getModelContextWindow } from '@/lib/models/capabilities';
+import { loadLiteLLMRegistry } from '@/lib/models/litellm-registry';
 import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { useRouter } from 'expo-router';
 import type { Message, Attachment } from '@/types';
@@ -76,6 +77,7 @@ export const ChatScreen = React.memo(function ChatScreen({
   const [hasImageGenKey, setHasImageGenKey] = useState(false);
   const [activeSkillName, setActiveSkillName] = useState<string | null>(null);
   const [inputBarHeight, setInputBarHeight] = useState(0);
+  const [metadataVersion, setMetadataVersion] = useState(0);
   const abortRef = useRef<{ abort: () => void } | null>(null);
   const usageAccumRef = useRef<UsageData>({ promptTokens: 0, completionTokens: 0 });
 
@@ -141,6 +143,16 @@ export const ChatScreen = React.memo(function ChatScreen({
     if (!getTool('forget_memory')) {
       registerTool(forgetMemoryTool);
     }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadLiteLLMRegistry().then(() => {
+      if (!cancelled) setMetadataVersion((version) => version + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Handle app backgrounding during active stream — abort to prevent stuck state
@@ -765,8 +777,12 @@ export const ChatScreen = React.memo(function ChatScreen({
   const effectiveModelId = activeApp?.model || lastModel || getDefaultModel(effectiveProviderId);
   const contextCircleBottomOffset = (inputBarHeight || Math.max(insets.bottom, 12) + 72) + 12;
   const contextWindow = useMemo(
-    () => getModelContextWindow(effectiveModelId, effectiveProviderId),
-    [effectiveModelId, effectiveProviderId]
+    () => {
+      // Re-read LiteLLM fallback data after the async registry fetch completes.
+      void metadataVersion;
+      return getModelContextWindow(effectiveModelId, effectiveProviderId);
+    },
+    [effectiveModelId, effectiveProviderId, metadataVersion]
   );
   const contextSystemPrompt = useMemo(() => {
     if (!currentConvId) return activeApp?.rules || pendingConversationRule || undefined;
@@ -935,7 +951,9 @@ function getDefaultModel(providerId: string): string {
     case 'anthropic':
       return 'claude-3-5-haiku-20241022';
     case 'minimax':
-      return 'MiniMax-M1-40k';
+      return 'MiniMax-M2.7';
+    case 'cloudflare-ai':
+      return '@cf/openai/gpt-oss-120b';
     default:
       return 'google/gemini-2.0-flash-exp:free';
   }

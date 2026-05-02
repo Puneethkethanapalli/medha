@@ -6,6 +6,8 @@ import { Search, X, Check } from 'lucide-react-native';
 import { useUIStore } from '@/stores/ui-store';
 import { useSettingsStore, getConfiguredProviders } from '@/stores/settings-store';
 import { getProvider, registerBuiltInProviders, listProviders } from '@/lib/providers/registry';
+import { MINIMAX_MODELS } from '@/lib/providers/minimax';
+import { CLOUDFLARE_FALLBACK_MODELS } from '@/lib/providers/cloudflare-ai';
 import { getApiKey } from '@/lib/storage/secure';
 import { keepSelectedModelVisible } from '@/lib/models';
 import { getModelCapabilities, registerModelsMetadata } from '@/lib/models/capabilities';
@@ -58,10 +60,10 @@ const FALLBACK_MODELS: Record<string, Model[]> = {
     { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet v2', provider: 'anthropic' },
   ],
   minimax: [
-    { id: 'MiniMax-M2.7', name: 'MiniMax M2.7', provider: 'minimax' },
-    { id: 'MiniMax-M2.7-highspeed', name: 'MiniMax M2.7 Highspeed', provider: 'minimax' },
-    { id: 'MiniMax-M1-80k', name: 'MiniMax M1 80K', provider: 'minimax' },
-    { id: 'MiniMax-M1-40k', name: 'MiniMax M1 40K', provider: 'minimax' },
+    ...MINIMAX_MODELS,
+  ],
+  'cloudflare-ai': [
+    ...CLOUDFLARE_FALLBACK_MODELS,
   ],
 };
 
@@ -72,6 +74,7 @@ const PROVIDER_DISPLAY: Record<string, string> = {
   'google-ai': 'Google AI',
   anthropic: 'Anthropic',
   minimax: 'MiniMax',
+  'cloudflare-ai': 'Cloudflare AI',
 };
 
 const FILTER_LABELS: Record<ModelCapability, string> = {

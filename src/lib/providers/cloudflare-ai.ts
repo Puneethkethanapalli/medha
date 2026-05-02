@@ -22,18 +22,66 @@ function getBaseUrl(accountId: string): string {
   return `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1`;
 }
 
+type CloudflareModelMetadata = {
+  contextWindow?: number;
+  inputModalities?: string[];
+  outputModalities?: string[];
+  supportsFunctionCalling?: boolean;
+  supportsToolChoice?: boolean;
+  supportsVision?: boolean;
+  supportsReasoning?: boolean;
+  supportsPdfInput?: boolean;
+};
+
+function cloudflareModel(id: string, name: string, metadata: CloudflareModelMetadata = {}): Model {
+  return {
+    id,
+    name,
+    provider: 'cloudflare-ai',
+    contextWindow: metadata.contextWindow,
+    capabilities: capabilitiesFromMetadata(metadata),
+  };
+}
+
 // Fallback model list — used when the API call fails (network error, missing account ID, etc.)
-const FALLBACK_MODELS: Model[] = [
-  { id: '@cf/meta/llama-3.3-70b-instruct-fp8-fast', name: 'Llama 3.3 70B', provider: 'cloudflare-ai' },
-  { id: '@cf/meta/llama-3.1-8b-instruct', name: 'Llama 3.1 8B', provider: 'cloudflare-ai' },
-  { id: '@cf/meta/llama-3.1-70b-instruct', name: 'Llama 3.1 70B', provider: 'cloudflare-ai' },
-  { id: '@cf/meta/llama-3.2-3b-instruct', name: 'Llama 3.2 3B', provider: 'cloudflare-ai' },
-  { id: '@cf/meta/llama-3.2-1b-instruct', name: 'Llama 3.2 1B', provider: 'cloudflare-ai' },
-  { id: '@cf/mistral/mistral-7b-instruct-v0.2', name: 'Mistral 7B v0.2', provider: 'cloudflare-ai' },
-  { id: '@cf/google/gemma-7b-it', name: 'Gemma 7B', provider: 'cloudflare-ai' },
-  { id: '@cf/qwen/qwen1.5-14b-chat-awq', name: 'Qwen 1.5 14B', provider: 'cloudflare-ai' },
-  { id: '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b', name: 'DeepSeek R1 Distill 32B', provider: 'cloudflare-ai' },
-  { id: '@cf/openai/gpt-oss-120b', name: 'GPT-OSS 120B', provider: 'cloudflare-ai' },
+export const CLOUDFLARE_FALLBACK_MODELS: Model[] = [
+  cloudflareModel('@cf/openai/gpt-oss-120b', 'GPT-OSS 120B', {
+    contextWindow: 128_000,
+    supportsFunctionCalling: true,
+    supportsToolChoice: true,
+    supportsReasoning: true,
+  }),
+  cloudflareModel('@cf/openai/gpt-oss-20b', 'GPT-OSS 20B', {
+    contextWindow: 128_000,
+    supportsFunctionCalling: true,
+    supportsToolChoice: true,
+    supportsReasoning: true,
+  }),
+  cloudflareModel('@cf/meta/llama-3.3-70b-instruct-fp8-fast', 'Llama 3.3 70B', {
+    contextWindow: 24_000,
+    supportsFunctionCalling: true,
+    supportsToolChoice: true,
+  }),
+  cloudflareModel('@cf/deepseek-ai/deepseek-r1-distill-qwen-32b', 'DeepSeek R1 Distill 32B', {
+    contextWindow: 80_000,
+    supportsReasoning: true,
+  }),
+  cloudflareModel('@cf/qwen/qwq-32b', 'QwQ 32B', {
+    contextWindow: 24_000,
+    supportsReasoning: true,
+  }),
+  cloudflareModel('@cf/meta/llama-3.2-3b-instruct', 'Llama 3.2 3B', {
+    contextWindow: 80_000,
+  }),
+  cloudflareModel('@cf/meta/llama-3.2-1b-instruct', 'Llama 3.2 1B', {
+    contextWindow: 60_000,
+  }),
+  cloudflareModel('@hf/mistral/mistral-7b-instruct-v0.2', 'Mistral 7B v0.2', {
+    contextWindow: 3_072,
+  }),
+  cloudflareModel('@hf/google/gemma-7b-it', 'Gemma 7B', {
+    contextWindow: 8_192,
+  }),
 ];
 
 /** Read the Cloudflare Account ID from MMKV storage. */
@@ -89,8 +137,8 @@ export class CloudflareAIProvider implements AIProvider {
       body.tools = config.tools;
     }
 
-    // No thinking mode — Cloudflare models don't support extended thinking.
-    // Swallow any stray reasoning tokens just in case.
+    // Cloudflare exposes mixed model capabilities and no global thinking switch.
+    // When thinking is off, swallow reasoning tokens client-side.
     const reasoningHandler = config.thinkingMode === 'off'
       ? () => {}
       : onReasoning;
@@ -122,7 +170,7 @@ export class CloudflareAIProvider implements AIProvider {
 
   async listModels(apiKey: string): Promise<Model[]> {
     const accountId = getAccountId();
-    if (!accountId) return FALLBACK_MODELS;
+    if (!accountId) return CLOUDFLARE_FALLBACK_MODELS;
 
     try {
       const response = await fetch(
@@ -132,38 +180,60 @@ export class CloudflareAIProvider implements AIProvider {
         }
       );
 
-      if (!response.ok) return FALLBACK_MODELS;
+      if (!response.ok) return CLOUDFLARE_FALLBACK_MODELS;
 
       const data = await response.json();
-      const models: any[] = data.result || [];
+      const models: any[] = Array.isArray(data.result) ? data.result : [];
 
-      if (models.length === 0) return FALLBACK_MODELS;
+      if (models.length === 0) return CLOUDFLARE_FALLBACK_MODELS;
 
       return models
-        .filter((m: any) => m.name && !m.properties?.deprecated)
+        .filter((m: any) => {
+          const properties = isRecord(m.properties) ? m.properties : {};
+          return getModelId(m) && properties.deprecated !== true;
+        })
         .map((m: any) => {
           const properties = isRecord(m.properties) ? m.properties : {};
-          const ctxLen = properties.max_total_tokens ?? properties.context_length;
-          const contextWindow = typeof ctxLen === 'number' ? ctxLen : undefined;
+          const ctxLen =
+            properties.max_total_tokens ??
+            properties.context_length ??
+            properties.context_window ??
+            m.max_total_tokens ??
+            m.context_length ??
+            m.context_window;
+          const contextWindow = toNumber(ctxLen);
+          const textToSearch = [
+            m.name,
+            m.id,
+            m.description,
+            properties.description,
+            properties.capabilities,
+            properties.tags,
+          ]
+            .flat()
+            .filter((value) => typeof value === 'string')
+            .join(' ')
+            .toLowerCase();
           return {
-            id: m.name as string,
-            name: (m.description || m.name) as string,
+            id: getModelId(m)!,
+            name: (m.description || m.name || m.id) as string,
             provider: 'cloudflare-ai',
             contextWindow,
             capabilities: capabilitiesFromMetadata({
               contextWindow,
               inputModalities: toStringArray(properties.input_modalities ?? properties.supported_modalities),
               outputModalities: toStringArray(properties.output_modalities ?? properties.supported_output_modalities),
-              supportsFunctionCalling: properties.supports_function_calling === true,
+              supportsFunctionCalling:
+                properties.supports_function_calling === true || textToSearch.includes('function calling'),
               supportsToolChoice: properties.supports_tool_choice === true,
-              supportsVision: properties.supports_vision === true,
-              supportsReasoning: properties.supports_reasoning === true,
+              supportsVision: properties.supports_vision === true || textToSearch.includes('vision'),
+              supportsReasoning: properties.supports_reasoning === true || textToSearch.includes('reasoning'),
               supportsPdfInput: properties.supports_pdf_input === true,
             }),
           };
         });
     } catch {
-      return FALLBACK_MODELS;
+      return CLOUDFLARE_FALLBACK_MODELS;
     }
   }
 
@@ -195,6 +265,26 @@ export class CloudflareAIProvider implements AIProvider {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+function getModelId(model: any): string | undefined {
+  return typeof model?.name === 'string'
+    ? model.name
+    : typeof model?.id === 'string'
+      ? model.id
+      : undefined;
+}
+
+function toNumber(value: unknown): number | undefined {
+  if (typeof value === 'number') return value;
+  if (typeof value !== 'string') return undefined;
+
+  const normalized = value.replace(/,/g, '').trim();
+  const parsed = Number(normalized);
+  if (Number.isFinite(parsed)) return parsed;
+
+  const parsedFromText = Number(normalized.match(/\d+/)?.[0]);
+  return Number.isFinite(parsedFromText) ? parsedFromText : undefined;
 }
 
 function toStringArray(value: unknown): string[] | undefined {

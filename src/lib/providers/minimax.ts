@@ -3,16 +3,37 @@ import type { AIProvider, StreamConfig } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
 import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { buildOpenAIMessages } from '@/lib/attachments/multimodal';
+import { capabilitiesFromMetadata } from '@/lib/models/capability-metadata';
 import type { Message, Model } from '@/types';
 
 const MINIMAX_BASE_URL = 'https://api.minimax.io/v1';
+const MINIMAX_CONTEXT_WINDOW = 204_800;
+const MINIMAX_CAPABILITIES = capabilitiesFromMetadata({
+  contextWindow: MINIMAX_CONTEXT_WINDOW,
+  supportsFunctionCalling: true,
+  supportsToolChoice: true,
+  supportsReasoning: true,
+});
+
+function minimaxModel(id: string, name: string): Model {
+  return {
+    id,
+    name,
+    provider: 'minimax',
+    contextWindow: MINIMAX_CONTEXT_WINDOW,
+    capabilities: MINIMAX_CAPABILITIES,
+  };
+}
 
 // MiniMax doesn't have a public model list endpoint, so we hardcode available models
-const MINIMAX_MODELS: Model[] = [
-  { id: 'MiniMax-M2.7', name: 'MiniMax M2.7', provider: 'minimax' },
-  { id: 'MiniMax-M2.7-highspeed', name: 'MiniMax M2.7 Highspeed', provider: 'minimax' },
-  { id: 'MiniMax-M1-80k', name: 'MiniMax M1 80K', provider: 'minimax' },
-  { id: 'MiniMax-M1-40k', name: 'MiniMax M1 40K', provider: 'minimax' },
+export const MINIMAX_MODELS: Model[] = [
+  minimaxModel('MiniMax-M2.7', 'MiniMax M2.7'),
+  minimaxModel('MiniMax-M2.7-highspeed', 'MiniMax M2.7 Highspeed'),
+  minimaxModel('MiniMax-M2.5', 'MiniMax M2.5'),
+  minimaxModel('MiniMax-M2.5-highspeed', 'MiniMax M2.5 Highspeed'),
+  minimaxModel('MiniMax-M2.1', 'MiniMax M2.1'),
+  minimaxModel('MiniMax-M2.1-highspeed', 'MiniMax M2.1 Highspeed'),
+  minimaxModel('MiniMax-M2', 'MiniMax M2'),
 ];
 
 export class MiniMaxProvider implements AIProvider {
@@ -53,7 +74,7 @@ export class MiniMaxProvider implements AIProvider {
       body.tools = config.tools;
     }
 
-    // MiniMax M1 always returns reasoning — can't disable server-side.
+    // MiniMax reasoning cannot be disabled server-side on reasoning models.
     // When thinking is off, swallow reasoning tokens client-side.
     const reasoningHandler = config.thinkingMode === 'off'
       ? () => {} // no-op
@@ -99,7 +120,7 @@ export class MiniMaxProvider implements AIProvider {
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: 'MiniMax-M1-40k',
+          model: 'MiniMax-M2.7',
           messages: [{ role: 'user', content: 'hi' }],
           max_tokens: 1,
         }),
