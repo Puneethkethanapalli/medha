@@ -8,7 +8,7 @@ import { useSettingsStore, getConfiguredProviders } from '@/stores/settings-stor
 import { getProvider, registerBuiltInProviders, listProviders } from '@/lib/providers/registry';
 import { getApiKey } from '@/lib/storage/secure';
 import { keepSelectedModelVisible } from '@/lib/models';
-import { getModelCapabilities } from '@/lib/models/capabilities';
+import { getModelCapabilities, registerModelsMetadata } from '@/lib/models/capabilities';
 import { CapabilityBadges } from '@/components/chat/CapabilityBadges';
 import type { Model, ModelCapability } from '@/types';
 
@@ -150,6 +150,7 @@ export function ModelPicker() {
 
         const fetched = await provider.listModels(apiKey);
         if (fetched.length > 0) {
+          registerModelsMetadata(fetched);
           setModels((prev) => ({ ...prev, [activeTab]: fetched }));
           setLoadedProviders((prev) => new Set([...prev, activeTab]));
         }

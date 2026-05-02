@@ -141,64 +141,41 @@ const LONG_CONTEXT_MODELS = [
   '@cf/openai/gpt-oss',
 ];
 
-const CONTEXT_WINDOW_MAP: Record<string, number> = {
-  'claude-3-opus': 200000,
-  'claude-3-5-sonnet': 200000,
-  'claude-3-7-sonnet': 200000,
-  'claude-sonnet-4': 200000,
-  'claude-3-5-haiku': 200000,
-  'gemini-1.5-pro': 2000000,
-  'gemini-1.5-flash': 1000000,
-  'gemini-2.0-flash': 1000000,
-  'gemini-2.0-pro': 2000000,
-  'gemini-2.5-flash': 1000000,
-  'gemini-2.5-pro': 1000000,
-  'gpt-4o': 128000,
-  'gpt-4o-mini': 128000,
-  'gpt-4-turbo': 128000,
-  'gpt-4.1': 1000000,
-  'gpt-4.1-mini': 1000000,
-  'gpt-5.4-mini': 400000,
-  'gpt-5.4-nano': 400000,
-  'gpt-5.5': 1000000,
-  'gpt-5.4': 1050000,
-  'gpt-5.3-chat-latest': 128000,
-  'gpt-5.1': 400000,
-  'gpt-5-chat-latest': 128000,
-  'gpt-5.3-codex': 400000,
-  'gpt-5.2-codex': 400000,
-  'gpt-5.1-codex-max': 400000,
-  'gpt-5.1-codex': 400000,
-  'gpt-5.1-codex-mini': 400000,
-  'gpt-5-mini': 400000,
-  'gpt-5-nano': 400000,
-  'gpt-5': 400000,
-  'o1': 200000,
-  'o1-mini': 128000,
-  'o3': 200000,
-  'o3-mini': 200000,
-  'o4-mini': 200000,
-  'deepseek-chat': 64000,
-  'deepseek-r1': 64000,
-  'llama-3.1-70b': 128000,
-  'llama-3.1-405b': 128000,
-  'llama-3.2-90b': 128000,
-  'llama-3.2-11b': 128000,
-  'mistral-large': 128000,
-  'grok-2': 128000,
-  'MiniMax-M2.7': 1000000,
-  'MiniMax-M1-80k': 80000,
-  'MiniMax-M1-40k': 40000,
-  'qwen-2.5-72b': 128000,
-};
+// ── Dynamic model metadata cache (populated from provider API responses) ─────
+const dynamicMetadataCache = new Map<string, { contextWindow?: number; capabilities?: ModelCapability[] }>();
+
+/**
+ * Register metadata for models fetched from a provider API.
+ * Called from ModelPicker after listModels() returns.
+ */
+export function registerModelsMetadata(models: import('@/types').Model[]): void {
+  for (const model of models) {
+    if (model.contextWindow || model.capabilities) {
+      dynamicMetadataCache.set(model.id, {
+        contextWindow: model.contextWindow,
+        capabilities: model.capabilities,
+      });
+    }
+  }
+}
 
 const capabilityCache = new Map<string, ModelCapability[]>();
 
 function normalizeModelId(modelId: string): string {
   // Strip provider prefix and :free suffix for lookup
   let normalized = modelId;
-  const slashIdx = normalized.indexOf('/');
-  if (slashIdx !== -1) normalized = normalized.slice(slashIdx + 1);
+
+  // Cloudflare models use @cf/org/model format — strip entire @cf/org/ prefix
+  // For standard provider/model format (e.g. openai/gpt-4o), strip provider/
+  if (normalized.startsWith('@cf/')) {
+    // Take only the last segment: @cf/meta/llama-3.3-70b → llama-3.3-70b
+    const lastSlash = normalized.lastIndexOf('/');
+    normalized = normalized.slice(lastSlash + 1);
+  } else {
+    const slashIdx = normalized.indexOf('/');
+    if (slashIdx !== -1) normalized = normalized.slice(slashIdx + 1);
+  }
+
   normalized = normalized.replace(/:free$/, '');
   return normalized;
 }
@@ -295,14 +272,21 @@ export function getModelCapabilities(modelId: string, provider: string): ModelCa
     return capabilityCache.get(cacheKey)!;
   }
 
-  // 1. Check exact known overrides
+  // 1. Check dynamic metadata cache (API-provided)
+  const dynamic = dynamicMetadataCache.get(modelId);
+  if (dynamic?.capabilities && dynamic.capabilities.length > 0) {
+    capabilityCache.set(cacheKey, dynamic.capabilities);
+    return dynamic.capabilities;
+  }
+
+  // 2. Check exact known overrides
   const known = KNOWN_CAPABILITIES[modelId];
   if (known) {
     capabilityCache.set(cacheKey, known);
     return known;
   }
 
-  // 2. Check normalized known overrides (without provider prefix / :free)
+  // 3. Check normalized known overrides (without provider prefix / :free)
   const normalized = normalizeModelId(modelId);
   const normalizedKnown = KNOWN_CAPABILITIES[normalized];
   if (normalizedKnown) {
@@ -310,25 +294,17 @@ export function getModelCapabilities(modelId: string, provider: string): ModelCa
     return normalizedKnown;
   }
 
-  // 3. Fallback to heuristics
+  // 4. Fallback to heuristics
   const caps = heuristicCapabilities(modelId, provider);
   capabilityCache.set(cacheKey, caps);
   return caps;
 }
 
 export function getModelContextWindow(modelId: string): number | undefined {
-  const normalized = normalizeModelId(modelId);
-  // Try exact match first
-  if (CONTEXT_WINDOW_MAP[normalized] !== undefined) {
-    return CONTEXT_WINDOW_MAP[normalized];
-  }
-  // Try prefix match
-  for (const [key, value] of Object.entries(CONTEXT_WINDOW_MAP)) {
-    if (normalized.toLowerCase().startsWith(key.toLowerCase())) {
-      return value;
-    }
-  }
-  return undefined;
+  // Context windows are populated dynamically from provider APIs
+  // via registerModelsMetadata() when models are fetched.
+  const dynamic = dynamicMetadataCache.get(modelId);
+  return dynamic?.contextWindow;
 }
 
 export function hasCapability(

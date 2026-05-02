@@ -18,8 +18,8 @@ function isThinkingCapable(model: string): boolean {
   return THINKING_CAPABLE_MODELS.some(prefix => model.startsWith(prefix));
 }
 
-// Anthropic doesn't have a public model list endpoint
-const ANTHROPIC_MODELS: Model[] = [
+// Fallback models — used when the API call fails
+const ANTHROPIC_FALLBACK_MODELS: Model[] = [
   { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', provider: 'anthropic' },
   { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet', provider: 'anthropic' },
   { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku', provider: 'anthropic' },
@@ -109,8 +109,30 @@ export class AnthropicProvider implements AIProvider {
     };
   }
 
-  async listModels(_apiKey: string): Promise<Model[]> {
-    return ANTHROPIC_MODELS;
+  async listModels(apiKey: string): Promise<Model[]> {
+    try {
+      const response = await fetch(`${ANTHROPIC_BASE_URL}/models?limit=100`, {
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': ANTHROPIC_VERSION,
+        },
+      });
+
+      if (!response.ok) return ANTHROPIC_FALLBACK_MODELS;
+
+      const data = await response.json();
+      const models: any[] = data.data || [];
+      if (models.length === 0) return ANTHROPIC_FALLBACK_MODELS;
+
+      return models.map((m: any) => ({
+        id: m.id as string,
+        name: (m.display_name || m.id) as string,
+        provider: 'anthropic',
+        contextWindow: typeof m.max_input_tokens === 'number' ? m.max_input_tokens : undefined,
+      }));
+    } catch {
+      return ANTHROPIC_FALLBACK_MODELS;
+    }
   }
 
   async validateKey(apiKey: string): Promise<boolean> {

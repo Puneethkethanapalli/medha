@@ -105,6 +105,7 @@ export class OpenRouterProvider implements AIProvider {
       name: (m.name as string) || (m.id as string),
       provider: 'openrouter',
       pricing: parsePricing(m.pricing),
+      contextWindow: typeof m.context_length === 'number' ? m.context_length : undefined,
     }));
   }
 

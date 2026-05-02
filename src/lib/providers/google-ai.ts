@@ -201,6 +201,7 @@ export class GoogleAIProvider implements AIProvider {
         id: m.name?.replace('models/', '') || m.name,
         name: m.displayName || m.name?.replace('models/', '') || m.name,
         provider: 'google-ai',
+        contextWindow: typeof m.inputTokenLimit === 'number' ? m.inputTokenLimit : undefined,
       }));
   }
 

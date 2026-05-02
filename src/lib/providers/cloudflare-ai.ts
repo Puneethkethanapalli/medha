@@ -140,11 +140,15 @@ export class CloudflareAIProvider implements AIProvider {
 
       return models
         .filter((m: any) => m.name && !m.properties?.deprecated)
-        .map((m: any) => ({
-          id: m.name as string,
-          name: (m.description || m.name) as string,
-          provider: 'cloudflare-ai',
-        }));
+        .map((m: any) => {
+          const ctxLen = m.properties?.max_total_tokens ?? m.properties?.context_length;
+          return {
+            id: m.name as string,
+            name: (m.description || m.name) as string,
+            provider: 'cloudflare-ai',
+            contextWindow: typeof ctxLen === 'number' ? ctxLen : undefined,
+          };
+        });
     } catch {
       return FALLBACK_MODELS;
     }
