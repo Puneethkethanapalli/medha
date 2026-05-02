@@ -210,6 +210,7 @@ function AppContent() {
           >
             <Stack.Screen name="index" />
             <Stack.Screen name="chat/[id]" />
+            <Stack.Screen name="markdown-quality" />
             <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
             <Stack.Screen name="search" options={{ animation: 'fade' }} />
             <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />

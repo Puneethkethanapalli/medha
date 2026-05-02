@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { Pressable, View, TextInput, Image } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import * as Clipboard from 'expo-clipboard';
 import LottieView from 'lottie-react-native';
 import { Copy, RefreshCw, TriangleAlert, FileText } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
@@ -76,6 +77,7 @@ export const MessageBubble = React.memo(function MessageBubble({
   const displayContent = isStreaming ? streamingContent : message.content;
   const displayReasoning = isStreaming ? streamingReasoning : message.reasoning;
   const isUser = message.role === 'user';
+  const showToast = useUIStore((s) => s.showToast);
 
   // Edit mode state
   const [editText, setEditText] = useState(message.content);
@@ -85,6 +87,13 @@ export const MessageBubble = React.memo(function MessageBubble({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     showActionsMenu(message);
   }, [isStreaming, message, showActionsMenu]);
+
+  const handleCopyMessage = useCallback(async () => {
+    if (!displayContent) return;
+    await Clipboard.setStringAsync(displayContent);
+    Haptics.selectionAsync().catch(() => undefined);
+    showToast('Copied to clipboard');
+  }, [displayContent, showToast]);
 
   const handleEditSubmit = useCallback(() => {
     const trimmed = editText.trim();
@@ -271,7 +280,7 @@ export const MessageBubble = React.memo(function MessageBubble({
               accessibilityLabel="Copy message"
               accessibilityRole="button"
               hitSlop={8}
-              onPress={handleLongPress}
+              onPress={handleCopyMessage}
               className="h-7 w-7 items-center justify-center rounded-md"
             >
               <Copy size={15} color="hsl(0, 0%, 44%)" strokeWidth={2} />

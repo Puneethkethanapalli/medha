@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     flexGrow: 1,
     justifyContent: 'flex-end',
-    paddingHorizontal: 4,
+    paddingHorizontal: 12,
     paddingTop: 8,
     paddingBottom: 8,
   },
