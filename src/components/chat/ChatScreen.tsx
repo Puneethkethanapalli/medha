@@ -765,8 +765,8 @@ export const ChatScreen = React.memo(function ChatScreen({
   const effectiveModelId = activeApp?.model || lastModel || getDefaultModel(effectiveProviderId);
   const contextCircleBottomOffset = (inputBarHeight || Math.max(insets.bottom, 12) + 72) + 12;
   const contextWindow = useMemo(
-    () => getModelContextWindow(effectiveModelId),
-    [effectiveModelId]
+    () => getModelContextWindow(effectiveModelId, effectiveProviderId),
+    [effectiveModelId, effectiveProviderId]
   );
   const contextSystemPrompt = useMemo(() => {
     if (!currentConvId) return activeApp?.rules || pendingConversationRule || undefined;

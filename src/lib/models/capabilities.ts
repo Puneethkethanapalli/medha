@@ -300,11 +300,14 @@ export function getModelCapabilities(modelId: string, provider: string): ModelCa
   return caps;
 }
 
-export function getModelContextWindow(modelId: string): number | undefined {
-  // Context windows are populated dynamically from provider APIs
-  // via registerModelsMetadata() when models are fetched.
+export function getModelContextWindow(modelId: string, provider?: string): number | undefined {
+  // 1. Dynamic cache (populated from provider API responses — most accurate)
   const dynamic = dynamicMetadataCache.get(modelId);
-  return dynamic?.contextWindow;
+  if (dynamic?.contextWindow) return dynamic.contextWindow;
+
+  // 2. LiteLLM community registry (fetched from GitHub, cached locally)
+  const { getLiteLLMContextWindow } = require('./litellm-registry');
+  return getLiteLLMContextWindow(modelId, provider);
 }
 
 export function hasCapability(

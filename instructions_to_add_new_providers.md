@@ -351,7 +351,7 @@ Edit `src/app/onboarding.tsx` — this is the first-run screen that new users se
 
 Edit `src/lib/models/capabilities.ts`:
 
-1. **Add known capabilities** to `KNOWN_CAPABILITIES`:
+1. **Add known capabilities** to `KNOWN_CAPABILITIES` (if the model's API doesn't provide them):
 
 ```typescript
 // Example AI
@@ -359,14 +359,11 @@ Edit `src/lib/models/capabilities.ts`:
 'example/model-small': ['tools', 'long-context'],
 ```
 
-2. **Add context windows** to `CONTEXT_WINDOW_MAP` if known:
+2. **Update heuristics** — add patterns to `heuristicCapabilities()` and `LONG_CONTEXT_MODELS` if the model family has consistent naming.
 
-```typescript
-'example-model-large': 128000,
-'example-model-small': 32000,
-```
-
-3. **Update heuristics** — add patterns to `heuristicCapabilities()` and `LONG_CONTEXT_MODELS` if the model family has consistent naming.
+3. **Context windows** — You do NOT need to hardcode context windows. They are resolved automatically via:
+   - **Provider API** (preferred): If your `listModels()` returns `contextWindow` on `Model` objects, these are registered into the dynamic cache automatically.
+   - **LiteLLM fallback**: For providers whose APIs don't return context info, the community-maintained `model_prices_and_context_window.json` from LiteLLM serves as a fallback. See the **Context Window Architecture** section below.
 
 ### Step 7: Handle Non-OpenAI SSE Formats (if needed)
 
@@ -445,7 +442,8 @@ Use this checklist when adding a new provider:
 - [ ] **API Keys UI** — Added to `ProviderId` type, `PROVIDERS` array, and `keys` state in `api-keys.tsx`
 - [ ] **Settings store** — Added to `hasAnyProviderKey()` and `getConfiguredProviders()` arrays in `settings-store.ts`
 - [ ] **Onboarding screen** — Added to `ProviderId` type and `PROVIDERS` array in `onboarding.tsx`
-- [ ] **Model capabilities** — Added entries to `KNOWN_CAPABILITIES`, `CONTEXT_WINDOW_MAP`, and heuristics in `capabilities.ts`
+- [ ] **Model capabilities** — Added entries to `KNOWN_CAPABILITIES` and heuristics in `capabilities.ts`
+- [ ] **Context windows** — If your provider's API returns context info in `listModels()`, populate `contextWindow` on `Model` objects. If not, the LiteLLM fallback handles it automatically — no hardcoding needed.
 - [ ] **Model listing** — Prefer dynamic fetch with hardcoded fallback; pure hardcoding only when no API exists
 - [ ] **SSE format** — If non-OpenAI: new format in `stream.ts` + extractor in `sse-parser.ts`
 - [ ] **Message format** — If non-OpenAI: new builder in `multimodal.ts`
@@ -466,7 +464,7 @@ Use this checklist when adding a new provider:
 
 4. **Key validation pattern** — Don't make expensive API calls. Hit the lightest endpoint possible. Return `true` for any non-401/403 status (even 400 = key is valid, just bad request).
 
-5. **Dynamic model fetching is preferred** — Always try to fetch models from the provider's API, with a hardcoded fallback list. This ensures users automatically see new models as the provider adds them. See `cloudflare-ai.ts` for the pattern. Only use pure hardcoding when the provider truly has no model listing endpoint (e.g. Anthropic).
+5. **Dynamic model fetching is preferred** — Always try to fetch models from the provider's API, with a hardcoded fallback list. This ensures users automatically see new models as the provider adds them. See `cloudflare-ai.ts` for the pattern. If the provider's API returns context window info (e.g. `context_length`, `inputTokenLimit`, `max_input_tokens`), populate `contextWindow` on the returned `Model` objects — see `openrouter.ts`, `google-ai.ts`, and `anthropic.ts` for examples.
 
 6. **Tool call loop is handled externally** — Your provider just needs to emit `onToolCalls` with the accumulated calls. The ChatScreen handles execution and re-submission.
 
@@ -490,10 +488,86 @@ Use this checklist when adding a new provider:
 | `src/lib/streaming/sse-parser.ts` | SSE line parsing + token extraction | Only if adding a new SSE format |
 | `src/lib/attachments/multimodal.ts` | Message format builders | Only if provider needs non-OpenAI message format |
 | `src/lib/tools/registry.ts` | Tool schema converters | Only if provider needs non-OpenAI tool format |
-| `src/lib/models/capabilities.ts` | Model capability inference | Always — add known capabilities |
+| `src/lib/models/capabilities.ts` | Model capability inference + dynamic metadata cache | Always — add known capabilities |
+| `src/lib/models/litellm-registry.ts` | LiteLLM community model metadata (context windows) | Never — auto-fetched from GitHub |
 | `src/lib/storage/secure.ts` | API key CRUD | Never — generic, works for any provider ID |
 | `src/lib/storage/mmkv.ts` | Non-secret config (e.g. Account IDs) | Only if provider needs extra config beyond an API key |
 | `src/stores/settings-store.ts` | Provider lists + key validation | Always — update provider ID arrays |
 | `src/app/settings/api-keys.tsx` | API key management UI | Always — add provider to UI list |
 | `src/app/onboarding.tsx` | First-run provider selection | Always — add provider to onboarding UI |
 | `src/types/index.ts` | `Model`, `Message`, `Provider` types | Rarely — only if types need extension |
+
+---
+
+## Context Window Architecture
+
+Medha resolves context window limits dynamically — **no hardcoded context window maps to maintain**.
+
+### Resolution Priority
+
+```
+1. Provider API response (dynamic cache)
+   ↓ miss
+2. LiteLLM community registry (fetched from GitHub, cached locally)
+   ↓ miss
+3. "Unknown" — ContextWindowCircle shows unknown state
+```
+
+### How It Works
+
+#### Layer 1: Provider API (Dynamic Cache)
+
+When `listModels()` returns `Model` objects with a `contextWindow` field, the `ModelPicker` calls `registerModelsMetadata()` which stores them in an in-memory cache. `getModelContextWindow()` checks this cache first.
+
+**Providers that return context info via API:**
+
+| Provider | API Field | Example |
+|---|---|---|
+| OpenRouter | `context_length` | `{ context_length: 128000 }` |
+| Google AI | `inputTokenLimit` | `{ inputTokenLimit: 1000000 }` |
+| Anthropic | `max_input_tokens` | `{ max_input_tokens: 200000 }` |
+| Cloudflare | `properties.max_total_tokens` | `{ properties: { max_total_tokens: 24000 } }` |
+
+**To add context window support for a new provider:** In your `listModels()`, extract the relevant field from the API response and set `contextWindow` on the returned `Model` objects:
+
+```typescript
+async listModels(apiKey: string): Promise<Model[]> {
+  const data = await fetch(...);
+  return data.models.map((m: any) => ({
+    id: m.id,
+    name: m.name,
+    provider: 'your-provider',
+    contextWindow: typeof m.context_length === 'number' ? m.context_length : undefined,
+  }));
+}
+```
+
+#### Layer 2: LiteLLM Community Registry (Fallback)
+
+For providers whose APIs don't return context info (OpenAI, MiniMax, Codex), Medha falls back to the [LiteLLM model_prices_and_context_window.json](https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json) — a community-maintained JSON file covering 1000+ models across all major providers.
+
+**How it works:**
+- Fetched from GitHub on first `ModelPicker` open
+- Cached in AsyncStorage with a 24-hour TTL
+- Falls back to stale cache if network is unavailable
+- Lookup tries `modelId` directly, then `litellm_prefix/modelId`
+
+**Provider prefix mapping** (in `litellm-registry.ts`):
+
+| Medha Provider ID | LiteLLM Key Format | Example |
+|---|---|---|
+| `openai` | `modelId` | `gpt-4o` |
+| `anthropic` | `modelId` | `claude-sonnet-4-20250514` |
+| `minimax` | `minimax/modelId` | `minimax/MiniMax-M2.5` |
+| `google-ai` | `gemini/modelId` | `gemini/gemini-2.0-flash` |
+
+If you add a new provider and its models are in the LiteLLM registry, add the provider prefix mapping to `PROVIDER_PREFIX_MAP` in `src/lib/models/litellm-registry.ts`.
+
+### Key Files
+
+| File | Role |
+|---|---|
+| `src/lib/models/capabilities.ts` | `getModelContextWindow()` — checks dynamic cache first, then LiteLLM fallback |
+| `src/lib/models/litellm-registry.ts` | Fetches, caches, and queries the LiteLLM JSON |
+| `src/components/chat/ModelPicker.tsx` | Calls `registerModelsMetadata()` + `loadLiteLLMRegistry()` on open |
+| `src/components/chat/ContextWindowCircle.tsx` | Renders the visual context usage indicator |

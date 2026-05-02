@@ -9,6 +9,7 @@ import { getProvider, registerBuiltInProviders, listProviders } from '@/lib/prov
 import { getApiKey } from '@/lib/storage/secure';
 import { keepSelectedModelVisible } from '@/lib/models';
 import { getModelCapabilities, registerModelsMetadata } from '@/lib/models/capabilities';
+import { loadLiteLLMRegistry } from '@/lib/models/litellm-registry';
 import { CapabilityBadges } from '@/components/chat/CapabilityBadges';
 import type { Model, ModelCapability } from '@/types';
 
@@ -112,11 +113,12 @@ export function ModelPicker() {
 
   const snapPoints = useMemo(() => ['75%'], []);
 
-  // Ensure providers are registered
+  // Ensure providers are registered + load LiteLLM model registry
   useEffect(() => {
     if (listProviders().length === 0) {
       registerBuiltInProviders();
     }
+    loadLiteLLMRegistry();
   }, []);
 
   // On open: detect which providers have keys
