@@ -9,6 +9,8 @@ import { CapabilityBadges } from '@/components/chat/CapabilityBadges';
 
 const PROVIDER_SHORT: Record<string, string> = {
   openrouter: 'OR',
+  openai: 'OA',
+  'openai-codex': 'CX',
   'google-ai': 'G',
   anthropic: 'A',
   minimax: 'MM',

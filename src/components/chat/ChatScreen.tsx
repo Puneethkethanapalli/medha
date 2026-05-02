@@ -785,6 +785,10 @@ function getDefaultModel(providerId: string): string {
   switch (providerId) {
     case 'openrouter':
       return 'google/gemini-2.0-flash-exp:free';
+    case 'openai':
+      return 'gpt-5.4-mini';
+    case 'openai-codex':
+      return 'gpt-5.1-codex';
     case 'google-ai':
       return 'gemini-2.0-flash';
     case 'anthropic':

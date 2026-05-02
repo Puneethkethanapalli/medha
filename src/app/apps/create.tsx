@@ -387,7 +387,7 @@ export default function CreateAppScreen() {
                 Provider (optional)
               </Text>
               <View className="flex-row flex-wrap gap-2">
-                {['', 'openrouter', 'anthropic', 'google-ai', 'minimax'].map((p) => (
+                {['', 'openrouter', 'openai', 'openai-codex', 'anthropic', 'google-ai', 'minimax'].map((p) => (
                   <Pressable
                     key={p}
                     onPress={() => setProvider(p)}

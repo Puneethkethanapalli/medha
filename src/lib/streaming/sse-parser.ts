@@ -454,3 +454,71 @@ export function extractGeminiNativeTokens(data: string): TokenContent | null {
 
   return (result.content || result.reasoning || result.usage) ? result : null;
 }
+
+/**
+ * Extract tokens from OpenAI Responses API / Codex backend SSE chunks.
+ * Format uses event objects such as response.output_text.delta and
+ * response.output_item.done rather than Chat Completions choices deltas.
+ */
+export function extractOpenAIResponsesTokens(data: string): TokenContent | null {
+  if (data === '[DONE]') return null;
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(data);
+  } catch {
+    return null;
+  }
+
+  const result: TokenContent = {};
+  const type = parsed.type;
+
+  if (type === 'response.output_text.delta' && typeof parsed.delta === 'string') {
+    result.content = parsed.delta;
+  }
+
+  if (
+    (type === 'response.reasoning_text.delta' || type === 'response.reasoning_summary_text.delta')
+    && typeof parsed.delta === 'string'
+  ) {
+    result.reasoning = parsed.delta;
+  }
+
+  if (type === 'response.output_item.done') {
+    const item = parsed.item as Record<string, unknown> | undefined;
+    if (item?.type === 'function_call') {
+      result.toolCalls = [{
+        index: Number(parsed.output_index ?? 0),
+        id: (item.call_id as string | undefined) || (item.id as string | undefined),
+        name: item.name as string | undefined,
+        arguments: item.arguments as string | undefined,
+      }];
+    }
+  }
+
+  if (type === 'response.completed') {
+    const response = parsed.response as Record<string, unknown> | undefined;
+    const usage = response?.usage as Record<string, unknown> | undefined;
+    if (usage) {
+      const prompt = Number(usage.input_tokens ?? 0);
+      const completion = Number(usage.output_tokens ?? 0);
+      if (prompt > 0 || completion > 0) {
+        result.usage = { promptTokens: prompt, completionTokens: completion };
+      }
+    }
+  }
+
+  return (result.content || result.reasoning || result.toolCalls || result.usage) ? result : null;
+}
+
+export function isOpenAIResponsesDone(data: string): boolean {
+  if (data === '[DONE]') return true;
+  try {
+    const parsed = JSON.parse(data) as { type?: string };
+    return parsed.type === 'response.completed'
+      || parsed.type === 'response.failed'
+      || parsed.type === 'response.incomplete';
+  } catch {
+    return false;
+  }
+}

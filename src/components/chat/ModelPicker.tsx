@@ -25,6 +25,25 @@ const FALLBACK_MODELS: Record<string, Model[]> = {
     { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', provider: 'openrouter' },
     { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'openrouter' },
   ],
+  openai: [
+    { id: 'gpt-5.5', name: 'GPT-5.5', provider: 'openai' },
+    { id: 'gpt-5.4', name: 'GPT-5.4', provider: 'openai' },
+    { id: 'gpt-5.4-mini', name: 'GPT-5.4 Mini', provider: 'openai' },
+    { id: 'gpt-5.4-nano', name: 'GPT-5.4 Nano', provider: 'openai' },
+    { id: 'gpt-5.3-chat-latest', name: 'GPT-5.3 Chat', provider: 'openai' },
+    { id: 'gpt-4.1', name: 'GPT-4.1', provider: 'openai' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'openai' },
+  ],
+  'openai-codex': [
+    { id: 'gpt-5.5', name: 'GPT-5.5', provider: 'openai-codex' },
+    { id: 'gpt-5.4', name: 'GPT-5.4', provider: 'openai-codex' },
+    { id: 'gpt-5.4-mini', name: 'GPT-5.4 Mini', provider: 'openai-codex' },
+    { id: 'gpt-5.3-codex', name: 'GPT-5.3 Codex', provider: 'openai-codex' },
+    { id: 'gpt-5.2-codex', name: 'GPT-5.2 Codex', provider: 'openai-codex' },
+    { id: 'gpt-5.1-codex-max', name: 'GPT-5.1 Codex Max', provider: 'openai-codex' },
+    { id: 'gpt-5.1-codex', name: 'GPT-5.1 Codex', provider: 'openai-codex' },
+    { id: 'gpt-5.1-codex-mini', name: 'GPT-5.1 Codex Mini', provider: 'openai-codex' },
+  ],
   'google-ai': [
     { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'google-ai' },
     { id: 'gemini-2.5-flash-preview-04-17', name: 'Gemini 2.5 Flash Preview', provider: 'google-ai' },
@@ -47,6 +66,8 @@ const FALLBACK_MODELS: Record<string, Model[]> = {
 
 const PROVIDER_DISPLAY: Record<string, string> = {
   openrouter: 'OpenRouter',
+  openai: 'OpenAI',
+  'openai-codex': 'ChatGPT Codex',
   'google-ai': 'Google AI',
   anthropic: 'Anthropic',
   minimax: 'MiniMax',

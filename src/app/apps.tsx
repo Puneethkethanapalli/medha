@@ -82,7 +82,7 @@ export default function AppsScreen() {
             const fileName = `${app.name.toLowerCase().replace(/\s+/g, '-')}.app.json`;
             const filePath = `${Paths.cache}/${fileName}`;
             const file = new FSFile(filePath);
-            file.text = JSON.stringify(exportData, null, 2);
+            file.write(JSON.stringify(exportData, null, 2), { encoding: 'utf8' });
             await Sharing.shareAsync(filePath, { mimeType: 'application/json' });
           } catch (err) {
             showToast('Failed to export app');

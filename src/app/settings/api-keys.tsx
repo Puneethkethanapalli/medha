@@ -1,23 +1,33 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Plus, Trash2, Shield, X, Check } from 'lucide-react-native';
-import { cn } from '@/lib/utils';
+import * as Clipboard from 'expo-clipboard';
+import * as WebBrowser from 'expo-web-browser';
 import { useSettingsStore, hasProviderKey, deleteProviderKey, maskKey } from '@/stores/settings-store';
-import { setCloudflareAccountId, getCloudflareAccountId } from '@/lib/storage/mmkv';
+import { setCloudflareAccountId } from '@/lib/storage/mmkv';
+import {
+  OPENAI_CODEX_DEVICE_URL,
+  pollCodexDeviceAuthorization,
+  requestCodexDeviceAuthorization,
+  serializeCodexCredential,
+} from '@/lib/auth/openai-codex';
 
-type ProviderId = 'openrouter' | 'google-ai' | 'anthropic' | 'minimax' | 'cloudflare-ai' | 'tavily' | 'image-gen';
+type ProviderId = 'openrouter' | 'openai' | 'openai-codex' | 'google-ai' | 'anthropic' | 'minimax' | 'cloudflare-ai' | 'tavily' | 'image-gen';
 
 interface ProviderConfig {
   id: ProviderId;
   name: string;
   description: string;
+  authMode?: 'api-key' | 'codex-oauth';
 }
 
 const PROVIDERS: ProviderConfig[] = [
   { id: 'openrouter', name: 'OpenRouter', description: 'Access to 200+ AI models' },
+  { id: 'openai', name: 'OpenAI', description: 'GPT models via the OpenAI platform API' },
+  { id: 'openai-codex', name: 'ChatGPT Codex', description: 'Use Codex models with your ChatGPT plan', authMode: 'codex-oauth' },
   { id: 'google-ai', name: 'Google AI', description: 'Gemini models via Google AI Studio' },
   { id: 'anthropic', name: 'Anthropic', description: 'Claude models via Anthropic API' },
   { id: 'minimax', name: 'MiniMax', description: 'MiniMax M2.7 and M1 models' },
@@ -34,6 +44,8 @@ export default function ApiKeysScreen() {
   const [connectedProviders, setConnectedProviders] = useState<Set<ProviderId>>(new Set());
   const [keys, setKeys] = useState<Record<ProviderId, string>>({
     openrouter: '',
+    openai: '',
+    'openai-codex': '',
     'google-ai': '',
     anthropic: '',
     minimax: '',
@@ -41,10 +53,11 @@ export default function ApiKeysScreen() {
     tavily: '',
     'image-gen': '',
   });
-  const [testingProvider, setTestingProvider] = useState<ProviderId | null>(null);
   const [isAddingKey, setIsAddingKey] = useState<ProviderId | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [cloudflareAccountId, setCloudflareAccountIdState] = useState('');
+  const [codexUserCode, setCodexUserCode] = useState<string | null>(null);
+  const codexAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const checkConnectedProviders = async () => {
@@ -59,24 +72,9 @@ export default function ApiKeysScreen() {
     checkConnectedProviders();
   }, []);
 
-  const handleTestKey = async (provider: ProviderConfig) => {
-    const key = keys[provider.id];
-    if (!key) return;
-
-    setTestingProvider(provider.id);
-    try {
-      const isValid = await validateApiKey(provider.id, key);
-      if (isValid) {
-        Alert.alert('Success', `${provider.name} API key is valid!`);
-      } else {
-        Alert.alert('Invalid Key', 'The API key appears to be invalid.');
-      }
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to validate key');
-    } finally {
-      setTestingProvider(null);
-    }
-  };
+  useEffect(() => {
+    return () => codexAbortRef.current?.abort();
+  }, []);
 
   const handleDeleteKey = (provider: ProviderConfig) => {
     Alert.alert(
@@ -105,6 +103,11 @@ export default function ApiKeysScreen() {
   };
 
   const handleAddKey = async (provider: ProviderConfig) => {
+    if (provider.authMode === 'codex-oauth') {
+      await handleCodexSignIn(provider);
+      return;
+    }
+
     const key = keys[provider.id];
     if (!key.trim()) {
       Alert.alert('Error', 'Please enter an API key');
@@ -148,6 +151,38 @@ export default function ApiKeysScreen() {
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to save key');
     } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const handleCodexSignIn = async (provider: ProviderConfig) => {
+    setIsValidating(true);
+    setCodexUserCode(null);
+
+    const abortController = new AbortController();
+    codexAbortRef.current = abortController;
+
+    try {
+      const device = await requestCodexDeviceAuthorization();
+      setCodexUserCode(device.userCode);
+      await Clipboard.setStringAsync(device.userCode);
+      void WebBrowser.openBrowserAsync(OPENAI_CODEX_DEVICE_URL);
+
+      const tokens = await pollCodexDeviceAuthorization(device, abortController.signal);
+      const { saveProviderKey } = await import('@/stores/settings-store');
+      await saveProviderKey(provider.id, serializeCodexCredential(tokens));
+      setConnectedProviders(prev => new Set([...prev, provider.id]));
+      setIsAddingKey(null);
+      setCodexUserCode(null);
+      Alert.alert('Success', `${provider.name} connected successfully!`);
+    } catch (e: any) {
+      if (!abortController.signal.aborted) {
+        Alert.alert('Error', e.message || 'ChatGPT sign-in failed');
+      }
+    } finally {
+      if (codexAbortRef.current === abortController) {
+        codexAbortRef.current = null;
+      }
       setIsValidating(false);
     }
   };
@@ -246,15 +281,36 @@ export default function ApiKeysScreen() {
                       <Text className="text-xs text-on-surface-variant mb-1.5 ml-1">API Token</Text>
                     </>
                   )}
-                  <TextInput
-                    className="w-full bg-surface-container-high border border-outline-variant/40 rounded-lg px-4 py-2.5 text-primary font-mono text-sm placeholder-on-surface-variant/50"
-                    placeholder={`Enter ${provider.name} API key`}
-                    value={keys[provider.id]}
-                    onChangeText={(text) => setKeys(prev => ({ ...prev, [provider.id]: text }))}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    secureTextEntry
-                  />
+                  {provider.authMode === 'codex-oauth' ? (
+                    <View className="bg-surface-container-high border border-outline-variant/40 rounded-lg px-4 py-3">
+                      <Text className="text-[13px] text-on-surface-variant">
+                        Sign in with ChatGPT to use Codex models from your ChatGPT plan.
+                      </Text>
+                      {codexUserCode && (
+                        <Pressable
+                          className="mt-3 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2"
+                          onPress={() => Clipboard.setStringAsync(codexUserCode)}
+                        >
+                          <Text className="font-mono text-primary text-lg tracking-widest text-center">
+                            {codexUserCode}
+                          </Text>
+                          <Text className="text-[11px] text-on-surface-variant text-center mt-1">
+                            Code copied. Enter it at auth.openai.com/codex/device
+                          </Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  ) : (
+                    <TextInput
+                      className="w-full bg-surface-container-high border border-outline-variant/40 rounded-lg px-4 py-2.5 text-primary font-mono text-sm placeholder-on-surface-variant/50"
+                      placeholder={`Enter ${provider.name} API key`}
+                      value={keys[provider.id]}
+                      onChangeText={(text) => setKeys(prev => ({ ...prev, [provider.id]: text }))}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      secureTextEntry
+                    />
+                  )}
                   <View className="flex flex-row items-center gap-2 mt-3">
                     <Pressable
                       className="flex-1 bg-surface-container px-3 py-2 rounded-lg flex flex-row items-center justify-center gap-1.5 active:bg-surface-container-high"
@@ -262,6 +318,8 @@ export default function ApiKeysScreen() {
                         setIsAddingKey(null);
                         setKeys(prev => ({ ...prev, [provider.id]: '' }));
                         setCloudflareAccountIdState('');
+                        setCodexUserCode(null);
+                        codexAbortRef.current?.abort();
                       }}
                     >
                       <X size={14} className="text-on-surface-variant" color="#c6c6c6" />
@@ -277,18 +335,23 @@ export default function ApiKeysScreen() {
                       ) : (
                         <Check size={14} className="text-on-primary" color="#1a1c1c" />
                       )}
-                      <Text className="text-xs font-medium text-on-primary">Save Key</Text>
+                      <Text className="text-xs font-medium text-on-primary">
+                        {provider.authMode === 'codex-oauth' ? 'Sign In' : 'Save Key'}
+                      </Text>
                     </Pressable>
                   </View>
                 </View>
               ) : (
                 <Pressable
                   className="mt-3 w-full h-11 bg-surface-container rounded-lg border border-dashed border-outline-variant/30 flex flex-row items-center justify-center gap-2 active:bg-surface-container-high"
-                  onPress={() => setIsAddingKey(provider.id)}
+                  onPress={() => {
+                    setIsAddingKey(provider.id);
+                    setCodexUserCode(null);
+                  }}
                 >
                   <Plus size={16} className="text-on-surface-variant" color="#c6c6c6" />
                   <Text className="text-sm font-medium text-on-surface-variant">
-                    Add {provider.name} API Key
+                    {provider.authMode === 'codex-oauth' ? `Connect ${provider.name}` : `Add ${provider.name} API Key`}
                   </Text>
                 </Pressable>
               )}

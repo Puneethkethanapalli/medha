@@ -17,6 +17,19 @@ export interface ModelPricing {
  */
 const PRICING_MAP: Record<string, ModelPricing> = {
   // OpenAI
+  'gpt-5.5': { promptPer1M: 5, completionPer1M: 30 },
+  'gpt-5.4': { promptPer1M: 2.5, completionPer1M: 15 },
+  'gpt-5.4-mini': { promptPer1M: 0.75, completionPer1M: 4.5 },
+  'gpt-5.4-nano': { promptPer1M: 0.2, completionPer1M: 1.25 },
+  'gpt-5.3-chat-latest': { promptPer1M: 1.75, completionPer1M: 14 },
+  'gpt-5.3-codex': { promptPer1M: 1.75, completionPer1M: 14 },
+  'gpt-5.2-codex': { promptPer1M: 1.75, completionPer1M: 14 },
+  'gpt-5.1': { promptPer1M: 1.25, completionPer1M: 10 },
+  'gpt-5.1-codex-max': { promptPer1M: 1.25, completionPer1M: 10 },
+  'gpt-5.1-codex-mini': { promptPer1M: 0.25, completionPer1M: 2 },
+  'gpt-5.1-codex': { promptPer1M: 1.25, completionPer1M: 10 },
+  'gpt-5': { promptPer1M: 1.25, completionPer1M: 10 },
+  'gpt-5-nano': { promptPer1M: 0.05, completionPer1M: 0.4 },
   'gpt-4o': { promptPer1M: 2.5, completionPer1M: 10 },
   'gpt-4o-mini': { promptPer1M: 0.15, completionPer1M: 0.6 },
   'gpt-4-turbo': { promptPer1M: 10, completionPer1M: 30 },
@@ -27,6 +40,13 @@ const PRICING_MAP: Record<string, ModelPricing> = {
   'o4-mini': { promptPer1M: 1.1, completionPer1M: 4.4 },
 
   // OpenRouter (OpenAI via OpenRouter)
+  'openai/gpt-5.5': { promptPer1M: 5, completionPer1M: 30 },
+  'openai/gpt-5.4': { promptPer1M: 2.5, completionPer1M: 15 },
+  'openai/gpt-5.4-mini': { promptPer1M: 0.75, completionPer1M: 4.5 },
+  'openai/gpt-5.4-nano': { promptPer1M: 0.2, completionPer1M: 1.25 },
+  'openai/gpt-5.3-chat-latest': { promptPer1M: 1.75, completionPer1M: 14 },
+  'openai/gpt-5.1': { promptPer1M: 1.25, completionPer1M: 10 },
+  'openai/gpt-5': { promptPer1M: 1.25, completionPer1M: 10 },
   'openai/gpt-4o': { promptPer1M: 2.5, completionPer1M: 10 },
   'openai/gpt-4o-mini': { promptPer1M: 0.15, completionPer1M: 0.6 },
   'openai/o1': { promptPer1M: 15, completionPer1M: 60 },

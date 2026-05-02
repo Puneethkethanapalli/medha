@@ -16,6 +16,38 @@ const KNOWN_CAPABILITIES: Record<string, ModelCapability[]> = {
   'openai/gpt-4.1': ['vision', 'tools', 'long-context'],
   'openai/gpt-4.1-mini': ['vision', 'tools', 'long-context'],
   'openai/gpt-4.1-nano': ['vision', 'tools', 'long-context'],
+  'openai/gpt-5.5': ['vision', 'tools', 'thinking', 'long-context'],
+  'openai/gpt-5.4': ['vision', 'tools', 'thinking', 'long-context'],
+  'openai/gpt-5.4-mini': ['vision', 'tools', 'thinking', 'long-context'],
+  'openai/gpt-5.4-nano': ['vision', 'tools', 'thinking', 'long-context'],
+  'openai/gpt-5.3-chat-latest': ['vision', 'tools', 'long-context'],
+  'openai/gpt-5.1': ['vision', 'tools', 'thinking', 'long-context'],
+  'openai/gpt-5': ['vision', 'tools', 'thinking', 'long-context'],
+
+  // OpenAI direct
+  'gpt-5.5': ['vision', 'tools', 'thinking', 'long-context'],
+  'gpt-5.4': ['vision', 'tools', 'thinking', 'long-context'],
+  'gpt-5.4-mini': ['vision', 'tools', 'thinking', 'long-context'],
+  'gpt-5.4-nano': ['vision', 'tools', 'thinking', 'long-context'],
+  'gpt-5.3-chat-latest': ['vision', 'tools', 'long-context'],
+  'gpt-5.1': ['vision', 'tools', 'thinking', 'long-context'],
+  'gpt-5': ['vision', 'tools', 'thinking', 'long-context'],
+  'gpt-5-chat-latest': ['vision', 'tools', 'long-context'],
+  'gpt-5-mini': ['vision', 'tools', 'thinking', 'long-context'],
+  'gpt-5-nano': ['vision', 'tools', 'thinking', 'long-context'],
+  'gpt-4o': ['vision', 'tools', 'long-context'],
+  'gpt-4o-mini': ['vision', 'tools', 'long-context'],
+  'gpt-4.1': ['vision', 'tools', 'long-context'],
+  'gpt-4.1-mini': ['vision', 'tools', 'long-context'],
+  'gpt-4.1-nano': ['vision', 'tools', 'long-context'],
+  'o3': ['tools', 'thinking', 'long-context'],
+  'o3-mini': ['tools', 'thinking', 'long-context'],
+  'o4-mini': ['tools', 'thinking', 'long-context'],
+  'gpt-5.3-codex': ['vision', 'tools', 'thinking', 'long-context'],
+  'gpt-5.2-codex': ['vision', 'tools', 'thinking', 'long-context'],
+  'gpt-5.1-codex-max': ['vision', 'tools', 'thinking', 'long-context'],
+  'gpt-5.1-codex': ['vision', 'tools', 'thinking', 'long-context'],
+  'gpt-5.1-codex-mini': ['vision', 'tools', 'thinking', 'long-context'],
 
   // Anthropic
   'anthropic/claude-3-opus': ['vision', 'tools', 'pdf', 'long-context'],
@@ -92,6 +124,7 @@ const LONG_CONTEXT_MODELS = [
   'gemini-2.0',
   'gemini-2.5',
   'gpt-4o',
+  'gpt-5',
   'gpt-4-turbo',
   'gpt-4.1',
   'o1',
@@ -125,6 +158,21 @@ const CONTEXT_WINDOW_MAP: Record<string, number> = {
   'gpt-4-turbo': 128000,
   'gpt-4.1': 1000000,
   'gpt-4.1-mini': 1000000,
+  'gpt-5.4-mini': 400000,
+  'gpt-5.4-nano': 400000,
+  'gpt-5.5': 1000000,
+  'gpt-5.4': 1050000,
+  'gpt-5.3-chat-latest': 128000,
+  'gpt-5.1': 400000,
+  'gpt-5-chat-latest': 128000,
+  'gpt-5.3-codex': 400000,
+  'gpt-5.2-codex': 400000,
+  'gpt-5.1-codex-max': 400000,
+  'gpt-5.1-codex': 400000,
+  'gpt-5.1-codex-mini': 400000,
+  'gpt-5-mini': 400000,
+  'gpt-5-nano': 400000,
+  'gpt-5': 400000,
   'o1': 200000,
   'o1-mini': 128000,
   'o3': 200000,
@@ -165,7 +213,9 @@ function heuristicCapabilities(modelId: string, provider: string): ModelCapabili
   if (
     lowerNormalized.includes('vision') ||
     lowerNormalized.includes('vl') ||
+    lowerNormalized.includes('gpt-5') ||
     lowerNormalized.includes('gpt-4o') ||
+    lowerNormalized.includes('gpt-4.1') ||
     lowerNormalized.includes('pixtral') ||
     lowerNormalized.includes('grok-vision') ||
     lowerNormalized.includes('llama-3.2') ||
@@ -197,6 +247,7 @@ function heuristicCapabilities(modelId: string, provider: string): ModelCapabili
   // Tools: most modern instruction-tuned models
   if (
     lowerNormalized.includes('gpt-4') ||
+    lowerNormalized.includes('gpt-5') ||
     lowerNormalized.includes('claude-3') ||
     lowerNormalized.includes('claude-sonnet') ||
     lowerNormalized.includes('gemini') ||
@@ -215,8 +266,10 @@ function heuristicCapabilities(modelId: string, provider: string): ModelCapabili
     lowerNormalized.includes('o1') ||
     lowerNormalized.includes('o3') ||
     lowerNormalized.includes('o4') ||
+    (lowerNormalized.includes('gpt-5') && !lowerNormalized.includes('chat-latest')) ||
     lowerNormalized.includes('r1') ||
     lowerNormalized.includes('thinking') ||
+    lowerNormalized.includes('codex') ||
     lowerNormalized.includes('deepseek-reasoner') ||
     lowerNormalized.includes('deepseek-r1') ||
     (lowerNormalized.includes('claude-3-7') || lowerNormalized.includes('claude-sonnet-4')) ||

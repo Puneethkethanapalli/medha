@@ -21,6 +21,9 @@ export async function hasApiKey(provider: string): Promise<boolean> {
 }
 
 export function maskApiKey(key: string): string {
+  if (key.startsWith('{') && key.includes('"type":"oauth"')) {
+    return 'oauth****codex';
+  }
   if (key.length <= 8) return '****';
   return key.slice(0, 4) + '****' + key.slice(-4);
 }

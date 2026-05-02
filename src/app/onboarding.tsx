@@ -1,25 +1,35 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useRouter } from 'expo-router';
 import { ClipboardPaste, Check, TriangleAlert, ArrowRight } from 'lucide-react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { cn } from '@/lib/utils';
 import { useSettingsStore, saveProviderKey, hasAnyProviderKey } from '@/stores/settings-store';
 import { setCloudflareAccountId } from '@/lib/storage/mmkv';
+import {
+  OPENAI_CODEX_DEVICE_URL,
+  pollCodexDeviceAuthorization,
+  requestCodexDeviceAuthorization,
+  serializeCodexCredential,
+} from '@/lib/auth/openai-codex';
 import { MedhaLogo } from '@/components/branding/MedhaLogo';
 import * as Clipboard from 'expo-clipboard';
 
-type ProviderId = 'openrouter' | 'google-ai' | 'anthropic' | 'minimax' | 'cloudflare-ai';
+type ProviderId = 'openrouter' | 'openai' | 'openai-codex' | 'google-ai' | 'anthropic' | 'minimax' | 'cloudflare-ai';
 
 interface ProviderOption {
   id: ProviderId;
   name: string;
   placeholder: string;
   hint: string;
+  authMode?: 'api-key' | 'codex-oauth';
 }
 
 const PROVIDERS: ProviderOption[] = [
   { id: 'openrouter', name: 'OpenRouter', placeholder: 'sk-or-...', hint: 'openrouter.ai/keys' },
+  { id: 'openai', name: 'OpenAI', placeholder: 'sk-proj-...', hint: 'platform.openai.com/api-keys' },
+  { id: 'openai-codex', name: 'ChatGPT Codex', placeholder: '', hint: 'ChatGPT Plus/Pro/Business Codex access', authMode: 'codex-oauth' },
   { id: 'google-ai', name: 'Google AI', placeholder: 'AIza...', hint: 'aistudio.google.com/apikey' },
   { id: 'anthropic', name: 'Anthropic', placeholder: 'sk-ant-...', hint: 'console.anthropic.com/settings/keys' },
   { id: 'minimax', name: 'MiniMax', placeholder: 'eyJ...', hint: 'platform.minimax.io' },
@@ -38,6 +48,8 @@ export default function OnboardingScreen() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [isCheckingExisting, setIsCheckingExisting] = useState(true);
   const [successProvider, setSuccessProvider] = useState<string | null>(null);
+  const [codexUserCode, setCodexUserCode] = useState<string | null>(null);
+  const codexAbortRef = useRef<AbortController | null>(null);
 
   const currentProvider = PROVIDERS.find((p) => p.id === selectedProvider)!;
 
@@ -52,6 +64,10 @@ export default function OnboardingScreen() {
     checkExistingKey();
   }, []);
 
+  useEffect(() => {
+    return () => codexAbortRef.current?.abort();
+  }, []);
+
   const handlePaste = async () => {
     const text = await Clipboard.getStringAsync();
     if (text) {
@@ -61,6 +77,11 @@ export default function OnboardingScreen() {
   };
 
   const handleVerifyAndContinue = async () => {
+    if (selectedProvider === 'openai-codex') {
+      await handleCodexSignIn();
+      return;
+    }
+
     if (!apiKey.trim()) {
       setError('Please enter an API key');
       return;
@@ -107,6 +128,42 @@ export default function OnboardingScreen() {
         setError('Verification failed. Please try again.');
       }
     } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCodexSignIn = async () => {
+    setIsLoading(true);
+    setError(null);
+    setCodexUserCode(null);
+
+    const abortController = new AbortController();
+    codexAbortRef.current = abortController;
+
+    try {
+      const device = await requestCodexDeviceAuthorization();
+      setCodexUserCode(device.userCode);
+      await Clipboard.setStringAsync(device.userCode);
+      void WebBrowser.openBrowserAsync(OPENAI_CODEX_DEVICE_URL);
+
+      const tokens = await pollCodexDeviceAuthorization(device, abortController.signal);
+      await saveProviderKey('openai-codex', serializeCodexCredential(tokens));
+      await setLastProvider('openai-codex');
+      await setOnboardingComplete(true);
+      await initialize();
+      setSuccessProvider(currentProvider.name);
+      setIsSuccess(true);
+      setTimeout(() => {
+        router.replace('/');
+      }, 1200);
+    } catch (e: any) {
+      if (!abortController.signal.aborted) {
+        setError(e.message || 'ChatGPT sign-in failed. Please try again.');
+      }
+    } finally {
+      if (codexAbortRef.current === abortController) {
+        codexAbortRef.current = null;
+      }
       setIsLoading(false);
     }
   };
@@ -196,6 +253,7 @@ export default function OnboardingScreen() {
                     setApiKey('');
                     setError(null);
                     setCfAccountId('');
+                    setCodexUserCode(null);
                   }}
                 >
                   <Text
@@ -230,30 +288,50 @@ export default function OnboardingScreen() {
               </View>
             )}
 
-            {/* Input Field */}
-            <View className="mt-4 relative">
-              <TextInput
-                className={cn(
-                  'w-full bg-surface-container-high rounded-lg py-3 pl-3 pr-10 text-primary font-body text-sm placeholder-on-surface-variant/50',
-                  error ? 'border border-[#EF4444]' : 'border border-outline-variant/40'
+            {currentProvider.authMode === 'codex-oauth' ? (
+              <View className="mt-4 bg-surface-container-high rounded-lg border border-outline-variant/40 p-3">
+                <Text className="font-body text-[12px] text-on-surface-variant">
+                  Sign in with ChatGPT to use Codex models from your ChatGPT plan.
+                </Text>
+                {codexUserCode && (
+                  <Pressable
+                    className="mt-3 rounded-lg bg-surface-container-low border border-outline-variant/20 px-3 py-2"
+                    onPress={() => Clipboard.setStringAsync(codexUserCode)}
+                  >
+                    <Text className="font-mono text-primary text-lg tracking-widest text-center">
+                      {codexUserCode}
+                    </Text>
+                    <Text className="font-body text-[11px] text-on-surface-variant/70 text-center mt-1">
+                      Code copied. Enter it at auth.openai.com/codex/device
+                    </Text>
+                  </Pressable>
                 )}
-                placeholder={currentProvider.placeholder}
-                value={apiKey}
-                onChangeText={(text) => {
-                  setApiKey(text);
-                  setError(null);
-                }}
-                autoCapitalize="none"
-                autoCorrect={false}
-                secureTextEntry
-              />
-              <Pressable
-                className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-row items-center justify-center"
-                onPress={handlePaste}
-              >
-                <ClipboardPaste size={20} className="text-on-surface-variant" color="#c6c6c6" />
-              </Pressable>
-            </View>
+              </View>
+            ) : (
+              <View className="mt-4 relative">
+                <TextInput
+                  className={cn(
+                    'w-full bg-surface-container-high rounded-lg py-3 pl-3 pr-10 text-primary font-body text-sm placeholder-on-surface-variant/50',
+                    error ? 'border border-[#EF4444]' : 'border border-outline-variant/40'
+                  )}
+                  placeholder={currentProvider.placeholder}
+                  value={apiKey}
+                  onChangeText={(text) => {
+                    setApiKey(text);
+                    setError(null);
+                  }}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  secureTextEntry
+                />
+                <Pressable
+                  className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-row items-center justify-center"
+                  onPress={handlePaste}
+                >
+                  <ClipboardPaste size={20} className="text-on-surface-variant" color="#c6c6c6" />
+                </Pressable>
+              </View>
+            )}
 
             {/* Error Message */}
             {error && (
@@ -265,7 +343,7 @@ export default function OnboardingScreen() {
 
             {/* Hint */}
             <Text className="font-body text-[11px] text-on-surface-variant/60 mt-2">
-              Get your key at {currentProvider.hint}
+              {currentProvider.authMode === 'codex-oauth' ? currentProvider.hint : `Get your key at ${currentProvider.hint}`}
             </Text>
 
             {/* Button */}
@@ -281,7 +359,9 @@ export default function OnboardingScreen() {
                 <ActivityIndicator size="small" color="#1a1c1c" />
               ) : (
                 <>
-                  <Text className="text-on-primary font-medium text-sm">Verify & Continue</Text>
+                  <Text className="text-on-primary font-medium text-sm">
+                    {currentProvider.authMode === 'codex-oauth' ? 'Sign in & Continue' : 'Verify & Continue'}
+                  </Text>
                   <ArrowRight size={16} color="#1a1c1c" />
                 </>
               )}

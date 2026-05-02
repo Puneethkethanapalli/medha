@@ -1,5 +1,14 @@
 import { fetch } from 'expo/fetch';
-import { SSEParser, ThinkTagSeparator, extractTokens, extractGeminiNativeTokens, type ToolCallDelta, type UsageData } from './sse-parser';
+import {
+  SSEParser,
+  ThinkTagSeparator,
+  extractTokens,
+  extractGeminiNativeTokens,
+  extractOpenAIResponsesTokens,
+  isOpenAIResponsesDone,
+  type ToolCallDelta,
+  type UsageData,
+} from './sse-parser';
 
 // ─── Public types ───────────────────────────────────────────────────────
 
@@ -95,7 +104,7 @@ export async function streamCompletion(
   onReasoning: ReasoningTokenHandler,
   onDone: DoneHandler,
   onError: ErrorHandler,
-  format: 'openai' | 'anthropic' | 'gemini-native' = 'openai',
+  format: 'openai' | 'anthropic' | 'gemini-native' | 'openai-responses' = 'openai',
   onToolCalls?: ToolCallHandler,
   onUsage?: UsageHandler,
 ): Promise<void> {
@@ -232,7 +241,7 @@ function processEvents(
   thinkSep: ThinkTagSeparator,
   onContent: ContentTokenHandler,
   onReasoning: ReasoningTokenHandler,
-  format: 'openai' | 'anthropic' | 'gemini-native',
+  format: 'openai' | 'anthropic' | 'gemini-native' | 'openai-responses',
   toolAccum: ToolCallAccumulator,
   usageAccum: UsageData,
 ): boolean {
@@ -255,6 +264,18 @@ function processEvents(
           usageAccum.completionTokens += tokens.usage.completionTokens;
         }
       }
+    } else if (format === 'openai-responses') {
+      const tokens = extractOpenAIResponsesTokens(data);
+      if (tokens) {
+        if (tokens.content) onContent(tokens.content);
+        if (tokens.reasoning) onReasoning(tokens.reasoning);
+        if (tokens.toolCalls) toolAccum.push(tokens.toolCalls);
+        if (tokens.usage) {
+          usageAccum.promptTokens += tokens.usage.promptTokens;
+          usageAccum.completionTokens += tokens.usage.completionTokens;
+        }
+      }
+      if (isOpenAIResponsesDone(data)) return true;
     } else {
       const tokens = extractTokens(data, thinkSep);
       if (tokens) {

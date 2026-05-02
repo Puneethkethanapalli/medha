@@ -5,7 +5,7 @@ import * as Haptics from 'expo-haptics';
 import { ArrowUp, Square, Mic } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useChatStore } from '@/stores/chat-store';
-import { VoiceInput } from '@/components/chat/VoiceInput';
+import { VoiceInput, isVoiceInputAvailable } from '@/components/chat/VoiceInput';
 import { AttachmentTray } from '@/components/chat/AttachmentTray';
 import { AttachmentButton } from '@/components/chat/AttachmentButton';
 import { SlashCommandPicker } from '@/components/chat/SlashCommandPicker';
@@ -24,6 +24,7 @@ interface InputBarProps {
 export function InputBar({ onSend, onStop }: InputBarProps) {
   const [text, setText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [voiceInputAvailable] = useState(isVoiceInputAvailable);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isExtracting, setIsExtracting] = useState(false);
   const inputRef = useRef<TextInput>(null);
@@ -48,6 +49,23 @@ export function InputBar({ onSend, onStop }: InputBarProps) {
     [slashState]
   );
   const showPicker = slashState !== null && matchedCommands.length > 0 && !slashState.arg;
+
+  const animateSendButton = useCallback(() => {
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 0.9,
+        duration: 80,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 80,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [scaleAnim]);
 
   const handleSend = useCallback(async () => {
     const trimmed = text.trim();
@@ -112,24 +130,7 @@ export function InputBar({ onSend, onStop }: InputBarProps) {
     onSend(trimmed, enrichedAttachments.length > 0 ? enrichedAttachments : undefined);
     setText('');
     setAttachments([]);
-  }, [text, attachments, isStreaming, isExtracting, slashState, matchedCommands, onSend, scaleAnim]);
-
-  const animateSendButton = useCallback(() => {
-    Animated.sequence([
-      Animated.timing(scaleAnim, {
-        toValue: 0.9,
-        duration: 80,
-        easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: 1,
-        duration: 80,
-        easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [scaleAnim]);
+  }, [text, attachments, isStreaming, isExtracting, slashState, matchedCommands, onSend, animateSendButton]);
 
   const handleSlashCommandSelect = useCallback(
     (command: SlashCommand) => {
@@ -227,7 +228,7 @@ export function InputBar({ onSend, onStop }: InputBarProps) {
               />
 
               {/* Mic button — only when no text, no attachments, not streaming */}
-              {!canSend && !isStreaming && (
+              {!canSend && !isStreaming && voiceInputAvailable && (
                 <Pressable
                   onPress={handleMicPress}
                   className="w-8 h-8 rounded-full bg-muted items-center justify-center mb-1 active:scale-95"

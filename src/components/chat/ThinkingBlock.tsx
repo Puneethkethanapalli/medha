@@ -1,10 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Pressable, Animated, LayoutAnimation, Platform, UIManager, StyleSheet } from 'react-native';
+import { View, Pressable, Animated, LayoutAnimation, UIManager, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { ChevronDown, Brain } from 'lucide-react-native';
 
 // Enable LayoutAnimation on Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+const nativeArchitecture = globalThis as typeof globalThis & {
+  RN$Bridgeless?: boolean;
+  nativeFabricUIManager?: unknown;
+};
+const isNewArchitecture =
+  nativeArchitecture.RN$Bridgeless === true || nativeArchitecture.nativeFabricUIManager != null;
+
+if (
+  process.env.EXPO_OS === 'android' &&
+  !isNewArchitecture &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 

@@ -17,11 +17,15 @@ export function listProviders(): AIProvider[] {
 export function registerBuiltInProviders(): void {
   // Lazy import to avoid circular dependencies
   const { OpenRouterProvider } = require('./openrouter');
+  const { OpenAIProvider } = require('./openai');
+  const { OpenAICodexProvider } = require('./openai-codex');
   const { GoogleAIProvider } = require('./google-ai');
   const { AnthropicProvider } = require('./anthropic');
   const { MiniMaxProvider } = require('./minimax');
   const { CloudflareAIProvider } = require('./cloudflare-ai');
   registerProvider(new OpenRouterProvider());
+  registerProvider(new OpenAIProvider());
+  registerProvider(new OpenAICodexProvider());
   registerProvider(new GoogleAIProvider());
   registerProvider(new AnthropicProvider());
   registerProvider(new MiniMaxProvider());

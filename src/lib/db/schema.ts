@@ -3,15 +3,26 @@ import { openDatabaseSync, type SQLiteDatabase } from 'expo-sqlite';
 const DB_NAME = 'medha.db';
 
 let db: SQLiteDatabase | null = null;
+let initialized = false;
 
-export function getDatabase(): SQLiteDatabase {
+function openDatabase(): SQLiteDatabase {
   if (db) return db;
   db = openDatabaseSync(DB_NAME);
   return db;
 }
 
+export function getDatabase(): SQLiteDatabase {
+  const database = openDatabase();
+  if (!initialized) {
+    initializeDatabase();
+  }
+  return database;
+}
+
 export function initializeDatabase(): void {
-  const database = getDatabase();
+  if (initialized) return;
+
+  const database = openDatabase();
 
   // Enable foreign keys
   database.runSync('PRAGMA foreign_keys = ON');
@@ -176,4 +187,6 @@ export function initializeDatabase(): void {
   } catch {
     // Column already exists — ignore
   }
+
+  initialized = true;
 }
