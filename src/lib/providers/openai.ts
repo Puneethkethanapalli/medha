@@ -1,27 +1,11 @@
 import { fetch } from 'expo/fetch';
-import type { AIProvider, StreamConfig } from './types';
+import type { AIProvider, ListModelsOptions, StreamConfig } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
 import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { buildOpenAIMessages, type OpenAIMessage } from '@/lib/attachments/multimodal';
 import type { Message, Model } from '@/types';
 
 const OPENAI_BASE_URL = 'https://api.openai.com/v1';
-
-const FALLBACK_MODELS: Model[] = [
-  { id: 'gpt-5.5', name: 'GPT-5.5', provider: 'openai' },
-  { id: 'gpt-5.4', name: 'GPT-5.4', provider: 'openai' },
-  { id: 'gpt-5.4-mini', name: 'GPT-5.4 Mini', provider: 'openai' },
-  { id: 'gpt-5.4-nano', name: 'GPT-5.4 Nano', provider: 'openai' },
-  { id: 'gpt-5.3-chat-latest', name: 'GPT-5.3 Chat', provider: 'openai' },
-  { id: 'gpt-5.1', name: 'GPT-5.1', provider: 'openai' },
-  { id: 'gpt-5', name: 'GPT-5', provider: 'openai' },
-  { id: 'gpt-4.1', name: 'GPT-4.1', provider: 'openai' },
-  { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', provider: 'openai' },
-  { id: 'gpt-4o', name: 'GPT-4o', provider: 'openai' },
-  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'openai' },
-  { id: 'o4-mini', name: 'o4 Mini', provider: 'openai' },
-  { id: 'o3', name: 'o3', provider: 'openai' },
-];
 
 export class OpenAIProvider implements AIProvider {
   id = 'openai';
@@ -98,13 +82,14 @@ export class OpenAIProvider implements AIProvider {
     };
   }
 
-  async listModels(apiKey: string): Promise<Model[]> {
+  async listModels(apiKey: string, options?: ListModelsOptions): Promise<Model[]> {
     try {
       const response = await fetch(`${OPENAI_BASE_URL}/models`, {
+        signal: options?.signal,
         headers: { Authorization: `Bearer ${apiKey}` },
       });
 
-      if (!response.ok) return FALLBACK_MODELS;
+      if (!response.ok) throw new Error(`Failed to list models: ${response.status}`);
 
       const data = await response.json();
       const modelIds = ((data.data || []) as { id?: unknown }[])
@@ -113,15 +98,16 @@ export class OpenAIProvider implements AIProvider {
         .filter(isChatModel)
         .sort(compareModelIds);
 
-      if (modelIds.length === 0) return FALLBACK_MODELS;
+      if (modelIds.length === 0) throw new Error('OpenAI returned no chat models.');
 
       return modelIds.map((id) => ({
         id,
         name: formatModelName(id),
         provider: 'openai',
       }));
-    } catch {
-      return FALLBACK_MODELS;
+    } catch (error) {
+      if (options?.signal?.aborted) throw error;
+      throw error;
     }
   }
 

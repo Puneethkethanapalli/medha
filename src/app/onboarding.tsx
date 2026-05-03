@@ -7,6 +7,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { cn } from '@/lib/utils';
 import { useSettingsStore, saveProviderKey, hasAnyProviderKey } from '@/stores/settings-store';
 import { setCloudflareAccountId } from '@/lib/storage/mmkv';
+import { warmProviderModelListCache } from '@/lib/models/model-list-sync';
 import {
   OPENAI_CODEX_DEVICE_URL,
   pollCodexDeviceAuthorization,
@@ -108,6 +109,7 @@ export default function OnboardingScreen() {
       const isValid = await validateApiKey(selectedProvider, apiKey.trim());
       if (isValid) {
         await saveProviderKey(selectedProvider, apiKey.trim());
+        await warmProviderModelListCache(selectedProvider, apiKey.trim());
         await setLastProvider(selectedProvider);
         await setOnboardingComplete(true);
         await initialize();
@@ -147,7 +149,9 @@ export default function OnboardingScreen() {
       void WebBrowser.openBrowserAsync(OPENAI_CODEX_DEVICE_URL);
 
       const tokens = await pollCodexDeviceAuthorization(device, abortController.signal);
-      await saveProviderKey('openai-codex', serializeCodexCredential(tokens));
+      const credential = serializeCodexCredential(tokens);
+      await saveProviderKey('openai-codex', credential);
+      await warmProviderModelListCache('openai-codex', credential);
       await setLastProvider('openai-codex');
       await setOnboardingComplete(true);
       await initialize();

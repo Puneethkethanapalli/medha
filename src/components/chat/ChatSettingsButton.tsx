@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, Text } from 'react-native';
+import { Pressable } from 'react-native';
 import { Settings2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useUIStore } from '@/stores/ui-store';
@@ -15,12 +15,11 @@ export function ChatSettingsButton() {
   return (
     <Pressable
       onPress={handlePress}
-      className="flex-row items-center gap-1 bg-muted rounded-full px-2.5 py-1 active:opacity-70"
+      className="w-8 h-8 items-center justify-center bg-muted rounded-full active:opacity-70"
+      accessibilityRole="button"
+      accessibilityLabel="Chat settings"
     >
-      <Settings2 size={12} color="hsl(0, 0%, 63%)" />
-      <Text className="text-[11px] font-semibold text-muted-foreground">
-        Settings
-      </Text>
+      <Settings2 size={15} color="hsl(0, 0%, 63%)" />
     </Pressable>
   );
 }

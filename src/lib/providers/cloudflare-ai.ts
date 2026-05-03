@@ -1,5 +1,5 @@
 import { fetch } from 'expo/fetch';
-import type { AIProvider, StreamConfig } from './types';
+import type { AIProvider, ListModelsOptions, StreamConfig } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
 import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { buildOpenAIMessages } from '@/lib/attachments/multimodal';
@@ -22,7 +22,7 @@ function getBaseUrl(accountId: string): string {
   return `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1`;
 }
 
-// Fallback model list — used when the API call fails (network error, missing account ID, etc.).
+// Static model list used by the picker when Cloudflare cannot be refreshed.
 // Context windows and capability badges come from Cloudflare's API response or LiteLLM.
 export const CLOUDFLARE_FALLBACK_MODELS: Model[] = [
   { id: '@cf/openai/gpt-oss-120b', name: 'GPT-OSS 120B', provider: 'cloudflare-ai' },
@@ -120,24 +120,25 @@ export class CloudflareAIProvider implements AIProvider {
     };
   }
 
-  async listModels(apiKey: string): Promise<Model[]> {
+  async listModels(apiKey: string, options?: ListModelsOptions): Promise<Model[]> {
     const accountId = getAccountId();
-    if (!accountId) return CLOUDFLARE_FALLBACK_MODELS;
+    if (!accountId) throw new Error('Cloudflare account ID is not configured.');
 
     try {
       const response = await fetch(
         `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/models/search?task=Text%20Generation`,
         {
+          signal: options?.signal,
           headers: { Authorization: `Bearer ${apiKey}` },
         }
       );
 
-      if (!response.ok) return CLOUDFLARE_FALLBACK_MODELS;
+      if (!response.ok) throw new Error(`Failed to list models: ${response.status}`);
 
       const data = await response.json();
       const models: any[] = Array.isArray(data.result) ? data.result : [];
 
-      if (models.length === 0) return CLOUDFLARE_FALLBACK_MODELS;
+      if (models.length === 0) throw new Error('Cloudflare returned no models.');
 
       return models
         .filter((m: any) => {
@@ -184,8 +185,9 @@ export class CloudflareAIProvider implements AIProvider {
             }),
           };
         });
-    } catch {
-      return CLOUDFLARE_FALLBACK_MODELS;
+    } catch (error) {
+      if (options?.signal?.aborted) throw error;
+      throw error;
     }
   }
 

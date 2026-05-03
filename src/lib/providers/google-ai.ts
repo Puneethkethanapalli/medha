@@ -1,5 +1,5 @@
 import { fetch } from 'expo/fetch';
-import type { AIProvider, StreamConfig } from './types';
+import type { AIProvider, ListModelsOptions, StreamConfig } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
 import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { buildOpenAIMessages } from '@/lib/attachments/multimodal';
@@ -184,8 +184,10 @@ export class GoogleAIProvider implements AIProvider {
     );
   }
 
-  async listModels(apiKey: string): Promise<Model[]> {
-    const response = await fetch(`${GOOGLE_AI_BASE}/models?key=${apiKey}&pageSize=100`);
+  async listModels(apiKey: string, options?: ListModelsOptions): Promise<Model[]> {
+    const response = await fetch(`${GOOGLE_AI_BASE}/models?key=${apiKey}&pageSize=100`, {
+      signal: options?.signal,
+    });
 
     if (!response.ok) {
       throw new Error(`Failed to list models: ${response.status}`);

@@ -8,6 +8,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as WebBrowser from 'expo-web-browser';
 import { useSettingsStore, hasProviderKey, deleteProviderKey, maskKey } from '@/stores/settings-store';
 import { setCloudflareAccountId } from '@/lib/storage/mmkv';
+import { warmProviderModelListCache } from '@/lib/models/model-list-sync';
 import {
   OPENAI_CODEX_DEVICE_URL,
   pollCodexDeviceAuthorization,
@@ -141,6 +142,7 @@ export default function ApiKeysScreen() {
       if (isValid) {
         const { saveProviderKey } = await import('@/stores/settings-store');
         await saveProviderKey(provider.id, key.trim());
+        await warmProviderModelListCache(provider.id, key.trim());
         setConnectedProviders(prev => new Set([...prev, provider.id]));
         setIsAddingKey(null);
         setKeys(prev => ({ ...prev, [provider.id]: '' }));
@@ -170,7 +172,9 @@ export default function ApiKeysScreen() {
 
       const tokens = await pollCodexDeviceAuthorization(device, abortController.signal);
       const { saveProviderKey } = await import('@/stores/settings-store');
-      await saveProviderKey(provider.id, serializeCodexCredential(tokens));
+      const credential = serializeCodexCredential(tokens);
+      await saveProviderKey(provider.id, credential);
+      await warmProviderModelListCache(provider.id, credential);
       setConnectedProviders(prev => new Set([...prev, provider.id]));
       setIsAddingKey(null);
       setCodexUserCode(null);

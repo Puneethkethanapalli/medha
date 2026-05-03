@@ -267,8 +267,9 @@ function AuthGate() {
         console.error('Init failed:', e);
       }
 
-      const { hasAnyProviderKey } = await import('@/stores/settings-store');
-      const hasKey = await hasAnyProviderKey();
+      const { getConfiguredProviders } = await import('@/stores/settings-store');
+      const configuredProviders = await getConfiguredProviders();
+      const hasKey = configuredProviders.length > 0;
       const isOnboarding = (segments[0] || '') === 'onboarding';
 
       if (!hasKey && !isOnboarding) {
@@ -278,6 +279,11 @@ function AuthGate() {
       }
 
       setReady(true);
+
+      if (hasKey) {
+        const { warmMissingModelListCaches } = await import('@/lib/models/model-list-sync');
+        void warmMissingModelListCaches(configuredProviders);
+      }
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

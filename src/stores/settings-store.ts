@@ -4,6 +4,7 @@ import type { Theme, ThinkingMode, RuleItem, ImageGenService } from '@/lib/stora
 interface SettingsState {
   theme: Theme;
   lastModel: string | null;
+  lastModelName: string | null;
   lastProvider: string | null;
   onboardingComplete: boolean;
   biometricLockEnabled: boolean;
@@ -20,7 +21,7 @@ interface SettingsActions {
   setTheme: (theme: Theme) => Promise<void>;
   setLastModel: (model: string | null) => Promise<void>;
   setLastProvider: (provider: string | null) => Promise<void>;
-  setLastModelSelection: (model: string | null, provider: string | null) => Promise<void>;
+  setLastModelSelection: (model: string | null, provider: string | null, modelName?: string | null) => Promise<void>;
   setOnboardingComplete: (complete: boolean) => Promise<void>;
   setBiometricLockEnabled: (enabled: boolean) => Promise<void>;
   setThinkingMode: (mode: ThinkingMode) => Promise<void>;
@@ -55,6 +56,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
   // State
   theme: 'dark' as Theme,
   lastModel: null,
+  lastModelName: null,
   lastProvider: null,
   onboardingComplete: false,
   biometricLockEnabled: false,
@@ -75,8 +77,11 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
 
   setLastModel: async (model) => {
     await loadModules();
-    await mmkv!.setLastModel(model);
-    set({ lastModel: model });
+    await Promise.all([
+      mmkv!.setLastModel(model),
+      mmkv!.setLastModelName(null),
+    ]);
+    set({ lastModel: model, lastModelName: null });
   },
 
   setLastProvider: async (provider) => {
@@ -85,11 +90,15 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
     set({ lastProvider: provider });
   },
 
-  setLastModelSelection: async (model, provider) => {
-    set({ lastModel: model, lastProvider: provider });
+  setLastModelSelection: async (model, provider, modelName) => {
+    const resolvedModelName =
+      model ? (model === get().lastModel ? modelName ?? get().lastModelName : modelName ?? null) : null;
+
+    set({ lastModel: model, lastProvider: provider, lastModelName: resolvedModelName });
     await loadModules();
     await Promise.all([
       mmkv!.setLastModel(model),
+      mmkv!.setLastModelName(resolvedModelName),
       mmkv!.setLastProvider(provider),
     ]);
   },
@@ -154,6 +163,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
     set({
       theme: mmkv!.getThemeSync(),
       lastModel: mmkv!.getLastModelSync(),
+      lastModelName: mmkv!.getLastModelNameSync(),
       lastProvider: mmkv!.getLastProviderSync(),
       onboardingComplete: mmkv!.isOnboardingCompleteSync(),
       biometricLockEnabled: mmkv!.isBiometricLockEnabledSync(),
@@ -169,35 +179,42 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
 }));
 
 // Helper functions that use dynamic imports
+let configuredProvidersCache: string[] | null = null;
+
 export async function hasProviderKey(provider: string): Promise<boolean> {
   const secureModule = await import('@/lib/storage/secure');
   return await secureModule.hasApiKey(provider);
 }
 
 export async function hasAnyProviderKey(): Promise<boolean> {
-  const providers = ['openrouter', 'openai', 'openai-codex', 'google-ai', 'anthropic', 'minimax', 'cloudflare-ai'];
-  for (const p of providers) {
-    if (await hasProviderKey(p)) return true;
-  }
-  return false;
+  return (await getConfiguredProviders()).length > 0;
 }
 
 export async function getConfiguredProviders(): Promise<string[]> {
+  if (configuredProvidersCache) return configuredProvidersCache;
+
   const allProviders = ['openrouter', 'openai', 'openai-codex', 'google-ai', 'anthropic', 'minimax', 'cloudflare-ai'];
   const configured = await Promise.all(
     allProviders.map(async (provider) => (await hasProviderKey(provider) ? provider : null))
   );
-  return configured.filter((provider): provider is string => provider !== null);
+  configuredProvidersCache = configured.filter((provider): provider is string => provider !== null);
+  return configuredProvidersCache;
 }
 
 export async function saveProviderKey(provider: string, key: string): Promise<void> {
   const secureModule = await import('@/lib/storage/secure');
   await secureModule.saveApiKey(provider, key);
+  configuredProvidersCache = null;
+  const { clearCachedModelList } = await import('@/lib/models/model-list-cache');
+  await clearCachedModelList(provider);
 }
 
 export async function deleteProviderKey(provider: string): Promise<void> {
   const secureModule = await import('@/lib/storage/secure');
   await secureModule.deleteApiKey(provider);
+  configuredProvidersCache = null;
+  const { clearCachedModelList } = await import('@/lib/models/model-list-cache');
+  await clearCachedModelList(provider);
 }
 
 export function maskKey(key: string): string {

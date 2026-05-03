@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, Text as RNText, View } from 'react-native';
+import { Pressable, Text as RNText, View, useWindowDimensions } from 'react-native';
 import { ChevronDown } from 'lucide-react-native';
 import { useUIStore } from '@/stores/ui-store';
 import { useSettingsStore } from '@/stores/settings-store';
@@ -19,12 +19,15 @@ const PROVIDER_SHORT: Record<string, string> = {
 };
 
 export function ModelPill() {
+  const { width } = useWindowDimensions();
   const openModelPicker = useUIStore((s) => s.openModelPicker);
   const lastModel = useSettingsStore((s) => s.lastModel);
+  const lastModelName = useSettingsStore((s) => s.lastModelName);
   const lastProvider = useSettingsStore((s) => s.lastProvider);
   const [metadataVersion, setMetadataVersion] = useState(0);
-  const displayName = getModelDisplayName(lastModel);
+  const displayName = lastModelName || getModelDisplayName(lastModel);
   const providerBadge = lastProvider ? PROVIDER_SHORT[lastProvider] : null;
+  const maxPillWidth = Math.max(104, Math.min(176, width * 0.42));
 
   useEffect(() => {
     let cancelled = false;
@@ -52,7 +55,9 @@ export function ModelPill() {
     <Pressable
       onPress={openModelPicker}
       className="flex-row items-center bg-surface-container-low border border-outline-variant/20 rounded-full px-3 py-1.5 gap-1.5 active:opacity-70"
-      style={{ maxWidth: '100%' }}
+      style={{ maxWidth: maxPillWidth, minWidth: 0, flexShrink: 1 }}
+      accessibilityRole="button"
+      accessibilityLabel="Select model"
     >
       {providerBadge && (
         <RNText
@@ -75,7 +80,7 @@ export function ModelPill() {
         {displayName}
       </RNText>
       {premiumCaps.length > 0 && (
-        <View className="flex-row items-center">
+        <View className="flex-row items-center" style={{ flexShrink: 0 }}>
           <CapabilityBadges
             capabilities={premiumCaps}
             size={11}

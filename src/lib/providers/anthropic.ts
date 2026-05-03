@@ -1,5 +1,5 @@
 import { fetch } from 'expo/fetch';
-import type { AIProvider, StreamConfig } from './types';
+import type { AIProvider, ListModelsOptions, StreamConfig } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
 import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { buildAnthropicMessages } from '@/lib/attachments/multimodal';
@@ -17,16 +17,6 @@ const THINKING_CAPABLE_MODELS = [
 function isThinkingCapable(model: string): boolean {
   return THINKING_CAPABLE_MODELS.some(prefix => model.startsWith(prefix));
 }
-
-// Fallback models — used when the API call fails
-const ANTHROPIC_FALLBACK_MODELS: Model[] = [
-  { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', provider: 'anthropic' },
-  { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet', provider: 'anthropic' },
-  { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku', provider: 'anthropic' },
-  { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet v2', provider: 'anthropic' },
-  { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus', provider: 'anthropic' },
-  { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku', provider: 'anthropic' },
-];
 
 export class AnthropicProvider implements AIProvider {
   id = 'anthropic';
@@ -109,20 +99,21 @@ export class AnthropicProvider implements AIProvider {
     };
   }
 
-  async listModels(apiKey: string): Promise<Model[]> {
+  async listModels(apiKey: string, options?: ListModelsOptions): Promise<Model[]> {
     try {
       const response = await fetch(`${ANTHROPIC_BASE_URL}/models?limit=100`, {
+        signal: options?.signal,
         headers: {
           'x-api-key': apiKey,
           'anthropic-version': ANTHROPIC_VERSION,
         },
       });
 
-      if (!response.ok) return ANTHROPIC_FALLBACK_MODELS;
+      if (!response.ok) throw new Error(`Failed to list models: ${response.status}`);
 
       const data = await response.json();
       const models: any[] = data.data || [];
-      if (models.length === 0) return ANTHROPIC_FALLBACK_MODELS;
+      if (models.length === 0) throw new Error('Anthropic returned no models.');
 
       return models.map((m: any) => ({
         id: m.id as string,
@@ -130,8 +121,9 @@ export class AnthropicProvider implements AIProvider {
         provider: 'anthropic',
         contextWindow: typeof m.max_input_tokens === 'number' ? m.max_input_tokens : undefined,
       }));
-    } catch {
-      return ANTHROPIC_FALLBACK_MODELS;
+    } catch (error) {
+      if (options?.signal?.aborted) throw error;
+      throw error;
     }
   }
 

@@ -1,5 +1,5 @@
 import { fetch } from 'expo/fetch';
-import type { AIProvider, StreamConfig } from './types';
+import type { AIProvider, ListModelsOptions, StreamConfig } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
 import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { buildOpenAIMessages } from '@/lib/attachments/multimodal';
@@ -87,8 +87,9 @@ export class OpenRouterProvider implements AIProvider {
     };
   }
 
-  async listModels(apiKey: string): Promise<import('@/types').Model[]> {
+  async listModels(apiKey: string, options?: ListModelsOptions): Promise<import('@/types').Model[]> {
     const response = await fetch(`${OPENROUTER_BASE_URL}/models`, {
+      signal: options?.signal,
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'HTTP-Referer': 'https://medha.app',

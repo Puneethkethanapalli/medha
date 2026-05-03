@@ -937,18 +937,27 @@ export const ChatScreen = React.memo(function ChatScreen({
         <Pressable onPress={openDrawer} className="w-10 h-10 items-center justify-center">
           <Menu size={24} color="hsl(0, 0%, 63%)" />
         </Pressable>
-        <View className="flex-1 flex-row items-center justify-center gap-2 px-2">
+        <View
+          className="flex-1 flex-row items-center justify-center gap-1.5 px-1"
+          style={{ minWidth: 0 }}
+        >
           {/* Active app indicator */}
           {activeApp ? (
             <Pressable
               onPress={openModelPicker}
               className="flex-row items-center gap-1.5 bg-surface-container-low rounded-full px-3 py-1.5 active:opacity-70"
+              style={{ maxWidth: 148, minWidth: 0, flexShrink: 1 }}
             >
               {React.createElement(getIconByName(activeApp.icon), {
                 size: 14,
                 color: activeApp.color ?? 'hsl(0, 0%, 63%)',
               })}
-              <Text className="text-foreground text-[12px] font-medium" numberOfLines={1}>
+              <Text
+                className="text-foreground text-[12px] font-medium"
+                numberOfLines={1}
+                ellipsizeMode="tail"
+                style={{ minWidth: 0, flexShrink: 1 }}
+              >
                 {activeApp.name.length > 14 ? activeApp.name.slice(0, 14) + '…' : activeApp.name}
               </Text>
             </Pressable>
@@ -963,6 +972,9 @@ export const ChatScreen = React.memo(function ChatScreen({
             className={`flex-row items-center gap-1 rounded-full px-2.5 py-1.5 ${
               activeSkillName ? 'bg-foreground' : 'bg-surface-container-low'
             }`}
+            style={{ maxWidth: activeSkillName ? 108 : 32, minWidth: 32, flexShrink: 0 }}
+            accessibilityRole="button"
+            accessibilityLabel="Select skill"
           >
             <Zap
               size={13}
@@ -970,7 +982,12 @@ export const ChatScreen = React.memo(function ChatScreen({
               fill={activeSkillName ? 'hsl(240, 3.7%, 7.5%)' : 'transparent'}
             />
             {activeSkillName && (
-              <Text className="text-background text-[11px] font-medium" numberOfLines={1}>
+              <Text
+                className="text-background text-[11px] font-medium"
+                numberOfLines={1}
+                ellipsizeMode="tail"
+                style={{ minWidth: 0, flexShrink: 1 }}
+              >
                 {activeSkillName.length > 12 ? activeSkillName.slice(0, 12) + '…' : activeSkillName}
               </Text>
             )}

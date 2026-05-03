@@ -25,6 +25,10 @@ export interface ReasoningStreamResponse extends StreamResponse {
   reasoningContent: string;
 }
 
+export interface ListModelsOptions {
+  signal?: AbortSignal;
+}
+
 export interface AIProvider {
   id: string;
   name: string;
@@ -38,6 +42,6 @@ export interface AIProvider {
     onToolCalls?: (toolCalls: AccumulatedToolCall[]) => void,
     onUsage?: (usage: UsageData) => void
   ): ReasoningStreamResponse;
-  listModels(apiKey: string): Promise<import('@/types').Model[]>;
+  listModels(apiKey: string, options?: ListModelsOptions): Promise<import('@/types').Model[]>;
   validateKey(apiKey: string): Promise<boolean>;
 }

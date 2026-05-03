@@ -17,7 +17,8 @@ export function getModelDisplayName(modelId: string | null): string {
 export function keepSelectedModelVisible(
   models: Model[],
   selectedModelId: string | null,
-  providerId: string | null
+  providerId: string | null,
+  selectedModelName?: string | null
 ): Model[] {
   if (!selectedModelId || !providerId) return models;
 
@@ -30,7 +31,7 @@ export function keepSelectedModelVisible(
   return [
     {
       id: selectedModelId,
-      name: getModelDisplayName(selectedModelId),
+      name: selectedModelName || getModelDisplayName(selectedModelId),
       provider: providerId,
     },
     ...models,

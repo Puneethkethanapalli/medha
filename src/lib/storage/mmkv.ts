@@ -7,6 +7,7 @@ export type ThinkingMode = 'auto' | 'on' | 'off';
 const KEYS = {
   theme: 'medha:theme',
   lastModel: 'medha:lastModel',
+  lastModelName: 'medha:lastModelName',
   lastProvider: 'medha:lastProvider',
   cachedModels: 'medha:cachedModels',
   onboardingComplete: 'medha:onboardingComplete',
@@ -71,6 +72,20 @@ export async function setLastModel(model: string | null): Promise<void> {
   _lastModel = model;
 }
 
+// Last selected model display name
+export async function getLastModelName(): Promise<string | null> {
+  return await AsyncStorage.getItem(KEYS.lastModelName);
+}
+
+export async function setLastModelName(modelName: string | null): Promise<void> {
+  if (modelName) {
+    await AsyncStorage.setItem(KEYS.lastModelName, modelName);
+  } else {
+    await AsyncStorage.removeItem(KEYS.lastModelName);
+  }
+  _lastModelName = modelName;
+}
+
 // Last selected provider
 export async function getLastProvider(): Promise<string | null> {
   return await AsyncStorage.getItem(KEYS.lastProvider);
@@ -85,7 +100,7 @@ export async function setLastProvider(provider: string | null): Promise<void> {
   _lastProvider = provider;
 }
 
-// Cached model list (from OpenRouter)
+// Cached model lists, keyed by provider
 export async function getCachedModels(): Promise<string | null> {
   return await AsyncStorage.getItem(KEYS.cachedModels);
 }
@@ -212,6 +227,7 @@ export async function setGlobalRules(rules: RuleItem[]): Promise<void> {
 // Synchronous wrappers for compatibility (read from in-memory cache)
 let _theme: Theme = 'dark';
 let _lastModel: string | null = null;
+let _lastModelName: string | null = null;
 let _lastProvider: string | null = null;
 let _onboardingComplete = false;
 let _biometricLockEnabled = false;
@@ -231,6 +247,10 @@ export function getThemeSync(): Theme {
 
 export function getLastModelSync(): string | null {
   return _lastModel;
+}
+
+export function getLastModelNameSync(): string | null {
+  return _lastModelName;
 }
 
 export function getLastProviderSync(): string | null {
@@ -295,6 +315,7 @@ export async function initStorage(): Promise<void> {
   if (_initialized) return;
   const theme = await getTheme();
   const lastModel = await getLastModel();
+  const lastModelName = await getLastModelName();
   const lastProvider = await getLastProvider();
   const onboarding = await isOnboardingComplete();
   const biometric = await isBiometricLockEnabled();
@@ -308,6 +329,7 @@ export async function initStorage(): Promise<void> {
   const cfAccountId = await getCloudflareAccountId();
   _theme = theme;
   _lastModel = lastModel;
+  _lastModelName = lastModelName;
   _lastProvider = lastProvider;
   _onboardingComplete = onboarding;
   _biometricLockEnabled = biometric;

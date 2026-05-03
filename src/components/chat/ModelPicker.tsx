@@ -1,24 +1,29 @@
-import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Pressable, ScrollView } from 'react-native';
-import BottomSheet, { BottomSheetBackdrop, BottomSheetFlashList, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import BottomSheet, {
+  BottomSheetBackdrop,
+  BottomSheetFlashList,
+  BottomSheetTextInput,
+} from '@gorhom/bottom-sheet';
 import { Text } from '@/components/ui/text';
-import { Search, X, Check } from 'lucide-react-native';
+import { Search, X, Check, RefreshCw } from 'lucide-react-native';
 import { useUIStore } from '@/stores/ui-store';
 import { useSettingsStore, getConfiguredProviders } from '@/stores/settings-store';
-import { getProvider, registerBuiltInProviders, listProviders } from '@/lib/providers/registry';
+import { registerBuiltInProviders, listProviders } from '@/lib/providers/registry';
 import { MINIMAX_MODELS } from '@/lib/providers/minimax';
 import { CLOUDFLARE_FALLBACK_MODELS } from '@/lib/providers/cloudflare-ai';
-import { getApiKey } from '@/lib/storage/secure';
 import { keepSelectedModelVisible } from '@/lib/models';
 import { getModelCapabilities, registerModelsMetadata } from '@/lib/models/capabilities';
 import { loadLiteLLMRegistry } from '@/lib/models/litellm-registry';
+import { getCachedModelList } from '@/lib/models/model-list-cache';
+import { refreshProviderModelList } from '@/lib/models/model-list-sync';
 import { CapabilityBadges } from '@/components/chat/CapabilityBadges';
 import type { Model, ModelCapability } from '@/types';
 
 // Filter pills shown in the picker
 const FILTER_OPTIONS: ModelCapability[] = ['vision', 'thinking', 'tools', 'pdf', 'long-context'];
 
-// Fallback models per provider (shown before API fetch completes)
+// Fallback models per provider (shown before API/cache fetch completes)
 const FALLBACK_MODELS: Record<string, Model[]> = {
   openrouter: [
     { id: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash', provider: 'openrouter' },
@@ -86,16 +91,29 @@ const FILTER_LABELS: Record<ModelCapability, string> = {
   'long-context': 'Long Context',
 };
 
+type ModelLoadState = {
+  status: 'idle' | 'loading' | 'ready' | 'error';
+  stale?: boolean;
+  error?: string;
+};
+
+type PickerModel = Model & {
+  capabilities: ModelCapability[];
+  searchText: string;
+};
+
 export function ModelPicker() {
   const bottomSheetRef = useRef<BottomSheet>(null);
+  const requestRef = useRef<{ providerId: string; controller: AbortController } | null>(null);
+  const pendingRefreshRef = useRef<string | null>(null);
   const isOpen = useUIStore((s) => s.modelPickerOpen);
   const closeModelPicker = useUIStore((s) => s.closeModelPicker);
   const lastModel = useSettingsStore((s) => s.lastModel);
+  const lastModelName = useSettingsStore((s) => s.lastModelName);
   const lastProvider = useSettingsStore((s) => s.lastProvider);
   const currentTheme = useSettingsStore((s) => s.theme);
   const setLastModelSelection = useSettingsStore((s) => s.setLastModelSelection);
 
-  // Theme-aware colors
   const isLight = currentTheme === 'light';
   const colors = {
     bg: isLight ? '#FFFFFF' : currentTheme === 'oled' ? '#000000' : '#0D0D0F',
@@ -106,17 +124,33 @@ export function ModelPicker() {
   };
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [configuredProviderIds, setConfiguredProviderIds] = useState<string[]>([]);
   const [models, setModels] = useState<Record<string, Model[]>>({});
-  const [loadedProviders, setLoadedProviders] = useState<Set<string>>(new Set());
-  const [isLoadingModels, setIsLoadingModels] = useState(false);
+  const [loadStateByProvider, setLoadStateByProvider] = useState<Record<string, ModelLoadState>>({});
   const [activeFilters, setActiveFilters] = useState<ModelCapability[]>([]);
   const [metadataVersion, setMetadataVersion] = useState(0);
+  const [refreshToken, setRefreshToken] = useState(0);
 
   const snapPoints = useMemo(() => ['75%'], []);
 
-  // Ensure providers are registered + load LiteLLM model registry
+  const closeAndReset = useCallback(() => {
+    closeModelPicker();
+    setSearchQuery('');
+    setDebouncedSearchQuery('');
+    setActiveFilters([]);
+  }, [closeModelPicker]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim().toLowerCase());
+    }, 120);
+
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
+
+  // Ensure providers are registered + load LiteLLM model registry once.
   useEffect(() => {
     if (listProviders().length === 0) {
       registerBuiltInProviders();
@@ -130,53 +164,105 @@ export function ModelPicker() {
     };
   }, []);
 
-  // On open: detect which providers have keys
+  // On open: detect configured providers. This is cached by settings-store.
   useEffect(() => {
-    if (isOpen) {
-      (async () => {
-        const configured = await getConfiguredProviders();
-        setConfiguredProviderIds(configured);
-        // Set initial tab: prefer lastProvider, or first configured
-        if (configured.length > 0) {
-          const initial = lastProvider && configured.includes(lastProvider) ? lastProvider : configured[0];
-          setActiveTab(initial);
-        }
-      })();
-    }
+    if (!isOpen) return;
+
+    let cancelled = false;
+    void (async () => {
+      const configured = await getConfiguredProviders();
+      if (cancelled) return;
+
+      setConfiguredProviderIds(configured);
+      if (configured.length === 0) {
+        setActiveTab(null);
+        return;
+      }
+
+      setActiveTab((current) => {
+        if (lastProvider && configured.includes(lastProvider)) return lastProvider;
+        if (current && configured.includes(current)) return current;
+        return configured[0];
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen, lastProvider]);
 
-  // Fetch models when tab changes
   useEffect(() => {
     if (!isOpen || !activeTab) return;
-    if (loadedProviders.has(activeTab)) return;
 
-    (async () => {
-      setIsLoadingModels(true);
+    let cancelled = false;
+    const providerId = activeTab;
+    const controller = new AbortController();
+    const forceRefresh = pendingRefreshRef.current === providerId;
+    if (forceRefresh) {
+      pendingRefreshRef.current = null;
+    }
+
+    requestRef.current?.controller.abort();
+    requestRef.current = { providerId, controller };
+
+    const setProviderLoadState = (state: ModelLoadState) => {
+      setLoadStateByProvider((prev) => ({ ...prev, [providerId]: state }));
+    };
+
+    void (async () => {
+      const cached = await getCachedModelList(providerId);
+      if (cancelled || controller.signal.aborted) return;
+
+      if (cached) {
+        registerModelsMetadata(cached.models);
+        setModels((prev) => ({ ...prev, [providerId]: cached.models }));
+        setProviderLoadState({
+          status: 'ready',
+          error: cached.error,
+        });
+      } else {
+        setModels((prev) => {
+          if (!(providerId in prev)) return prev;
+          const next = { ...prev };
+          delete next[providerId];
+          return next;
+        });
+        setProviderLoadState({ status: 'idle' });
+      }
+
+      if (!forceRefresh) return;
+
+      setProviderLoadState({ status: 'loading', stale: Boolean(cached) });
+
       try {
-        const apiKey = await getApiKey(activeTab);
-        if (!apiKey) return;
+        const fetched = await refreshProviderModelList(providerId, { signal: controller.signal });
+        if (cancelled || controller.signal.aborted) return;
 
-        const provider = getProvider(activeTab);
-        if (!provider) return;
-
-        const fetched = await provider.listModels(apiKey);
-        if (fetched.length > 0) {
-          registerModelsMetadata(fetched);
-          setModels((prev) => ({ ...prev, [activeTab]: fetched }));
-          setLoadedProviders((prev) => new Set([...prev, activeTab]));
-        }
+        setModels((prev) => ({ ...prev, [providerId]: fetched }));
+        setProviderLoadState({ status: 'ready' });
       } catch {
-        // Use fallback models
-      } finally {
-        setIsLoadingModels(false);
+        if (cancelled || controller.signal.aborted) return;
+        setProviderLoadState({
+          status: 'error',
+          stale: Boolean(cached),
+          error: cached
+            ? 'Could not refresh models. Showing cached list.'
+            : 'Could not refresh models. Showing fallback list.',
+        });
       }
     })();
-  }, [isOpen, activeTab, loadedProviders]);
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [activeTab, isOpen, refreshToken]);
 
   useEffect(() => {
     if (isOpen) {
       bottomSheetRef.current?.snapToIndex(0);
     } else {
+      requestRef.current?.controller.abort();
       bottomSheetRef.current?.close();
     }
   }, [isOpen]);
@@ -184,24 +270,24 @@ export function ModelPicker() {
   const handleSheetChange = useCallback(
     (index: number) => {
       if (index === -1) {
-        closeModelPicker();
-        setSearchQuery('');
-        setActiveFilters([]);
+        closeAndReset();
       }
     },
-    [closeModelPicker]
+    [closeAndReset]
   );
 
   const handleSelect = useCallback(
-    (modelId: string, providerId: string) => {
-      closeModelPicker();
-      setSearchQuery('');
-      setActiveFilters([]);
-      if (modelId !== lastModel || providerId !== lastProvider) {
-        void setLastModelSelection(modelId, providerId).catch(() => {});
+    (model: Model) => {
+      closeAndReset();
+      if (
+        model.id !== lastModel ||
+        model.provider !== lastProvider ||
+        model.name !== lastModelName
+      ) {
+        void setLastModelSelection(model.id, model.provider, model.name).catch(() => {});
       }
     },
-    [closeModelPicker, lastModel, lastProvider, setLastModelSelection]
+    [closeAndReset, lastModel, lastModelName, lastProvider, setLastModelSelection]
   );
 
   const toggleFilter = useCallback((cap: ModelCapability) => {
@@ -210,7 +296,16 @@ export function ModelPicker() {
     );
   }, []);
 
-  // Get models for the active tab
+  const activeLoadState = activeTab ? loadStateByProvider[activeTab] : undefined;
+  const isLoadingModels = activeLoadState?.status === 'loading';
+  const loadMessage = activeLoadState?.status === 'error' ? activeLoadState.error : null;
+
+  const handleRefreshProvider = useCallback(() => {
+    if (!activeTab || isLoadingModels) return;
+    pendingRefreshRef.current = activeTab;
+    setRefreshToken((token) => token + 1);
+  }, [activeTab, isLoadingModels]);
+
   const currentModels = useMemo(() => {
     if (!activeTab) return [];
     const providerModels = models[activeTab] || FALLBACK_MODELS[activeTab] || [];
@@ -218,32 +313,34 @@ export function ModelPicker() {
 
     if (selectedProvider !== activeTab) return providerModels;
 
-    return keepSelectedModelVisible(providerModels, lastModel, activeTab);
-  }, [activeTab, models, lastModel, lastProvider]);
+    return keepSelectedModelVisible(providerModels, lastModel, activeTab, lastModelName);
+  }, [activeTab, models, lastModel, lastModelName, lastProvider]);
+
+  const preparedModels = useMemo<PickerModel[]>(() => {
+    // Re-read capability fallback data after async LiteLLM metadata loads.
+    void metadataVersion;
+    return currentModels.map((model) => ({
+      ...model,
+      capabilities: getModelCapabilities(model.id, model.provider),
+      searchText: `${model.name} ${model.id}`.toLowerCase(),
+    }));
+  }, [currentModels, metadataVersion]);
 
   const filteredModels = useMemo(() => {
-    // Re-run capability filters after async LiteLLM metadata loads.
-    void metadataVersion;
-    let result = currentModels;
+    let result = preparedModels;
 
-    // Text search
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (m) => m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q)
+    if (debouncedSearchQuery) {
+      result = result.filter((model) => model.searchText.includes(debouncedSearchQuery));
+    }
+
+    if (activeFilters.length > 0) {
+      result = result.filter((model) =>
+        activeFilters.every((filter) => model.capabilities.includes(filter))
       );
     }
 
-    // Capability filters (AND logic)
-    if (activeFilters.length > 0) {
-      result = result.filter((m) => {
-        const caps = getModelCapabilities(m.id, m.provider);
-        return activeFilters.every((f) => caps.includes(f));
-      });
-    }
-
     return result;
-  }, [currentModels, searchQuery, activeFilters, metadataVersion]);
+  }, [activeFilters, debouncedSearchQuery, preparedModels]);
 
   const renderBackdrop = useCallback(
     (props: any) => (
@@ -253,12 +350,11 @@ export function ModelPicker() {
   );
 
   const renderItem = useCallback(
-    ({ item, index }: { item: Model; index: number }) => {
+    ({ item, index }: { item: PickerModel; index: number }) => {
       const isSelected = item.id === lastModel && item.provider === (lastProvider || activeTab);
-      const caps = getModelCapabilities(item.id, item.provider);
       return (
         <Pressable
-          onPress={() => handleSelect(item.id, item.provider)}
+          onPress={() => handleSelect(item)}
           className={`mx-4 px-4 py-2.5 flex-col justify-center rounded-lg ${
             isSelected ? 'bg-surface-container-high' : ''
           } ${index < filteredModels.length - 1 ? 'border-b border-outline-variant/10' : ''}`}
@@ -266,7 +362,7 @@ export function ModelPicker() {
           {isSelected && (
             <View className="absolute left-0 top-0 bottom-0 w-[2px] bg-foreground rounded-r-full" />
           )}
-          <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center justify-between gap-3">
             <Text
               className={`text-[14px] flex-1 ${
                 isSelected ? 'text-foreground font-medium' : 'text-on-surface'
@@ -279,9 +375,9 @@ export function ModelPicker() {
             </Text>
             {isSelected && <Check size={18} color={colors.text} />}
           </View>
-          <View className="mt-0.5">
+          <View className="mt-0.5 min-h-[14px]">
             <CapabilityBadges
-              capabilities={caps}
+              capabilities={item.capabilities}
               size={12}
               color="hsl(0, 0%, 55%)"
               gap={6}
@@ -291,72 +387,91 @@ export function ModelPicker() {
         </Pressable>
       );
     },
-    [lastModel, lastProvider, activeTab, handleSelect, filteredModels.length, colors.text]
+    [activeTab, colors.text, filteredModels.length, handleSelect, lastModel, lastProvider]
   );
 
-  const keyExtractor = useCallback((item: Model) => `${item.provider}-${item.id}`, []);
+  const keyExtractor = useCallback((item: PickerModel) => `${item.provider}-${item.id}`, []);
   const listExtraData = useMemo(
     () => ({
-      metadataVersion,
       selectedModel: lastModel,
       selectedProvider: lastProvider || activeTab,
       itemCount: filteredModels.length,
       checkColor: colors.text,
     }),
-    [activeTab, colors.text, filteredModels.length, lastModel, lastProvider, metadataVersion]
+    [activeTab, colors.text, filteredModels.length, lastModel, lastProvider]
   );
 
-  const ListHeader = useMemo(
+  const Header = useMemo(
     () => (
       <>
-        {/* Header */}
         <View className="flex-row items-center justify-between px-4 pb-3">
           <Text className="text-foreground text-[16px] font-semibold">Select Model</Text>
           <Pressable
-            onPress={() => { closeModelPicker(); setSearchQuery(''); setActiveFilters([]); }}
+            onPress={closeAndReset}
             className="p-1 rounded-full active:bg-surface-container"
           >
             <X size={20} color={colors.icon} />
           </Pressable>
         </View>
 
-        {/* Provider Pill Tabs */}
-        {configuredProviderIds.length > 1 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            className="px-4 pb-3"
-            contentContainerStyle={{ gap: 8 }}
-          >
-            {configuredProviderIds.map((pid) => {
-              const isActive = pid === activeTab;
-              return (
-                <Pressable
-                  key={pid}
-                  onPress={() => {
-                    setActiveTab(pid);
-                    setSearchQuery('');
-                  }}
-                  className={`rounded-full px-4 py-1.5 ${
-                    isActive
-                      ? 'bg-foreground'
-                      : 'bg-surface-container border border-outline-variant/20'
-                  }`}
-                >
-                  <Text
-                    className={`text-[12px] font-medium ${
-                      isActive ? 'text-background' : 'text-on-surface-variant'
-                    }`}
-                  >
-                    {PROVIDER_DISPLAY[pid] || pid}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+        {activeTab && (
+          <View className="flex-row items-center px-4 pb-3 gap-2">
+            {configuredProviderIds.length > 1 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                className="flex-1"
+                contentContainerStyle={{ gap: 8 }}
+              >
+                {configuredProviderIds.map((pid) => {
+                  const isActive = pid === activeTab;
+                  return (
+                    <Pressable
+                      key={pid}
+                      onPress={() => {
+                        setActiveTab(pid);
+                        setSearchQuery('');
+                        setDebouncedSearchQuery('');
+                      }}
+                      className={`rounded-full px-4 py-1.5 ${
+                        isActive
+                          ? 'bg-foreground'
+                          : 'bg-surface-container border border-outline-variant/20'
+                      }`}
+                    >
+                      <Text
+                        className={`text-[12px] font-medium ${
+                          isActive ? 'text-background' : 'text-on-surface-variant'
+                        }`}
+                        numberOfLines={1}
+                      >
+                        {PROVIDER_DISPLAY[pid] || pid}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            ) : (
+              <View className="flex-1 rounded-full px-4 py-1.5 bg-surface-container border border-outline-variant/20">
+                <Text className="text-[12px] font-medium text-on-surface-variant" numberOfLines={1}>
+                  {PROVIDER_DISPLAY[activeTab] || activeTab}
+                </Text>
+              </View>
+            )}
+            <Pressable
+              onPress={handleRefreshProvider}
+              disabled={isLoadingModels}
+              className={`w-8 h-8 items-center justify-center rounded-full bg-surface-container border border-outline-variant/20 ${
+                isLoadingModels ? 'opacity-50' : 'active:bg-surface-container-high'
+              }`}
+              accessibilityRole="button"
+              accessibilityLabel={`Refresh ${PROVIDER_DISPLAY[activeTab] || activeTab} models`}
+            >
+              <RefreshCw size={15} color={colors.icon} />
+            </Pressable>
+          </View>
         )}
 
-        {/* Search */}
         <View className="px-4 pb-2">
           <View className="flex-row items-center bg-surface-container rounded-lg h-10 px-3">
             <Search size={16} color={colors.icon} />
@@ -371,12 +486,12 @@ export function ModelPicker() {
                 fontSize: 13,
                 marginLeft: 8,
                 padding: 0,
+                minWidth: 0,
               }}
             />
           </View>
         </View>
 
-        {/* Capability Filters */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -407,45 +522,65 @@ export function ModelPicker() {
           })}
         </ScrollView>
 
-        {/* Loading indicator */}
         {isLoadingModels && (
-          <View className="py-3 items-center">
+          <View className="py-2 items-center">
             <Text className="text-on-surface-variant text-[12px]">Loading models...</Text>
           </View>
         )}
 
-        {/* Empty state */}
+        {!!loadMessage && !isLoadingModels && (
+          <View className="px-4 pb-2">
+            <Text className="text-on-surface-variant text-[12px] text-center">
+              {loadMessage}
+            </Text>
+          </View>
+        )}
+
         {configuredProviderIds.length === 0 && (
           <View className="py-8 items-center px-6">
             <Text className="text-on-surface-variant text-[13px] text-center">
-              No API keys configured. Add a key in Settings → API Keys.
+              No API keys configured. Add a key in Settings / API Keys.
             </Text>
           </View>
         )}
       </>
     ),
     [
-      searchQuery,
-      closeModelPicker,
-      configuredProviderIds,
-      activeTab,
-      isLoadingModels,
       activeFilters,
-      toggleFilter,
+      activeTab,
+      closeAndReset,
       colors.icon,
       colors.placeholder,
       colors.text,
+      configuredProviderIds,
+      handleRefreshProvider,
+      isLoadingModels,
+      loadMessage,
+      searchQuery,
+      toggleFilter,
     ]
   );
 
-  if (!isOpen) return null;
+  const ListEmpty = useMemo(() => {
+    if (configuredProviderIds.length === 0) return null;
+
+    return (
+      <View className="py-10 items-center px-6">
+        <Text className="text-on-surface-variant text-[13px] text-center">
+          No models match the current search and filters.
+        </Text>
+      </View>
+    );
+  }, [configuredProviderIds.length]);
 
   return (
     <BottomSheet
       ref={bottomSheetRef}
-      index={0}
+      index={-1}
       snapPoints={snapPoints}
       onChange={handleSheetChange}
+      animateOnMount={false}
+      enableDynamicSizing={false}
       enablePanDownToClose
       backdropComponent={renderBackdrop}
       handleIndicatorStyle={{ backgroundColor: colors.handle, width: 40 }}
@@ -457,8 +592,9 @@ export function ModelPicker() {
         data={filteredModels}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
-        ListHeaderComponent={ListHeader}
         extraData={listExtraData}
+        ListHeaderComponent={Header}
+        ListEmptyComponent={ListEmpty}
         contentContainerStyle={{ paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
