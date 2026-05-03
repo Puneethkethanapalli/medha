@@ -3,37 +3,20 @@ import type { AIProvider, StreamConfig } from './types';
 import { streamCompletion } from '@/lib/streaming/stream';
 import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { buildOpenAIMessages } from '@/lib/attachments/multimodal';
-import { capabilitiesFromMetadata } from '@/lib/models/capability-metadata';
 import type { Message, Model } from '@/types';
 
 const MINIMAX_BASE_URL = 'https://api.minimax.io/v1';
-const MINIMAX_CONTEXT_WINDOW = 204_800;
-const MINIMAX_CAPABILITIES = capabilitiesFromMetadata({
-  contextWindow: MINIMAX_CONTEXT_WINDOW,
-  supportsFunctionCalling: true,
-  supportsToolChoice: true,
-  supportsReasoning: true,
-});
 
-function minimaxModel(id: string, name: string): Model {
-  return {
-    id,
-    name,
-    provider: 'minimax',
-    contextWindow: MINIMAX_CONTEXT_WINDOW,
-    capabilities: MINIMAX_CAPABILITIES,
-  };
-}
-
-// MiniMax doesn't have a public model list endpoint, so we hardcode available models
+// MiniMax doesn't have a public model list endpoint, so this is only a model-list fallback.
+// Context windows and capability badges come from LiteLLM, not this list.
 export const MINIMAX_MODELS: Model[] = [
-  minimaxModel('MiniMax-M2.7', 'MiniMax M2.7'),
-  minimaxModel('MiniMax-M2.7-highspeed', 'MiniMax M2.7 Highspeed'),
-  minimaxModel('MiniMax-M2.5', 'MiniMax M2.5'),
-  minimaxModel('MiniMax-M2.5-highspeed', 'MiniMax M2.5 Highspeed'),
-  minimaxModel('MiniMax-M2.1', 'MiniMax M2.1'),
-  minimaxModel('MiniMax-M2.1-highspeed', 'MiniMax M2.1 Highspeed'),
-  minimaxModel('MiniMax-M2', 'MiniMax M2'),
+  { id: 'MiniMax-M2.7', name: 'MiniMax M2.7', provider: 'minimax' },
+  { id: 'MiniMax-M2.7-highspeed', name: 'MiniMax M2.7 Highspeed', provider: 'minimax' },
+  { id: 'MiniMax-M2.5', name: 'MiniMax M2.5', provider: 'minimax' },
+  { id: 'MiniMax-M2.5-highspeed', name: 'MiniMax M2.5 Highspeed', provider: 'minimax' },
+  { id: 'MiniMax-M2.1', name: 'MiniMax M2.1', provider: 'minimax' },
+  { id: 'MiniMax-M2.1-highspeed', name: 'MiniMax M2.1 Highspeed', provider: 'minimax' },
+  { id: 'MiniMax-M2', name: 'MiniMax M2', provider: 'minimax' },
 ];
 
 export class MiniMaxProvider implements AIProvider {

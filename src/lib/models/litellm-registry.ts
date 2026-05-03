@@ -191,10 +191,6 @@ function getLookupKeys(modelId: string, provider?: string): string[] {
   if (provider) {
     const prefix = PROVIDER_PREFIX_MAP[provider];
     if (prefix) add(`${prefix}/${normalized}`);
-
-    if (provider === 'minimax' && normalized.endsWith('-highspeed')) {
-      add(`minimax/${normalized.replace(/-highspeed$/, '-lightning')}`);
-    }
   }
 
   const slashIdx = normalized.indexOf('/');

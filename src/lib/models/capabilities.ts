@@ -1,6 +1,5 @@
 import type { ModelCapability } from '@/types';
 import { getLiteLLMCapabilities, getLiteLLMContextWindow } from '@/lib/models/litellm-registry';
-import { getLocalModelCapabilities, getLocalModelContextWindow } from '@/lib/models/local-metadata';
 import { sortCapabilities } from '@/lib/models/capability-metadata';
 
 // ── Dynamic model metadata cache (populated from provider API responses) ─────
@@ -35,14 +34,10 @@ export function getModelCapabilities(modelId: string, provider: string): ModelCa
   const dynamic = dynamicMetadataCache.get(cacheKey);
   const dynamicCapabilities = dynamic?.capabilities ?? [];
 
-  // 2. Local metadata for providers whose current catalogs outpace LiteLLM.
-  const localCapabilities = getLocalModelCapabilities(modelId, provider) ?? [];
-
-  // 3. LiteLLM community registry fallback (fetched from GitHub, cached locally)
+  // 2. LiteLLM community registry fallback (fetched from GitHub, cached locally)
   const litellmCapabilities = getLiteLLMCapabilities(modelId, provider);
   const capabilities = sortCapabilities([
     ...dynamicCapabilities,
-    ...localCapabilities,
     ...(litellmCapabilities ?? []),
   ]);
 
@@ -60,11 +55,7 @@ export function getModelContextWindow(modelId: string, provider?: string): numbe
   const dynamic = provider ? dynamicMetadataCache.get(getMetadataKey(modelId, provider)) : undefined;
   if (dynamic?.contextWindow) return dynamic.contextWindow;
 
-  // 2. Local metadata for providers whose current catalogs outpace LiteLLM.
-  const localContextWindow = getLocalModelContextWindow(modelId, provider);
-  if (localContextWindow) return localContextWindow;
-
-  // 3. LiteLLM community registry (fetched from GitHub, cached locally)
+  // 2. LiteLLM community registry (fetched from GitHub, cached locally)
   return getLiteLLMContextWindow(modelId, provider);
 }
 

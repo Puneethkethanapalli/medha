@@ -22,66 +22,18 @@ function getBaseUrl(accountId: string): string {
   return `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1`;
 }
 
-type CloudflareModelMetadata = {
-  contextWindow?: number;
-  inputModalities?: string[];
-  outputModalities?: string[];
-  supportsFunctionCalling?: boolean;
-  supportsToolChoice?: boolean;
-  supportsVision?: boolean;
-  supportsReasoning?: boolean;
-  supportsPdfInput?: boolean;
-};
-
-function cloudflareModel(id: string, name: string, metadata: CloudflareModelMetadata = {}): Model {
-  return {
-    id,
-    name,
-    provider: 'cloudflare-ai',
-    contextWindow: metadata.contextWindow,
-    capabilities: capabilitiesFromMetadata(metadata),
-  };
-}
-
-// Fallback model list — used when the API call fails (network error, missing account ID, etc.)
+// Fallback model list — used when the API call fails (network error, missing account ID, etc.).
+// Context windows and capability badges come from Cloudflare's API response or LiteLLM.
 export const CLOUDFLARE_FALLBACK_MODELS: Model[] = [
-  cloudflareModel('@cf/openai/gpt-oss-120b', 'GPT-OSS 120B', {
-    contextWindow: 128_000,
-    supportsFunctionCalling: true,
-    supportsToolChoice: true,
-    supportsReasoning: true,
-  }),
-  cloudflareModel('@cf/openai/gpt-oss-20b', 'GPT-OSS 20B', {
-    contextWindow: 128_000,
-    supportsFunctionCalling: true,
-    supportsToolChoice: true,
-    supportsReasoning: true,
-  }),
-  cloudflareModel('@cf/meta/llama-3.3-70b-instruct-fp8-fast', 'Llama 3.3 70B', {
-    contextWindow: 24_000,
-    supportsFunctionCalling: true,
-    supportsToolChoice: true,
-  }),
-  cloudflareModel('@cf/deepseek-ai/deepseek-r1-distill-qwen-32b', 'DeepSeek R1 Distill 32B', {
-    contextWindow: 80_000,
-    supportsReasoning: true,
-  }),
-  cloudflareModel('@cf/qwen/qwq-32b', 'QwQ 32B', {
-    contextWindow: 24_000,
-    supportsReasoning: true,
-  }),
-  cloudflareModel('@cf/meta/llama-3.2-3b-instruct', 'Llama 3.2 3B', {
-    contextWindow: 80_000,
-  }),
-  cloudflareModel('@cf/meta/llama-3.2-1b-instruct', 'Llama 3.2 1B', {
-    contextWindow: 60_000,
-  }),
-  cloudflareModel('@hf/mistral/mistral-7b-instruct-v0.2', 'Mistral 7B v0.2', {
-    contextWindow: 3_072,
-  }),
-  cloudflareModel('@hf/google/gemma-7b-it', 'Gemma 7B', {
-    contextWindow: 8_192,
-  }),
+  { id: '@cf/openai/gpt-oss-120b', name: 'GPT-OSS 120B', provider: 'cloudflare-ai' },
+  { id: '@cf/openai/gpt-oss-20b', name: 'GPT-OSS 20B', provider: 'cloudflare-ai' },
+  { id: '@cf/meta/llama-3.3-70b-instruct-fp8-fast', name: 'Llama 3.3 70B', provider: 'cloudflare-ai' },
+  { id: '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b', name: 'DeepSeek R1 Distill 32B', provider: 'cloudflare-ai' },
+  { id: '@cf/qwen/qwq-32b', name: 'QwQ 32B', provider: 'cloudflare-ai' },
+  { id: '@cf/meta/llama-3.2-3b-instruct', name: 'Llama 3.2 3B', provider: 'cloudflare-ai' },
+  { id: '@cf/meta/llama-3.2-1b-instruct', name: 'Llama 3.2 1B', provider: 'cloudflare-ai' },
+  { id: '@hf/mistral/mistral-7b-instruct-v0.2', name: 'Mistral 7B v0.2', provider: 'cloudflare-ai' },
+  { id: '@hf/google/gemma-7b-it', name: 'Gemma 7B', provider: 'cloudflare-ai' },
 ];
 
 /** Read the Cloudflare Account ID from MMKV storage. */
