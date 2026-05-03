@@ -9,7 +9,6 @@ import {
   useStreamingActivity,
   useStreamingContent,
   useStreamingReasoning,
-  useStreamingTokensPerSecond,
   useToolActivity,
 } from '@/stores/chat-store';
 import { useUIStore } from '@/stores/ui-store';
@@ -90,7 +89,6 @@ export const MessageBubble = React.memo(function MessageBubble({
   const streamingContent = useStreamingContent(message.id);
   const streamingReasoning = useStreamingReasoning(message.id);
   const streamingActivity = useStreamingActivity(message.id);
-  const streamingTokensPerSecond = useStreamingTokensPerSecond(message.id);
   const toolActivity = useToolActivity(message.id);
   const showActionsMenu = useUIStore((s) => s.showActionsMenu);
   const isStreaming = message.status === 'streaming';
@@ -103,7 +101,6 @@ export const MessageBubble = React.memo(function MessageBubble({
   const showToast = useUIStore((s) => s.showToast);
   const responseMetrics = parseResponseTokenMetrics(message.tokens_used);
   const responseMetricsLabel = formatResponseMetricsLabel(responseMetrics);
-  const liveTokensPerSecondLabel = formatTokensPerSecond(streamingTokensPerSecond);
 
   // Edit mode state
   const [editText, setEditText] = useState(message.content);
@@ -314,15 +311,6 @@ export const MessageBubble = React.memo(function MessageBubble({
                 <Text className="text-muted-foreground text-[12px] font-medium">Retry</Text>
               </Pressable>
             )}
-          </View>
-        )}
-
-        {/* Live throughput while streaming */}
-        {isStreaming && liveTokensPerSecondLabel && (
-          <View className="mt-1 flex-row items-center gap-2 pt-1">
-            <Text className="text-muted-foreground text-[10px] opacity-50">
-              {liveTokensPerSecondLabel} tokens/s
-            </Text>
           </View>
         )}
 

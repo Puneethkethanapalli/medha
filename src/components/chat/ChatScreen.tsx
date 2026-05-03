@@ -53,7 +53,7 @@ import { readSkillFull } from '@/lib/skills/storage';
 import { recordUsage } from '@/lib/db/token-usage';
 import { calculateCost } from '@/lib/tokens/pricing';
 import { estimateMessageTokens, estimateTokens } from '@/lib/tokens/estimator';
-import { serializeResponseTokenMetrics } from '@/lib/tokens/metrics';
+import { formatTokensPerSecond, serializeResponseTokenMetrics } from '@/lib/tokens/metrics';
 import { getApp } from '@/lib/db/apps';
 import { getIconByName } from '@/lib/apps/icons';
 import { parseExamplePrompts } from '@/lib/apps/types';
@@ -110,6 +110,8 @@ export const ChatScreen = React.memo(function ChatScreen({
     streamingMessageId,
     streamingContent,
     streamingReasoning,
+    isStreaming,
+    streamingTokensPerSecond,
     startStreaming,
     appendToken,
     appendReasoningToken,
@@ -880,6 +882,9 @@ export const ChatScreen = React.memo(function ChatScreen({
   const effectiveProviderId = activeApp?.provider || lastProvider || 'openrouter';
   const effectiveModelId = activeApp?.model || lastModel || getDefaultModel(effectiveProviderId);
   const contextCircleBottomOffset = (inputBarHeight || Math.max(insets.bottom, 12) + 72) + 12;
+  const liveTokensPerSecondLabel = isStreaming
+    ? formatTokensPerSecond(streamingTokensPerSecond)
+    : null;
   const contextWindow = useMemo(
     () => {
       // Re-read LiteLLM fallback data after the async registry fetch completes.
@@ -1022,6 +1027,18 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       {/* Input — sticks above keyboard */}
       <KeyboardStickyView offset={{ closed: 0, opened: 0 }} onLayout={handleInputBarLayout}>
+        {liveTokensPerSecondLabel && (
+          <View pointerEvents="none" className="items-center bg-background px-4 pb-1">
+            <View className="rounded-full border border-outline-variant/20 bg-surface-container-low px-3 py-1">
+              <Text
+                className="text-muted-foreground text-[11px]"
+                style={{ fontVariant: ['tabular-nums'] }}
+              >
+                {liveTokensPerSecondLabel} tokens/s
+              </Text>
+            </View>
+          </View>
+        )}
         <InputBar
           onSend={handleSend}
           onStop={handleStop}
