@@ -44,20 +44,28 @@ export function CapabilityBadges({
 
   if (capabilities.length === 0) return null;
 
+  const badges = (
+    <View className="flex-row items-center" style={{ gap }}>
+      {visibleCaps.map((cap) => {
+        const Icon = ICON_MAP[cap];
+        return <Icon key={cap} size={size} color={color} />;
+      })}
+      {hasMore && (
+        <Text className="text-muted-foreground text-[10px] font-medium">
+          +{capabilities.length - maxVisible!}
+        </Text>
+      )}
+    </View>
+  );
+
+  if (!showTooltip) {
+    return badges;
+  }
+
   return (
     <View>
       <Pressable onPress={handlePress}>
-        <View className="flex-row items-center" style={{ gap }}>
-          {visibleCaps.map((cap) => {
-            const Icon = ICON_MAP[cap];
-            return <Icon key={cap} size={size} color={color} />;
-          })}
-          {hasMore && (
-            <Text className="text-muted-foreground text-[10px] font-medium">
-              +{capabilities.length - maxVisible!}
-            </Text>
-          )}
-        </View>
+        {badges}
       </Pressable>
 
       {tooltipVisible && showTooltip && capabilities.length > 0 && (

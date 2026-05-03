@@ -1,12 +1,21 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Pressable, ScrollView } from 'react-native';
-import BottomSheet, {
-  BottomSheetBackdrop,
-  BottomSheetFlashList,
-  BottomSheetTextInput,
-} from '@gorhom/bottom-sheet';
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  FlatList,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+  Pressable,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  useWindowDimensions,
+} from 'react-native';
 import { Text } from '@/components/ui/text';
-import { Search, X, Check, RefreshCw } from 'lucide-react-native';
+import { Search, X, Check, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useUIStore } from '@/stores/ui-store';
 import { useSettingsStore, getConfiguredProviders } from '@/stores/settings-store';
 import { registerBuiltInProviders, listProviders } from '@/lib/providers/registry';
@@ -22,6 +31,7 @@ import type { Model, ModelCapability } from '@/types';
 
 // Filter pills shown in the picker
 const FILTER_OPTIONS: ModelCapability[] = ['vision', 'thinking', 'tools', 'pdf', 'long-context'];
+const MODEL_ROW_HEIGHT = 56;
 
 // Fallback models per provider (shown before API/cache fetch completes)
 const FALLBACK_MODELS: Record<string, Model[]> = {
@@ -103,7 +113,8 @@ type PickerModel = Model & {
 };
 
 export function ModelPicker() {
-  const bottomSheetRef = useRef<BottomSheet>(null);
+  const providerScrollRef = useRef<React.ElementRef<typeof ScrollView>>(null);
+  const modelListRef = useRef<FlatList<PickerModel>>(null);
   const requestRef = useRef<{ providerId: string; controller: AbortController } | null>(null);
   const pendingRefreshRef = useRef<string | null>(null);
   const isOpen = useUIStore((s) => s.modelPickerOpen);
@@ -113,15 +124,25 @@ export function ModelPicker() {
   const lastProvider = useSettingsStore((s) => s.lastProvider);
   const currentTheme = useSettingsStore((s) => s.theme);
   const setLastModelSelection = useSettingsStore((s) => s.setLastModelSelection);
+  const { height: windowHeight } = useWindowDimensions();
 
   const isLight = currentTheme === 'light';
-  const colors = {
-    bg: isLight ? '#FFFFFF' : currentTheme === 'oled' ? '#000000' : '#0D0D0F',
-    handle: isLight ? '#D4D4D8' : '#27272A',
-    icon: isLight ? 'hsl(240, 4%, 46%)' : 'hsl(0, 0%, 63%)',
-    text: isLight ? '#09090B' : '#FAFAFA',
-    placeholder: isLight ? 'hsl(240, 4%, 60%)' : 'hsl(0, 0%, 44%)',
-  };
+  const colors = useMemo(
+    () => ({
+      bg: isLight ? '#FFFFFF' : currentTheme === 'oled' ? '#000000' : '#0D0D0F',
+      handle: isLight ? '#D4D4D8' : '#27272A',
+      icon: isLight ? 'hsl(240, 4%, 46%)' : 'hsl(0, 0%, 63%)',
+      text: isLight ? '#09090B' : '#FAFAFA',
+      mutedText: isLight ? '#71717A' : '#A1A1AA',
+      placeholder: isLight ? 'hsl(240, 4%, 60%)' : 'hsl(0, 0%, 44%)',
+      surface: isLight ? '#F4F4F5' : '#18181B',
+      surfaceHigh: isLight ? '#E4E4E7' : '#27272A',
+      border: isLight ? '#E4E4E7' : '#27272A',
+      rowBorder: isLight ? 'rgba(212, 212, 216, 0.55)' : 'rgba(63, 63, 70, 0.35)',
+      backdrop: 'rgba(0, 0, 0, 0.5)',
+    }),
+    [currentTheme, isLight]
+  );
 
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
@@ -132,10 +153,18 @@ export function ModelPicker() {
   const [activeFilters, setActiveFilters] = useState<ModelCapability[]>([]);
   const [metadataVersion, setMetadataVersion] = useState(0);
   const [refreshToken, setRefreshToken] = useState(0);
+  const [providerScrollX, setProviderScrollX] = useState(0);
+  const [providerScrollWidth, setProviderScrollWidth] = useState(0);
+  const [providerViewportWidth, setProviderViewportWidth] = useState(0);
 
-  const snapPoints = useMemo(() => ['75%'], []);
+  const sheetHeight = Math.round(windowHeight * 0.75);
+  const providerMaxScrollX = Math.max(0, providerScrollWidth - providerViewportWidth);
+  const providerTabsScrollable = providerMaxScrollX > 8;
+  const providerTabsAtEnd =
+    providerTabsScrollable && providerScrollX >= providerMaxScrollX - 8;
 
   const closeAndReset = useCallback(() => {
+    Keyboard.dismiss();
     closeModelPicker();
     setSearchQuery('');
     setDebouncedSearchQuery('');
@@ -259,22 +288,11 @@ export function ModelPicker() {
   }, [activeTab, isOpen, refreshToken]);
 
   useEffect(() => {
-    if (isOpen) {
-      bottomSheetRef.current?.snapToIndex(0);
-    } else {
+    if (!isOpen) {
       requestRef.current?.controller.abort();
-      bottomSheetRef.current?.close();
+      requestRef.current = null;
     }
   }, [isOpen]);
-
-  const handleSheetChange = useCallback(
-    (index: number) => {
-      if (index === -1) {
-        closeAndReset();
-      }
-    },
-    [closeAndReset]
-  );
 
   const handleSelect = useCallback(
     (model: Model) => {
@@ -305,6 +323,41 @@ export function ModelPicker() {
     pendingRefreshRef.current = activeTab;
     setRefreshToken((token) => token + 1);
   }, [activeTab, isLoadingModels]);
+
+  const handleProviderTabsLayout = useCallback((event: LayoutChangeEvent) => {
+    setProviderViewportWidth(event.nativeEvent.layout.width);
+  }, []);
+
+  const handleProviderTabsContentSizeChange = useCallback((width: number) => {
+    setProviderScrollWidth(width);
+  }, []);
+
+  const handleProviderTabsScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      setProviderScrollX(event.nativeEvent.contentOffset.x);
+    },
+    []
+  );
+
+  const handleProviderArrowPress = useCallback(() => {
+    if (!providerTabsScrollable) return;
+
+    const nextX = providerTabsAtEnd
+      ? 0
+      : Math.min(
+          providerMaxScrollX,
+          providerScrollX + Math.max(providerViewportWidth * 0.65, 112)
+        );
+
+    providerScrollRef.current?.scrollTo({ x: nextX, animated: true });
+    setProviderScrollX(nextX);
+  }, [
+    providerMaxScrollX,
+    providerScrollX,
+    providerTabsAtEnd,
+    providerTabsScrollable,
+    providerViewportWidth,
+  ]);
 
   const currentModels = useMemo(() => {
     if (!activeTab) return [];
@@ -342,12 +395,9 @@ export function ModelPicker() {
     return result;
   }, [activeFilters, debouncedSearchQuery, preparedModels]);
 
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} />
-    ),
-    []
-  );
+  useEffect(() => {
+    modelListRef.current?.scrollToOffset({ offset: 0, animated: false });
+  }, [activeTab, activeFilters, debouncedSearchQuery]);
 
   const renderItem = useCallback(
     ({ item, index }: { item: PickerModel; index: number }) => {
@@ -355,27 +405,49 @@ export function ModelPicker() {
       return (
         <Pressable
           onPress={() => handleSelect(item)}
-          className={`mx-4 px-4 py-2.5 flex-col justify-center rounded-lg ${
-            isSelected ? 'bg-surface-container-high' : ''
-          } ${index < filteredModels.length - 1 ? 'border-b border-outline-variant/10' : ''}`}
+          style={{
+            height: MODEL_ROW_HEIGHT,
+            marginHorizontal: 16,
+            paddingHorizontal: 16,
+            justifyContent: 'center',
+            borderRadius: 8,
+            backgroundColor: isSelected ? colors.surfaceHigh : 'transparent',
+            borderBottomWidth:
+              index < filteredModels.length - 1 ? StyleSheet.hairlineWidth : 0,
+            borderBottomColor: colors.rowBorder,
+          }}
         >
           {isSelected && (
-            <View className="absolute left-0 top-0 bottom-0 w-[2px] bg-foreground rounded-r-full" />
+            <View
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 8,
+                bottom: 8,
+                width: 2,
+                borderTopRightRadius: 999,
+                borderBottomRightRadius: 999,
+                backgroundColor: colors.text,
+              }}
+            />
           )}
-          <View className="flex-row items-center justify-between gap-3">
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Text
-              className={`text-[14px] flex-1 ${
-                isSelected ? 'text-foreground font-medium' : 'text-on-surface'
-              }`}
+              style={{
+                color: colors.text,
+                fontSize: 14,
+                fontWeight: isSelected ? '500' : '400',
+                flex: 1,
+                minWidth: 0,
+              }}
               numberOfLines={1}
               ellipsizeMode="tail"
-              style={{ minWidth: 0 }}
             >
               {item.name}
             </Text>
             {isSelected && <Check size={18} color={colors.text} />}
           </View>
-          <View className="mt-0.5 min-h-[14px]">
+          <View style={{ minHeight: 14, marginTop: 2 }}>
             <CapabilityBadges
               capabilities={item.capabilities}
               size={12}
@@ -387,10 +459,27 @@ export function ModelPicker() {
         </Pressable>
       );
     },
-    [activeTab, colors.text, filteredModels.length, handleSelect, lastModel, lastProvider]
+    [
+      activeTab,
+      colors.rowBorder,
+      colors.surfaceHigh,
+      colors.text,
+      filteredModels.length,
+      handleSelect,
+      lastModel,
+      lastProvider,
+    ]
   );
 
   const keyExtractor = useCallback((item: PickerModel) => `${item.provider}-${item.id}`, []);
+  const getItemLayout = useCallback(
+    (_: ArrayLike<PickerModel> | null | undefined, index: number) => ({
+      length: MODEL_ROW_HEIGHT,
+      offset: MODEL_ROW_HEIGHT * index,
+      index,
+    }),
+    []
+  );
   const listExtraData = useMemo(
     () => ({
       selectedModel: lastModel,
@@ -404,56 +493,120 @@ export function ModelPicker() {
   const Header = useMemo(
     () => (
       <>
-        <View className="flex-row items-center justify-between px-4 pb-3">
-          <Text className="text-foreground text-[16px] font-semibold">Select Model</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 }}>
+          <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600' }}>
+            Select Model
+          </Text>
           <Pressable
             onPress={closeAndReset}
-            className="p-1 rounded-full active:bg-surface-container"
+            style={{ padding: 4, borderRadius: 999 }}
           >
             <X size={20} color={colors.icon} />
           </Pressable>
         </View>
 
         {activeTab && (
-          <View className="flex-row items-center px-4 pb-3 gap-2">
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, gap: 8 }}>
             {configuredProviderIds.length > 1 ? (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                className="flex-1"
-                contentContainerStyle={{ gap: 8 }}
-              >
-                {configuredProviderIds.map((pid) => {
-                  const isActive = pid === activeTab;
-                  return (
-                    <Pressable
-                      key={pid}
-                      onPress={() => {
-                        setActiveTab(pid);
-                        setSearchQuery('');
-                        setDebouncedSearchQuery('');
-                      }}
-                      className={`rounded-full px-4 py-1.5 ${
-                        isActive
-                          ? 'bg-foreground'
-                          : 'bg-surface-container border border-outline-variant/20'
-                      }`}
-                    >
-                      <Text
-                        className={`text-[12px] font-medium ${
-                          isActive ? 'text-background' : 'text-on-surface-variant'
-                        }`}
-                        numberOfLines={1}
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <ScrollView
+                  ref={providerScrollRef}
+                  horizontal
+                  nestedScrollEnabled
+                  directionalLockEnabled
+                  keyboardShouldPersistTaps="handled"
+                  showsHorizontalScrollIndicator={false}
+                  onLayout={handleProviderTabsLayout}
+                  onContentSizeChange={handleProviderTabsContentSizeChange}
+                  onScroll={handleProviderTabsScroll}
+                  scrollEventThrottle={64}
+                  style={{ flexGrow: 0, minWidth: 0 }}
+                  contentContainerStyle={{
+                    gap: 8,
+                    paddingRight: providerTabsScrollable ? 36 : 0,
+                  }}
+                >
+                  {configuredProviderIds.map((pid) => {
+                    const isActive = pid === activeTab;
+                    return (
+                      <Pressable
+                        key={pid}
+                        onPress={() => {
+                          setActiveTab(pid);
+                          setSearchQuery('');
+                          setDebouncedSearchQuery('');
+                        }}
+                        style={{
+                          height: 31,
+                          justifyContent: 'center',
+                          borderRadius: 999,
+                          paddingHorizontal: 16,
+                          backgroundColor: isActive ? colors.text : colors.surface,
+                          borderWidth: isActive ? 0 : StyleSheet.hairlineWidth,
+                          borderColor: colors.border,
+                        }}
                       >
-                        {PROVIDER_DISPLAY[pid] || pid}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
+                        <Text
+                          style={{
+                            color: isActive ? colors.bg : colors.mutedText,
+                            fontSize: 12,
+                            fontWeight: '500',
+                          }}
+                          numberOfLines={1}
+                        >
+                          {PROVIDER_DISPLAY[pid] || pid}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+
+                {providerTabsScrollable && (
+                  <Pressable
+                    onPress={handleProviderArrowPress}
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 0,
+                      width: 32,
+                      height: 32,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: 999,
+                      backgroundColor: colors.surface,
+                      borderWidth: StyleSheet.hairlineWidth,
+                      borderColor: colors.border,
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      providerTabsAtEnd ? 'Show previous providers' : 'Show more providers'
+                    }
+                  >
+                    {providerTabsAtEnd ? (
+                      <ChevronLeft size={15} color={colors.icon} />
+                    ) : (
+                      <ChevronRight size={15} color={colors.icon} />
+                    )}
+                  </Pressable>
+                )}
+              </View>
             ) : (
-              <View className="flex-1 rounded-full px-4 py-1.5 bg-surface-container border border-outline-variant/20">
-                <Text className="text-[12px] font-medium text-on-surface-variant" numberOfLines={1}>
+              <View
+                style={{
+                  flex: 1,
+                  height: 31,
+                  justifyContent: 'center',
+                  borderRadius: 999,
+                  paddingHorizontal: 16,
+                  backgroundColor: colors.surface,
+                  borderWidth: StyleSheet.hairlineWidth,
+                  borderColor: colors.border,
+                }}
+              >
+                <Text
+                  style={{ color: colors.mutedText, fontSize: 12, fontWeight: '500' }}
+                  numberOfLines={1}
+                >
                   {PROVIDER_DISPLAY[activeTab] || activeTab}
                 </Text>
               </View>
@@ -461,9 +614,17 @@ export function ModelPicker() {
             <Pressable
               onPress={handleRefreshProvider}
               disabled={isLoadingModels}
-              className={`w-8 h-8 items-center justify-center rounded-full bg-surface-container border border-outline-variant/20 ${
-                isLoadingModels ? 'opacity-50' : 'active:bg-surface-container-high'
-              }`}
+              style={{
+                width: 32,
+                height: 32,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 999,
+                opacity: isLoadingModels ? 0.5 : 1,
+                backgroundColor: colors.surface,
+                borderWidth: StyleSheet.hairlineWidth,
+                borderColor: colors.border,
+              }}
               accessibilityRole="button"
               accessibilityLabel={`Refresh ${PROVIDER_DISPLAY[activeTab] || activeTab} models`}
             >
@@ -472,14 +633,24 @@ export function ModelPicker() {
           </View>
         )}
 
-        <View className="px-4 pb-2">
-          <View className="flex-row items-center bg-surface-container rounded-lg h-10 px-3">
+        <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+          <View
+            style={{
+              height: 40,
+              flexDirection: 'row',
+              alignItems: 'center',
+              borderRadius: 8,
+              paddingHorizontal: 12,
+              backgroundColor: colors.surface,
+            }}
+          >
             <Search size={16} color={colors.icon} />
-            <BottomSheetTextInput
+            <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholder="Search models..."
               placeholderTextColor={colors.placeholder}
+              selectionColor={colors.text}
               style={{
                 flex: 1,
                 color: colors.text,
@@ -494,9 +665,11 @@ export function ModelPicker() {
 
         <ScrollView
           horizontal
+          nestedScrollEnabled
+          directionalLockEnabled
           showsHorizontalScrollIndicator={false}
-          className="px-4 pb-2"
-          contentContainerStyle={{ gap: 6 }}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ gap: 6, paddingHorizontal: 16, paddingBottom: 8 }}
         >
           {FILTER_OPTIONS.map((cap) => {
             const isActive = activeFilters.includes(cap);
@@ -504,16 +677,22 @@ export function ModelPicker() {
               <Pressable
                 key={cap}
                 onPress={() => toggleFilter(cap)}
-                className={`rounded-full px-3 py-1 ${
-                  isActive
-                    ? 'bg-foreground'
-                    : 'bg-surface-container border border-outline-variant/20'
-                }`}
+                style={{
+                  height: 26,
+                  justifyContent: 'center',
+                  borderRadius: 999,
+                  paddingHorizontal: 12,
+                  backgroundColor: isActive ? colors.text : colors.surface,
+                  borderWidth: isActive ? 0 : StyleSheet.hairlineWidth,
+                  borderColor: colors.border,
+                }}
               >
                 <Text
-                  className={`text-[11px] font-medium ${
-                    isActive ? 'text-background' : 'text-on-surface-variant'
-                  }`}
+                  style={{
+                    color: isActive ? colors.bg : colors.mutedText,
+                    fontSize: 11,
+                    fontWeight: '500',
+                  }}
                 >
                   {FILTER_LABELS[cap]}
                 </Text>
@@ -523,22 +702,22 @@ export function ModelPicker() {
         </ScrollView>
 
         {isLoadingModels && (
-          <View className="py-2 items-center">
-            <Text className="text-on-surface-variant text-[12px]">Loading models...</Text>
+          <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+            <Text style={{ color: colors.mutedText, fontSize: 12 }}>Loading models...</Text>
           </View>
         )}
 
         {!!loadMessage && !isLoadingModels && (
-          <View className="px-4 pb-2">
-            <Text className="text-on-surface-variant text-[12px] text-center">
+          <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+            <Text style={{ color: colors.mutedText, fontSize: 12, textAlign: 'center' }}>
               {loadMessage}
             </Text>
           </View>
         )}
 
         {configuredProviderIds.length === 0 && (
-          <View className="py-8 items-center px-6">
-            <Text className="text-on-surface-variant text-[13px] text-center">
+          <View style={{ alignItems: 'center', paddingHorizontal: 24, paddingVertical: 32 }}>
+            <Text style={{ color: colors.mutedText, fontSize: 13, textAlign: 'center' }}>
               No API keys configured. Add a key in Settings / API Keys.
             </Text>
           </View>
@@ -549,13 +728,17 @@ export function ModelPicker() {
       activeFilters,
       activeTab,
       closeAndReset,
-      colors.icon,
-      colors.placeholder,
-      colors.text,
+      colors,
       configuredProviderIds,
+      handleProviderArrowPress,
       handleRefreshProvider,
+      handleProviderTabsContentSizeChange,
+      handleProviderTabsLayout,
+      handleProviderTabsScroll,
       isLoadingModels,
       loadMessage,
+      providerTabsAtEnd,
+      providerTabsScrollable,
       searchQuery,
       toggleFilter,
     ]
@@ -565,40 +748,76 @@ export function ModelPicker() {
     if (configuredProviderIds.length === 0) return null;
 
     return (
-      <View className="py-10 items-center px-6">
-        <Text className="text-on-surface-variant text-[13px] text-center">
+      <View style={{ alignItems: 'center', paddingHorizontal: 24, paddingVertical: 40 }}>
+        <Text style={{ color: colors.mutedText, fontSize: 13, textAlign: 'center' }}>
           No models match the current search and filters.
         </Text>
       </View>
     );
-  }, [configuredProviderIds.length]);
+  }, [colors.mutedText, configuredProviderIds.length]);
 
   return (
-    <BottomSheet
-      ref={bottomSheetRef}
-      index={-1}
-      snapPoints={snapPoints}
-      onChange={handleSheetChange}
-      animateOnMount={false}
-      enableDynamicSizing={false}
-      enablePanDownToClose
-      backdropComponent={renderBackdrop}
-      handleIndicatorStyle={{ backgroundColor: colors.handle, width: 40 }}
-      backgroundStyle={{ backgroundColor: colors.bg }}
-      keyboardBehavior="interactive"
-      android_keyboardInputMode="adjustResize"
+    <Modal
+      visible={isOpen}
+      transparent
+      animationType="slide"
+      statusBarTranslucent
+      onRequestClose={closeAndReset}
     >
-      <BottomSheetFlashList
-        data={filteredModels}
-        keyExtractor={keyExtractor}
-        renderItem={renderItem}
-        extraData={listExtraData}
-        ListHeaderComponent={Header}
-        ListEmptyComponent={ListEmpty}
-        contentContainerStyle={{ paddingBottom: 32 }}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      />
-    </BottomSheet>
+      <KeyboardAvoidingView
+        behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'}
+        style={{
+          flex: 1,
+          justifyContent: 'flex-end',
+          backgroundColor: colors.backdrop,
+        }}
+      >
+        <Pressable onPress={closeAndReset} style={{ flex: 1 }} />
+
+        <View
+          style={{
+            height: sheetHeight,
+            backgroundColor: colors.bg,
+            borderTopLeftRadius: 16,
+            borderTopRightRadius: 16,
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: colors.border,
+            overflow: 'hidden',
+          }}
+        >
+          <View style={{ alignItems: 'center', paddingTop: 8, paddingBottom: 8 }}>
+            <View
+              style={{
+                width: 40,
+                height: 4,
+                borderRadius: 999,
+                backgroundColor: colors.handle,
+              }}
+            />
+          </View>
+
+          {Header}
+
+          <FlatList
+            ref={modelListRef}
+            data={filteredModels}
+            keyExtractor={keyExtractor}
+            renderItem={renderItem}
+            extraData={listExtraData}
+            getItemLayout={getItemLayout}
+            ListEmptyComponent={ListEmpty}
+            contentContainerStyle={{ paddingBottom: 32 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            initialNumToRender={16}
+            maxToRenderPerBatch={16}
+            removeClippedSubviews={process.env.EXPO_OS === 'android'}
+            updateCellsBatchingPeriod={32}
+            windowSize={7}
+            style={{ flex: 1 }}
+          />
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
