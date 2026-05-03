@@ -20,6 +20,7 @@ interface SettingsActions {
   setTheme: (theme: Theme) => Promise<void>;
   setLastModel: (model: string | null) => Promise<void>;
   setLastProvider: (provider: string | null) => Promise<void>;
+  setLastModelSelection: (model: string | null, provider: string | null) => Promise<void>;
   setOnboardingComplete: (complete: boolean) => Promise<void>;
   setBiometricLockEnabled: (enabled: boolean) => Promise<void>;
   setThinkingMode: (mode: ThinkingMode) => Promise<void>;
@@ -82,6 +83,15 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
     await loadModules();
     await mmkv!.setLastProvider(provider);
     set({ lastProvider: provider });
+  },
+
+  setLastModelSelection: async (model, provider) => {
+    set({ lastModel: model, lastProvider: provider });
+    await loadModules();
+    await Promise.all([
+      mmkv!.setLastModel(model),
+      mmkv!.setLastProvider(provider),
+    ]);
   },
 
   setOnboardingComplete: async (complete) => {
@@ -174,11 +184,10 @@ export async function hasAnyProviderKey(): Promise<boolean> {
 
 export async function getConfiguredProviders(): Promise<string[]> {
   const allProviders = ['openrouter', 'openai', 'openai-codex', 'google-ai', 'anthropic', 'minimax', 'cloudflare-ai'];
-  const configured: string[] = [];
-  for (const p of allProviders) {
-    if (await hasProviderKey(p)) configured.push(p);
-  }
-  return configured;
+  const configured = await Promise.all(
+    allProviders.map(async (provider) => (await hasProviderKey(provider) ? provider : null))
+  );
+  return configured.filter((provider): provider is string => provider !== null);
 }
 
 export async function saveProviderKey(provider: string, key: string): Promise<void> {

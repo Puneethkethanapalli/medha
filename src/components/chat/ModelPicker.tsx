@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import { View, Pressable, ScrollView } from 'react-native';
-import BottomSheet, { BottomSheetBackdrop, BottomSheetFlatList, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetBackdrop, BottomSheetFlashList, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { Text } from '@/components/ui/text';
 import { Search, X, Check } from 'lucide-react-native';
 import { useUIStore } from '@/stores/ui-store';
@@ -93,8 +93,7 @@ export function ModelPicker() {
   const lastModel = useSettingsStore((s) => s.lastModel);
   const lastProvider = useSettingsStore((s) => s.lastProvider);
   const currentTheme = useSettingsStore((s) => s.theme);
-  const setLastModel = useSettingsStore((s) => s.setLastModel);
-  const setLastProvider = useSettingsStore((s) => s.setLastProvider);
+  const setLastModelSelection = useSettingsStore((s) => s.setLastModelSelection);
 
   // Theme-aware colors
   const isLight = currentTheme === 'light';
@@ -194,14 +193,15 @@ export function ModelPicker() {
   );
 
   const handleSelect = useCallback(
-    async (modelId: string, providerId: string) => {
-      await setLastModel(modelId);
-      await setLastProvider(providerId);
+    (modelId: string, providerId: string) => {
       closeModelPicker();
       setSearchQuery('');
       setActiveFilters([]);
+      if (modelId !== lastModel || providerId !== lastProvider) {
+        void setLastModelSelection(modelId, providerId).catch(() => {});
+      }
     },
-    [setLastModel, setLastProvider, closeModelPicker]
+    [closeModelPicker, lastModel, lastProvider, setLastModelSelection]
   );
 
   const toggleFilter = useCallback((cap: ModelCapability) => {
@@ -295,6 +295,16 @@ export function ModelPicker() {
   );
 
   const keyExtractor = useCallback((item: Model) => `${item.provider}-${item.id}`, []);
+  const listExtraData = useMemo(
+    () => ({
+      metadataVersion,
+      selectedModel: lastModel,
+      selectedProvider: lastProvider || activeTab,
+      itemCount: filteredModels.length,
+      checkColor: colors.text,
+    }),
+    [activeTab, colors.text, filteredModels.length, lastModel, lastProvider, metadataVersion]
+  );
 
   const ListHeader = useMemo(
     () => (
@@ -414,7 +424,18 @@ export function ModelPicker() {
         )}
       </>
     ),
-    [searchQuery, closeModelPicker, configuredProviderIds, activeTab, isLoadingModels, activeFilters, toggleFilter]
+    [
+      searchQuery,
+      closeModelPicker,
+      configuredProviderIds,
+      activeTab,
+      isLoadingModels,
+      activeFilters,
+      toggleFilter,
+      colors.icon,
+      colors.placeholder,
+      colors.text,
+    ]
   );
 
   if (!isOpen) return null;
@@ -432,12 +453,12 @@ export function ModelPicker() {
       keyboardBehavior="interactive"
       android_keyboardInputMode="adjustResize"
     >
-      <BottomSheetFlatList
+      <BottomSheetFlashList
         data={filteredModels}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         ListHeaderComponent={ListHeader}
-        extraData={metadataVersion}
+        extraData={listExtraData}
         contentContainerStyle={{ paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
