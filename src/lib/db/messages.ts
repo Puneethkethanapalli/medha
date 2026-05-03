@@ -9,11 +9,12 @@ export function addMessage(
   model?: string,
   attachments?: Attachment[] | null,
   toolCallId?: string | null,
-  toolCalls?: string | null
+  toolCalls?: string | null,
+  createdAt?: number
 ): string {
   const db = getDatabase();
   const id = uuidv4();
-  const now = Date.now();
+  const now = createdAt ?? Date.now();
 
   db.runSync(
     `INSERT INTO messages (id, conversation_id, role, content, status, model, attachments, tool_call_id, tool_calls, created_at)

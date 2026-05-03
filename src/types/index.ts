@@ -35,7 +35,7 @@ export interface Message {
   content: string;
   reasoning: string | null;
   attachments: Attachment[] | null;
-  status: 'complete' | 'streaming' | 'cancelled' | 'error';
+  status: 'complete' | 'streaming' | 'waiting' | 'cancelled' | 'error';
   model: string | null;
   /** JSON string: {"prompt": N, "completion": N, "tokensPerSecond"?: N} or null */
   tokens_used: string | null;

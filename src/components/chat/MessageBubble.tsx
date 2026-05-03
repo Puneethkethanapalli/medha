@@ -18,7 +18,9 @@ import { MarkdownMessage } from './MarkdownMessage';
 import { StreamingCursor } from './StreamingCursor';
 import { SearchResults } from './SearchResults';
 import { ToolResultCard } from './ToolResultCard';
+import { ChoiceCard } from './ChoiceCard';
 import { formatTokensPerSecond, parseResponseTokenMetrics, type ResponseTokenMetrics } from '@/lib/tokens/metrics';
+import type { AskUserChoiceSubmission } from '@/lib/tools/ask-user-choice';
 import type { Message } from '@/types';
 import type { Citation, ToolDisplay } from '@/lib/tools/types';
 
@@ -33,12 +35,16 @@ interface MessageBubbleProps {
   onEditSubmit?: (messageId: string, newContent: string) => void;
   onEditCancel?: () => void;
   onRetry?: (messageId: string) => void;
+  onChoiceSubmit?: (messageId: string, submission: AskUserChoiceSubmission) => void;
+  onChoiceDismiss?: (messageId: string) => void;
 }
 
 function getAssistantStatusLabel(status: Message['status']) {
   switch (status) {
     case 'streaming':
       return 'Response pending';
+    case 'waiting':
+      return 'Waiting for your choice';
     case 'cancelled':
       return 'Response stopped';
     case 'error':
@@ -78,6 +84,8 @@ export const MessageBubble = React.memo(function MessageBubble({
   onEditSubmit,
   onEditCancel,
   onRetry,
+  onChoiceSubmit,
+  onChoiceDismiss,
 }: MessageBubbleProps) {
   const streamingContent = useStreamingContent(message.id);
   const streamingReasoning = useStreamingReasoning(message.id);
@@ -275,6 +283,14 @@ export const MessageBubble = React.memo(function MessageBubble({
           </View>
         )}
 
+        {message.status === 'waiting' && (
+          <ChoiceCard
+            message={message}
+            onSubmit={onChoiceSubmit}
+            onDismiss={onChoiceDismiss}
+          />
+        )}
+
         {/* Error state with retry */}
         {message.status === 'error' && (
           <View className="mt-2 px-4 py-3 bg-[#18181B] border rounded-lg" style={{ borderColor: 'hsla(0, 84%, 60%, 0.3)' }}>
@@ -311,7 +327,7 @@ export const MessageBubble = React.memo(function MessageBubble({
         )}
 
         {/* Copy button + token usage for completed messages */}
-        {!!displayContent && !isStreaming && message.status !== 'error' && (
+        {!!displayContent && !isStreaming && message.status !== 'waiting' && message.status !== 'error' && (
           <View className="mt-1 flex-row items-center gap-2 pt-1">
             <Pressable
               accessibilityLabel="Copy message"

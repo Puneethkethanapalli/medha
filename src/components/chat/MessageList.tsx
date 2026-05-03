@@ -13,6 +13,7 @@ import { MessageBubble } from './MessageBubble';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
 import { useChatStore } from '@/stores/chat-store';
 import { useUIStore } from '@/stores/ui-store';
+import type { AskUserChoiceSubmission } from '@/lib/tools/ask-user-choice';
 import type { Message } from '@/types';
 
 interface MessageListProps {
@@ -23,6 +24,8 @@ interface MessageListProps {
   onEditSubmit?: (messageId: string, newContent: string) => void;
   onEditCancel?: () => void;
   onRetry?: (messageId: string) => void;
+  onChoiceSubmit?: (messageId: string, submission: AskUserChoiceSubmission) => void;
+  onChoiceDismiss?: (messageId: string) => void;
 }
 
 // ─── Scroll thresholds ──────────────────────────────────────────────────
@@ -45,6 +48,8 @@ export function MessageList({
   onEditSubmit,
   onEditCancel,
   onRetry,
+  onChoiceSubmit,
+  onChoiceDismiss,
 }: MessageListProps) {
   const flatListRef = useRef<FlatList<Message>>(null);
   const scrollFrameRef = useRef<number | null>(null);
@@ -307,11 +312,22 @@ export function MessageList({
             onEditSubmit={onEditSubmit}
             onEditCancel={onEditCancel}
             onRetry={onRetry}
+            onChoiceSubmit={onChoiceSubmit}
+            onChoiceDismiss={onChoiceDismiss}
           />
         </>
       );
     },
-    [highlightedMessageId, editingMessageId, editingIndex, onEditSubmit, onEditCancel, onRetry]
+    [
+      highlightedMessageId,
+      editingMessageId,
+      editingIndex,
+      onEditSubmit,
+      onEditCancel,
+      onRetry,
+      onChoiceSubmit,
+      onChoiceDismiss,
+    ]
   );
 
   const keyExtractor = useCallback((item: Message) => item.id, []);

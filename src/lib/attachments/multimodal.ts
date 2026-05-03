@@ -54,11 +54,11 @@ export function buildOpenAIMessages(
     // Assistant message with tool_calls — reconstruct for API
     if (msg.role === 'assistant' && msg.tool_calls) {
       try {
-        const toolCalls = JSON.parse(msg.tool_calls) as Array<{
+        const toolCalls = JSON.parse(msg.tool_calls) as {
           id: string;
           name: string;
           arguments: Record<string, unknown>;
-        }>;
+        }[];
         const apiToolCalls = toolCalls.map((tc, index) => ({
           id: tc.id,
           type: 'function' as const,
@@ -137,7 +137,23 @@ type AnthropicDocumentPart = {
   type: 'document';
   source: { type: 'base64'; media_type: 'application/pdf'; data: string };
 };
-type AnthropicContentPart = AnthropicTextPart | AnthropicImagePart | AnthropicDocumentPart;
+type AnthropicToolUsePart = {
+  type: 'tool_use';
+  id: string;
+  name: string;
+  input: Record<string, unknown>;
+};
+type AnthropicToolResultPart = {
+  type: 'tool_result';
+  tool_use_id: string;
+  content: string;
+};
+type AnthropicContentPart =
+  | AnthropicTextPart
+  | AnthropicImagePart
+  | AnthropicDocumentPart
+  | AnthropicToolUsePart
+  | AnthropicToolResultPart;
 
 export type AnthropicMessage = {
   role: string;
@@ -163,7 +179,7 @@ export function buildAnthropicMessages(messages: Message[]): AnthropicMessage[] 
           type: 'tool_result',
           tool_use_id: msg.tool_call_id || '',
           content: msg.content,
-        }] as unknown as string,
+        }],
       });
       continue;
     }
@@ -180,6 +196,34 @@ export function buildAnthropicMessages(messages: Message[]): AnthropicMessage[] 
       const docText = readDocumentText(doc);
       if (docText) {
         textContent += `\n\n--- Attached file: ${doc.name} ---\n${docText}`;
+      }
+    }
+
+    // Assistant message with tool_calls — reconstruct Anthropic tool_use blocks.
+    if (msg.role === 'assistant' && msg.tool_calls) {
+      try {
+        const toolCalls = JSON.parse(msg.tool_calls) as {
+          id: string;
+          name: string;
+          arguments: Record<string, unknown>;
+        }[];
+        const parts: AnthropicContentPart[] = [];
+        if (textContent) parts.push({ type: 'text', text: textContent });
+        for (const tc of toolCalls) {
+          if (!tc.name) continue;
+          parts.push({
+            type: 'tool_use',
+            id: tc.id,
+            name: tc.name,
+            input: tc.arguments ?? {},
+          });
+        }
+        if (parts.length > 0) {
+          result.push({ role: 'assistant', content: parts });
+          continue;
+        }
+      } catch {
+        // Malformed tool_calls JSON — fall through to normal handling
       }
     }
 

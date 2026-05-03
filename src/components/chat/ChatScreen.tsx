@@ -32,6 +32,15 @@ import { registerTool, listTools, getOpenAIToolSchemas, getAnthropicToolSchemas,
 import { deepResearchTool, webSearchTool } from '@/lib/tools/web-search';
 import { generateImageTool } from '@/lib/tools/image-gen';
 import { saveMemoryTool, forgetMemoryTool } from '@/lib/tools/memory-tools';
+import {
+  ASK_USER_CHOICE_TOOL_NAME,
+  askUserChoiceTool,
+  formatAskUserChoiceUserMessage,
+  normalizeAskUserChoiceToolCall,
+  parseAskUserChoiceToolCall,
+  serializeAskUserChoiceToolResult,
+  type AskUserChoiceSubmission,
+} from '@/lib/tools/ask-user-choice';
 import { describeToolCalls, executeToolCall } from '@/lib/tools/orchestrator';
 import {
   deriveThinkingActivity,
@@ -131,6 +140,9 @@ export const ChatScreen = React.memo(function ChatScreen({
     }
     if (!getTool('deep_research')) {
       registerTool(deepResearchTool);
+    }
+    if (!getTool(ASK_USER_CHOICE_TOOL_NAME)) {
+      registerTool(askUserChoiceTool);
     }
     // Register image generation tool
     if (!getTool('generate_image')) {
@@ -288,6 +300,12 @@ export const ChatScreen = React.memo(function ChatScreen({
           : imageGenInstruction;
       }
 
+      const choiceInstruction =
+        'You can ask the user to choose between options with the ask_user_choice tool. Use it sparingly, only when the answer would depend on a meaningful user preference or missing decision. Ask 1-4 concise questions at once, provide 2-4 clear options per question, mark a recommended option when appropriate, and do not call any other tool in the same response as ask_user_choice.';
+      systemPrompt = systemPrompt
+        ? `${systemPrompt}\n\n${choiceInstruction}`
+        : choiceInstruction;
+
       // Create placeholder assistant message
       const assistantMsgId = addMessage(convId, 'assistant', '', model);
       updateMessage(assistantMsgId, { status: 'streaming' });
@@ -314,9 +332,8 @@ export const ChatScreen = React.memo(function ChatScreen({
         (m) => m.role !== 'system' && m.id !== assistantMsgId
       );
 
-      // Build tool config — web search when enabled, memory tools always, image gen when enabled
-      const useTools = (webSearchEnabled || memoryEnabled || imageGenEnabled) && listTools().length > 0;
-      let activeToolNames: string[] = [];
+      // Build tool config — choice cards are core; other tools are toggled.
+      let activeToolNames: string[] = [ASK_USER_CHOICE_TOOL_NAME];
       if (webSearchEnabled) {
         activeToolNames.push('web_search');
         activeToolNames.push('deep_research');
@@ -330,17 +347,20 @@ export const ChatScreen = React.memo(function ChatScreen({
       // If active skill declares allowed-tools, restrict to only those tools
       if (skillAllowedTools) {
         activeToolNames = activeToolNames.filter((t) =>
-          skillAllowedTools!.includes(t)
+          t === ASK_USER_CHOICE_TOOL_NAME
+          || skillAllowedTools!.includes(t)
           || (t === 'deep_research' && skillAllowedTools!.includes('web_search'))
         );
       }
-      if (activeToolNames.length > 0) {
+      const hasNonChoiceTools = activeToolNames.some((toolName) => toolName !== ASK_USER_CHOICE_TOOL_NAME);
+      if (hasNonChoiceTools) {
         const toolInstruction =
           'When using tools, give a short preamble before the call when possible, use the narrowest useful tool, and cite sources from tool results in the final answer. Prefer deep_research over web_search for broad comparisons, investigations, or multi-source analysis.';
         systemPrompt = systemPrompt
           ? `${systemPrompt}\n\n${toolInstruction}`
           : toolInstruction;
       }
+      const useTools = activeToolNames.length > 0 && listTools().length > 0;
       const enableToolCalls = useTools && activeToolNames.length > 0;
       const toolConfig = enableToolCalls
         ? {
@@ -465,6 +485,39 @@ export const ChatScreen = React.memo(function ChatScreen({
       };
 
       const handleToolCalls = async (toolCalls: AccumulatedToolCall[]) => {
+        const pendingChoice = toolCalls
+          .map((call) => normalizeAskUserChoiceToolCall(call))
+          .find((choice) => choice !== null);
+
+        if (pendingChoice) {
+          const promptText = accumulated
+            || 'I need your choice to continue.';
+          const toolCallsJson = JSON.stringify([pendingChoice.call]);
+
+          updateMessage(assistantMsgId, {
+            content: promptText,
+            reasoning: accumulatedReasoning || null,
+            status: 'waiting',
+            tool_calls: toolCallsJson,
+          });
+          touchConversation(convId);
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMsgId
+                ? {
+                    ...m,
+                    content: promptText,
+                    reasoning: accumulatedReasoning || null,
+                    status: 'waiting',
+                    tool_calls: toolCallsJson,
+                  }
+                : m
+            )
+          );
+          stopStreaming();
+          return;
+        }
+
         if (toolRound >= MAX_TOOL_ROUNDS) {
           const fallback = accumulated || 'I reached the tool-use limit for this response. Please ask me to continue if you want me to keep working from the available results.';
           accumulated = fallback;
@@ -770,6 +823,57 @@ export const ChatScreen = React.memo(function ChatScreen({
     [currentConvId, streamNewResponse]
   );
 
+  const handleChoiceSubmit = useCallback(
+    async (messageId: string, submission: AskUserChoiceSubmission) => {
+      const choiceMessage = messages.find((m) => m.id === messageId);
+      if (!choiceMessage || choiceMessage.status !== 'waiting') return;
+
+      const pendingChoice = parseAskUserChoiceToolCall(choiceMessage.tool_calls);
+      if (!pendingChoice) return;
+
+      const convId = choiceMessage.conversation_id;
+      const providerId = activeApp?.provider || lastProvider || 'openrouter';
+      const model = choiceMessage.model || activeApp?.model || lastModel || getDefaultModel(providerId);
+      const createdAt = Date.now();
+      const toolResult = serializeAskUserChoiceToolResult(pendingChoice.request, submission);
+      const userSummary = formatAskUserChoiceUserMessage(submission);
+
+      updateMessage(messageId, { status: 'complete' });
+      addMessage(
+        convId,
+        'tool',
+        toolResult,
+        model,
+        null,
+        pendingChoice.call.id,
+        null,
+        createdAt
+      );
+      addMessage(convId, 'user', userSummary, model, null, null, null, createdAt + 1);
+      touchConversation(convId);
+
+      const updatedMessages = getMessages(convId);
+      setMessages(updatedMessages);
+      await streamNewResponse(convId);
+    },
+    [activeApp?.model, activeApp?.provider, lastModel, lastProvider, messages, streamNewResponse]
+  );
+
+  const handleChoiceDismiss = useCallback(
+    async (messageId: string) => {
+      const choiceMessage = messages.find((m) => m.id === messageId);
+      const pendingChoice = parseAskUserChoiceToolCall(choiceMessage?.tool_calls);
+      if (!pendingChoice) return;
+
+      const answers = Object.fromEntries(
+        pendingChoice.request.questions.map((question) => [question.question, 'You decide'])
+      );
+
+      await handleChoiceSubmit(messageId, { answers, skipped: true });
+    },
+    [handleChoiceSubmit, messages]
+  );
+
   const insets = useSafeAreaInsets();
   const isKeyboardVisible = useKeyboardState((state) => state.isVisible);
   const hasMessages = messages.length > 0;
@@ -810,6 +914,13 @@ export const ChatScreen = React.memo(function ChatScreen({
     if (!contextWindow || contextMessages.length === 0) return 0;
     return estimateMessageTokens(contextMessages, contextSystemPrompt);
   }, [contextMessages, contextSystemPrompt, contextWindow]);
+  const pendingChoiceMessage = useMemo(
+    () => messages.find((message) =>
+      message.status === 'waiting' && parseAskUserChoiceToolCall(message.tool_calls)
+    ),
+    [messages]
+  );
+  const isWaitingForChoice = !!pendingChoiceMessage;
 
   return (
     <View className="flex-1 bg-background">
@@ -879,6 +990,8 @@ export const ChatScreen = React.memo(function ChatScreen({
             onEditSubmit={handleEditSubmit}
             onEditCancel={handleEditCancel}
             onRetry={handleRetry}
+            onChoiceSubmit={handleChoiceSubmit}
+            onChoiceDismiss={handleChoiceDismiss}
           />
         ) : (
           <EmptyState
@@ -909,7 +1022,12 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       {/* Input — sticks above keyboard */}
       <KeyboardStickyView offset={{ closed: 0, opened: 0 }} onLayout={handleInputBarLayout}>
-        <InputBar onSend={handleSend} onStop={handleStop} />
+        <InputBar
+          onSend={handleSend}
+          onStop={handleStop}
+          disabled={isWaitingForChoice}
+          disabledPlaceholder="Choose an option above..."
+        />
       </KeyboardStickyView>
 
       <Toast bottomOffset={Math.max(insets.bottom, 12) + 84} />

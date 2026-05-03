@@ -19,9 +19,16 @@ import type { Attachment } from '@/types';
 interface InputBarProps {
   onSend: (text: string, attachments?: Attachment[]) => void;
   onStop: () => void;
+  disabled?: boolean;
+  disabledPlaceholder?: string;
 }
 
-export function InputBar({ onSend, onStop }: InputBarProps) {
+export function InputBar({
+  onSend,
+  onStop,
+  disabled = false,
+  disabledPlaceholder,
+}: InputBarProps) {
   const [text, setText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [voiceInputAvailable] = useState(isVoiceInputAvailable);
@@ -31,7 +38,7 @@ export function InputBar({ onSend, onStop }: InputBarProps) {
   const isStreaming = useChatStore((s) => s.isStreaming);
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  const canSend = (text.trim().length > 0 || attachments.length > 0) && !isExtracting;
+  const canSend = !disabled && (text.trim().length > 0 || attachments.length > 0) && !isExtracting;
 
   // Debounced token estimate
   const [debouncedTokens, setDebouncedTokens] = useState(0);
@@ -48,7 +55,7 @@ export function InputBar({ onSend, onStop }: InputBarProps) {
     () => (slashState ? filterCommands(slashState.commandQuery) : []),
     [slashState]
   );
-  const showPicker = slashState !== null && matchedCommands.length > 0 && !slashState.arg;
+  const showPicker = !disabled && slashState !== null && matchedCommands.length > 0 && !slashState.arg;
 
   const animateSendButton = useCallback(() => {
     Animated.sequence([
@@ -69,6 +76,7 @@ export function InputBar({ onSend, onStop }: InputBarProps) {
 
   const handleSend = useCallback(async () => {
     const trimmed = text.trim();
+    if (disabled) return;
     if (!trimmed && attachments.length === 0) return;
     if (isStreaming || isExtracting) return;
 
@@ -130,7 +138,7 @@ export function InputBar({ onSend, onStop }: InputBarProps) {
     onSend(trimmed, enrichedAttachments.length > 0 ? enrichedAttachments : undefined);
     setText('');
     setAttachments([]);
-  }, [text, attachments, isStreaming, isExtracting, slashState, matchedCommands, onSend, animateSendButton]);
+  }, [text, attachments, isStreaming, isExtracting, disabled, slashState, matchedCommands, onSend, animateSendButton]);
 
   const handleSlashCommandSelect = useCallback(
     (command: SlashCommand) => {
@@ -208,7 +216,7 @@ export function InputBar({ onSend, onStop }: InputBarProps) {
               {/* Attachment button */}
               <AttachmentButton
                 onAttach={handleAttach}
-                disabled={isStreaming}
+                disabled={isStreaming || disabled}
               />
 
               {/* Text input */}
@@ -216,7 +224,7 @@ export function InputBar({ onSend, onStop }: InputBarProps) {
                 ref={inputRef}
                 value={text}
                 onChangeText={setText}
-                placeholder="Message Medha..."
+                placeholder={disabled ? disabledPlaceholder ?? 'Choose an option above...' : 'Message Medha...'}
                 placeholderTextColor="hsl(0, 0%, 44%)"
                 multiline
                 maxLength={10000}
@@ -224,11 +232,11 @@ export function InputBar({ onSend, onStop }: InputBarProps) {
                 style={{ minHeight: 36 }}
                 onSubmitEditing={handleSend}
                 blurOnSubmit={false}
-                editable={!isStreaming}
+                editable={!isStreaming && !disabled}
               />
 
               {/* Mic button — only when no text, no attachments, not streaming */}
-              {!canSend && !isStreaming && voiceInputAvailable && (
+              {!disabled && !canSend && !isStreaming && voiceInputAvailable && (
                 <Pressable
                   onPress={handleMicPress}
                   className="w-8 h-8 rounded-full bg-muted items-center justify-center mb-1 active:scale-95"
