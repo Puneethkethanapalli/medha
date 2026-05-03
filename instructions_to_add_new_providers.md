@@ -353,6 +353,8 @@ Edit `src/app/onboarding.tsx` — this is the first-run screen that new users se
 
 Model capabilities and context windows should come from model metadata, not local model-name lists.
 
+**Hard rule:** A provider fallback list may hardcode `id`, `name`, and `provider` so the picker can show something when the provider has no model-list API or the API request fails. Do **not** hardcode `contextWindow`, `capabilities`, pricing, or model-name heuristics in those fallback lists. If provider metadata and LiteLLM both miss, the app should show an unknown context/capability state instead of inventing one locally.
+
 1. **Provider API metadata (preferred)** — If your provider's model-listing API returns capability fields, map them into `Model.capabilities` from `listModels()` using `capabilitiesFromMetadata()`:
 
 ```typescript
@@ -381,9 +383,36 @@ return models.map((m: any) => {
 
 2. **LiteLLM fallback** — If the provider API does not return capability fields, leave `capabilities` unset. Medha will fall back to LiteLLM's community-maintained `model_prices_and_context_window.json` and derive app capabilities from fields like `supports_vision`, `supports_function_calling`, `supports_reasoning`, `supports_pdf_input`, `supported_modalities`, `supported_output_modalities`, and `mode`.
 
+   This is a real fallback, not a guarantee. If LiteLLM does not have the model key, Medha should not show capability badges for that model unless the provider API supplied them.
+
 3. **Context windows** — You do NOT need to hardcode context windows. They are resolved automatically via:
    - **Provider API** (preferred): If your `listModels()` returns `contextWindow` on `Model` objects, these are registered into the dynamic cache automatically.
-   - **LiteLLM fallback**: For providers whose APIs don't return context info, the community-maintained `model_prices_and_context_window.json` from LiteLLM serves as a fallback. See the **Context Window Architecture** section below.
+   - **LiteLLM fallback**: For providers whose APIs don't return context info, the community-maintained `model_prices_and_context_window.json` from LiteLLM serves as a fallback when it has the model. See the **Context Window Architecture** section below.
+   - **Unknown state**: If both sources miss, `ContextWindowCircle` should show unknown rather than using a local guess.
+
+4. **Verify LiteLLM coverage** — Before assuming fallback metadata exists, run:
+
+```bash
+npm run check:litellm -- <provider-id> <model-id>
+```
+
+Examples:
+
+```bash
+npm run check:litellm -- minimax MiniMax-M2.5
+npm run check:litellm -- minimax MiniMax-M2.7
+npm run check:litellm -- cloudflare-ai @cf/openai/gpt-oss-120b
+```
+
+The command prints every lookup key Medha will try and exits with:
+
+| Exit code | Meaning |
+|---|---|
+| `0` | LiteLLM metadata found |
+| `2` | LiteLLM registry loaded, but this model was not found |
+| `1` | Fetch/script error |
+
+Use this to distinguish "LiteLLM fallback is working but the model is absent from LiteLLM" from "the app lookup is wrong".
 
 ### Step 7: Handle Non-OpenAI SSE Formats (if needed)
 
@@ -462,9 +491,10 @@ Use this checklist when adding a new provider:
 - [ ] **API Keys UI** — Added to `ProviderId` type, `PROVIDERS` array, and `keys` state in `api-keys.tsx`
 - [ ] **Settings store** — Added to `hasAnyProviderKey()` and `getConfiguredProviders()` arrays in `settings-store.ts`
 - [ ] **Onboarding screen** — Added to `ProviderId` type and `PROVIDERS` array in `onboarding.tsx`
-- [ ] **Model capabilities** — If the provider API returns capability metadata, populate `capabilities` on returned `Model` objects via `capabilitiesFromMetadata()`. If not, the LiteLLM fallback handles it automatically — no hardcoding needed.
-- [ ] **Context windows** — If your provider's API returns context info in `listModels()`, populate `contextWindow` on `Model` objects. If not, the LiteLLM fallback handles it automatically — no hardcoding needed.
-- [ ] **Model listing** — Prefer dynamic fetch with hardcoded fallback; pure hardcoding only when no API exists
+- [ ] **Model capabilities** — If the provider API returns capability metadata, populate `capabilities` on returned `Model` objects via `capabilitiesFromMetadata()`. If not, verify LiteLLM coverage with `npm run check:litellm -- <provider> <model>` and leave unknown models unbadged.
+- [ ] **Context windows** — If your provider's API returns context info in `listModels()`, populate `contextWindow` on `Model` objects. If not, verify LiteLLM coverage and leave unknown models in the unknown context state.
+- [ ] **Model listing** — Prefer dynamic fetch with a hardcoded model-list fallback; fallback objects should only include `id`, `name`, and `provider`
+- [ ] **LiteLLM mapping** — If LiteLLM uses a provider prefix, add it to `PROVIDER_PREFIX_MAP` and test at least one known hit and one known miss with `npm run check:litellm`
 - [ ] **SSE format** — If non-OpenAI: new format in `stream.ts` + extractor in `sse-parser.ts`
 - [ ] **Message format** — If non-OpenAI: new builder in `multimodal.ts`
 - [ ] **Tool format** — If non-OpenAI: new converter in `tools/registry.ts` + `StreamConfig` field
@@ -484,7 +514,7 @@ Use this checklist when adding a new provider:
 
 4. **Key validation pattern** — Don't make expensive API calls. Hit the lightest endpoint possible. Return `true` for any non-401/403 status (even 400 = key is valid, just bad request).
 
-5. **Dynamic model fetching is preferred** — Always try to fetch models from the provider's API, with a hardcoded fallback list. This ensures users automatically see new models as the provider adds them. See `cloudflare-ai.ts` for the pattern. If the provider's API returns context window info (e.g. `context_length`, `inputTokenLimit`, `max_input_tokens`), populate `contextWindow` on the returned `Model` objects — see `openrouter.ts`, `google-ai.ts`, and `anthropic.ts` for examples.
+5. **Dynamic model fetching is preferred** — Always try to fetch models from the provider's API, with a hardcoded fallback list for availability. This ensures users automatically see new models as the provider adds them. See `cloudflare-ai.ts` for the pattern. If the provider's API returns context window info (e.g. `context_length`, `inputTokenLimit`, `max_input_tokens`), populate `contextWindow` on the returned `Model` objects — see `openrouter.ts`, `google-ai.ts`, and `anthropic.ts` for examples. Do not put context windows or capabilities into fallback-only model arrays.
 
 6. **Tool call loop is handled externally** — Your provider just needs to emit `onToolCalls` with the accumulated calls. The ChatScreen handles execution and re-submission.
 
@@ -511,6 +541,7 @@ Use this checklist when adding a new provider:
 | `src/lib/models/capabilities.ts` | Dynamic model metadata cache + metadata lookup | Rarely — only for metadata resolution behavior |
 | `src/lib/models/capability-metadata.ts` | Converts provider/LiteLLM metadata fields into app capability flags | Rarely — only for new capability field shapes |
 | `src/lib/models/litellm-registry.ts` | LiteLLM community model metadata fallback (context windows + capabilities) | Only to add provider prefix mappings |
+| `scripts/check-litellm-model.js` | CLI check for LiteLLM lookup keys and derived metadata | Only if LiteLLM lookup behavior changes |
 | `src/lib/storage/secure.ts` | API key CRUD | Never — generic, works for any provider ID |
 | `src/lib/storage/mmkv.ts` | Non-secret config (e.g. Account IDs) | Only if provider needs extra config beyond an API key |
 | `src/stores/settings-store.ts` | Provider lists + key validation | Always — update provider ID arrays |
@@ -565,13 +596,14 @@ async listModels(apiKey: string): Promise<Model[]> {
 
 #### Layer 2: LiteLLM Community Registry (Fallback)
 
-For providers whose APIs don't return context info (OpenAI, MiniMax, Codex), Medha falls back to the [LiteLLM model_prices_and_context_window.json](https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json) — a community-maintained JSON file covering 1000+ models across all major providers.
+For providers whose APIs don't return context info (OpenAI, MiniMax, Codex), Medha falls back to the [LiteLLM model_prices_and_context_window.json](https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json) — a community-maintained JSON file covering many models across major providers. Coverage is not complete, especially for newly released provider models.
 
 **How it works:**
 - Fetched from GitHub on first `ModelPicker` open
 - Cached in AsyncStorage with a 24-hour TTL
 - Falls back to stale cache if network is unavailable
 - Lookup tries `modelId` directly, then `litellm_prefix/modelId`
+- Missing LiteLLM entries intentionally resolve to unknown; do not patch them with local hardcoded context windows
 
 **Provider prefix mapping** (in `litellm-registry.ts`):
 
@@ -581,8 +613,28 @@ For providers whose APIs don't return context info (OpenAI, MiniMax, Codex), Med
 | `anthropic` | `modelId` | `claude-sonnet-4-20250514` |
 | `minimax` | `minimax/modelId` | `minimax/MiniMax-M2.5` |
 | `google-ai` | `gemini/modelId` | `gemini/gemini-2.0-flash` |
+| `cloudflare-ai` | `cloudflare/modelId` | `cloudflare/@cf/mistral/mistral-7b-instruct-v0.1` |
+| `openrouter` | `openrouter/modelId` | `openrouter/google/gemini-2.0-flash` |
 
 If you add a new provider and its models are in the LiteLLM registry, add the provider prefix mapping to `PROVIDER_PREFIX_MAP` in `src/lib/models/litellm-registry.ts`.
+
+### Testing LiteLLM Lookup
+
+Use the CLI check before debugging the UI:
+
+```bash
+npm run check:litellm -- <provider-id> <model-id>
+```
+
+The output shows:
+
+- the source registry URL
+- the provider and model being checked
+- every lookup key Medha will try
+- the matched LiteLLM key, when present
+- derived context window and capabilities
+
+If this command says `Result: no LiteLLM metadata found`, the app should also show no LiteLLM-derived context window or capability badges for that model. That is expected behavior, not a fallback failure.
 
 ### Key Files
 
@@ -590,6 +642,7 @@ If you add a new provider and its models are in the LiteLLM registry, add the pr
 |---|---|
 | `src/lib/models/capabilities.ts` | `getModelContextWindow()` — checks dynamic cache first, then LiteLLM fallback |
 | `src/lib/models/litellm-registry.ts` | Fetches, caches, and queries the LiteLLM JSON |
+| `scripts/check-litellm-model.js` | Replays LiteLLM lookup from the terminal for one provider/model |
 | `src/components/chat/ModelPicker.tsx` | Calls `registerModelsMetadata()` + `loadLiteLLMRegistry()` on open |
 | `src/components/chat/ContextWindowCircle.tsx` | Renders the visual context usage indicator |
 
@@ -611,7 +664,7 @@ Medha resolves model capabilities dynamically — **no hardcoded capability maps
 
 ### How It Works
 
-When `listModels()` returns `Model` objects with a `capabilities` field, `ModelPicker` calls `registerModelsMetadata()` and stores those capabilities in the dynamic metadata cache. `getModelCapabilities()` reads that cache first, then supplements missing/unknown metadata from LiteLLM.
+When `listModels()` returns `Model` objects with a `capabilities` field, `ModelPicker` calls `registerModelsMetadata()` and stores those capabilities in the dynamic metadata cache. `getModelCapabilities()` reads that cache first, then supplements missing metadata from LiteLLM. If neither source knows about a capability, the model should not get that badge.
 
 Capabilities are derived from metadata fields, not model IDs:
 
@@ -624,4 +677,4 @@ Capabilities are derived from metadata fields, not model IDs:
 | `thinking` | `supports_reasoning`, `supported_parameters: ['reasoning'/'include_reasoning']` |
 | `long-context` | Resolved context window greater than 100K tokens |
 
-**To add capability support for a new provider:** In `listModels()`, extract capability-related fields from the API response and pass them to `capabilitiesFromMetadata()`. If the provider does not expose these fields, leave `capabilities` unset and make sure the provider has a LiteLLM prefix mapping if needed.
+**To add capability support for a new provider:** In `listModels()`, extract capability-related fields from the API response and pass them to `capabilitiesFromMetadata()`. If the provider does not expose these fields, leave `capabilities` unset, make sure the provider has a LiteLLM prefix mapping if needed, and test representative models with `npm run check:litellm -- <provider> <model>`.
