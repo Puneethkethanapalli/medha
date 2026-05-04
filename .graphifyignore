@@ -1,0 +1,16 @@
+# .graphifyignore
+node_modules/
+dist/
+build/
+.expo/
+.git/
+.kilocode/
+.playwright-mcp/
+android/
+ios/
+assets/
+designs/
+generated designs/
+lottie/
+medha assets/
+*.generated.py
