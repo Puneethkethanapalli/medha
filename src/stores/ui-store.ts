@@ -25,6 +25,8 @@ interface UIState {
   editingMessageId: string | null;
   // Pending per-conversation rule (before conversation is created)
   pendingConversationRule: string | null;
+  // Next new conversation starts as a temporary chat
+  pendingTemporaryChat: boolean;
   // Skill picker bottom sheet
   skillPickerOpen: boolean;
 }
@@ -48,6 +50,7 @@ interface UIActions {
   hideActionsMenu: () => void;
   setEditingMessage: (id: string | null) => void;
   setPendingConversationRule: (rule: string | null) => void;
+  setPendingTemporaryChat: (temporary: boolean) => void;
   openSkillPicker: () => void;
   closeSkillPicker: () => void;
 }
@@ -64,6 +67,7 @@ export const useUIStore = create<UIState & UIActions>((set) => ({
   actionsMenuMessage: null,
   editingMessageId: null,
   pendingConversationRule: null,
+  pendingTemporaryChat: false,
   skillPickerOpen: false,
 
   openDrawer: () => set({ drawerOpen: true }),
@@ -84,6 +88,7 @@ export const useUIStore = create<UIState & UIActions>((set) => ({
   hideActionsMenu: () => set({ actionsMenuMessage: null }),
   setEditingMessage: (id) => set({ editingMessageId: id }),
   setPendingConversationRule: (rule) => set({ pendingConversationRule: rule }),
+  setPendingTemporaryChat: (temporary) => set({ pendingTemporaryChat: temporary }),
   openSkillPicker: () => set({ skillPickerOpen: true }),
   closeSkillPicker: () => set({ skillPickerOpen: false }),
 }));

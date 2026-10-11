@@ -34,11 +34,15 @@ import {
   UserRound,
   Pencil,
   RefreshCw,
+  MoreVertical,
+  FolderClosed,
 } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useUIStore } from '@/stores/ui-store';
 import { useSettingsStore } from '@/stores/settings-store';
 import { getConversation } from '@/lib/db/conversations';
+import { getApp } from '@/lib/db/apps';
+import { exportMemoriesToFile, pickAndImportMemories } from '@/lib/memory/transfer';
 import { getApiKey } from '@/lib/storage/secure';
 import { generateMemoryProfile } from '@/lib/memory/profile';
 import type { MemoryProfile } from '@/lib/storage/mmkv';
@@ -194,6 +198,7 @@ function formatRelativeTime(timestamp: number): string {
 function MemoryCard({
   memory,
   sourceChatTitle,
+  projectName,
   onEdit,
   onTogglePin,
   onDelete,
@@ -202,6 +207,8 @@ function MemoryCard({
   memory: Memory;
   /** Title of the chat the memory came from, if that chat still exists. */
   sourceChatTitle: string | null;
+  /** Project a project-only memory belongs to. */
+  projectName: string | null;
   onEdit: (memory: Memory) => void;
   onTogglePin: (id: string, pinned: boolean) => void;
   onDelete: (id: string) => void;
@@ -235,6 +242,14 @@ function MemoryCard({
                 {CATEGORY_LABELS[memory.category as MemoryCategory] || 'General'}
               </Text>
             </View>
+            {memory.app_id && (
+              <View className="flex-row items-center gap-1 px-2 py-0.5 rounded-full bg-muted">
+                <FolderClosed size={11} color="hsl(0, 0%, 55%)" />
+                <Text className="text-muted-foreground text-[11px] font-medium" numberOfLines={1}>
+                  {projectName ?? 'Deleted project'}
+                </Text>
+              </View>
+            )}
             <View className="flex-row items-center gap-1">
               <Zap size={12} color="hsl(0, 0%, 44%)" />
               <Text className="text-muted-foreground text-[11px]">{usage}</Text>
@@ -304,6 +319,9 @@ export default function MemoriesScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [chatTitles, setChatTitles] = useState<Record<string, string>>({});
+  const [projectNames, setProjectNames] = useState<Record<string, string>>({});
+  /** While editing a project memory: keep it project-only (false makes it global). */
+  const [editingProjectOnly, setEditingProjectOnly] = useState(true);
   const [addModalOpen, setAddModalOpen] = useState(false);
   /** Memory being edited; null when the modal is adding a new one. */
   const [editingMemory, setEditingMemory] = useState<Memory | null>(null);
@@ -316,13 +334,20 @@ export default function MemoriesScreen() {
     setCount(getMemoryCount());
 
     const titles: Record<string, string> = {};
+    const projects: Record<string, string> = {};
     for (const memory of all) {
       const conversationId = memory.conversation_id;
-      if (!conversationId || conversationId in titles) continue;
-      const conversation = getConversation(conversationId);
-      if (conversation) titles[conversationId] = conversation.title || 'Untitled chat';
+      if (conversationId && !(conversationId in titles)) {
+        const conversation = getConversation(conversationId);
+        if (conversation) titles[conversationId] = conversation.title || 'Untitled chat';
+      }
+      if (memory.app_id && !(memory.app_id in projects)) {
+        const app = getApp(memory.app_id);
+        if (app) projects[memory.app_id] = app.name;
+      }
     }
     setChatTitles(titles);
+    setProjectNames(projects);
   }, []);
 
   useEffect(() => {
@@ -370,6 +395,7 @@ export default function MemoriesScreen() {
 
   const openEditModal = useCallback((memory: Memory) => {
     setEditingMemory(memory);
+    setEditingProjectOnly(!!memory.app_id);
     setNewContent(memory.content);
     setNewCategory((memory.category as MemoryCategory) || 'general');
     setAddModalOpen(true);
@@ -384,7 +410,11 @@ export default function MemoriesScreen() {
     const content = newContent.trim().replace(/\s+/g, ' ');
     if (!content) return;
     if (editingMemory) {
-      updateMemory(editingMemory.id, { content, category: newCategory });
+      updateMemory(editingMemory.id, {
+        content,
+        category: newCategory,
+        ...(editingMemory.app_id && !editingProjectOnly ? { app_id: null } : {}),
+      });
     } else {
       addMemory(content, newCategory, { source: 'user' });
     }
@@ -393,7 +423,38 @@ export default function MemoriesScreen() {
     closeModal();
     loadMemories();
     showToast(editingMemory ? 'Memory updated' : 'Memory added');
-  }, [closeModal, editingMemory, newContent, newCategory, loadMemories, showToast]);
+  }, [closeModal, editingMemory, editingProjectOnly, newContent, newCategory, loadMemories, showToast]);
+
+  const handleExport = useCallback(async () => {
+    try {
+      const exported = await exportMemoriesToFile();
+      if (exported === 0) showToast('No memories to export');
+    } catch (error) {
+      Alert.alert("Couldn't export", error instanceof Error ? error.message : 'Something went wrong.');
+    }
+  }, [showToast]);
+
+  const handleImport = useCallback(async () => {
+    try {
+      const summary = await pickAndImportMemories();
+      if (!summary) return;
+      loadMemories();
+      const parts = [`${summary.added} added`];
+      if (summary.merged) parts.push(`${summary.merged} merged into existing`);
+      if (summary.skipped) parts.push(`${summary.skipped} skipped (duplicates or invalid)`);
+      Alert.alert('Import complete', `${parts.join(', ')}.`);
+    } catch (error) {
+      Alert.alert("Couldn't import", error instanceof Error ? error.message : 'Something went wrong.');
+    }
+  }, [loadMemories]);
+
+  const openMoreMenu = useCallback(() => {
+    Alert.alert('Memories', 'Back up your memories, or bring them in from a file (JSON or one memory per line).', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Import', onPress: () => void handleImport() },
+      { text: 'Export', onPress: () => void handleExport() },
+    ]);
+  }, [handleExport, handleImport]);
 
   const openProfileEditor = useCallback(() => {
     setProfileDraft(useSettingsStore.getState().memoryProfile?.content ?? '');
@@ -488,9 +549,19 @@ export default function MemoriesScreen() {
 
         <Pressable
           onPress={openAddModal}
-          className="w-10 h-10 items-center justify-center -mr-2"
+          className="w-10 h-10 items-center justify-center"
+          accessibilityRole="button"
+          accessibilityLabel="Add memory"
         >
           <Plus size={22} color="hsl(0, 0%, 63%)" />
+        </Pressable>
+        <Pressable
+          onPress={openMoreMenu}
+          className="w-8 h-10 items-center justify-center -mr-2"
+          accessibilityRole="button"
+          accessibilityLabel="Import or export memories"
+        >
+          <MoreVertical size={20} color="hsl(0, 0%, 63%)" />
         </Pressable>
       </View>
 
@@ -575,6 +646,7 @@ export default function MemoriesScreen() {
               key={memory.id}
               memory={memory}
               sourceChatTitle={memory.conversation_id ? chatTitles[memory.conversation_id] ?? null : null}
+              projectName={memory.app_id ? projectNames[memory.app_id] ?? null : null}
               onEdit={openEditModal}
               onTogglePin={handleTogglePin}
               onDelete={handleDelete}
@@ -681,6 +753,20 @@ export default function MemoriesScreen() {
                 )
               )}
             </View>
+
+            {editingMemory?.app_id && (
+              <View className="flex-row items-center mt-4">
+                <View className="flex-1 mr-3">
+                  <Text className="text-foreground text-[14px] font-medium">
+                    Only in {projectNames[editingMemory.app_id] ?? 'its project'}
+                  </Text>
+                  <Text className="text-on-surface-variant text-[12px] mt-0.5">
+                    Turn off to use this memory in every chat
+                  </Text>
+                </View>
+                <Toggle value={editingProjectOnly} onValueChange={setEditingProjectOnly} />
+              </View>
+            )}
 
             <Pressable
               onPress={handleSaveMemory}

@@ -6,7 +6,8 @@
  * message, then standing instructions/preferences, then recency.
  */
 
-import { getMemories, markMemoriesUsed, shortMemoryId, type Memory } from '@/lib/db/memories';
+import { getMemories, getMemoriesForScope, markMemoriesUsed, shortMemoryId, type Memory } from '@/lib/db/memories';
+import { getConversation } from '@/lib/db/conversations';
 import { getRecentUserMessageContents } from '@/lib/db/messages';
 import { selectMemories } from '@/lib/memory/retrieval';
 import { getMemoryProfileSync } from '@/lib/storage/mmkv';
@@ -48,7 +49,8 @@ function formatDate(timestamp: number): string {
 
 function formatMemoryLine(memory: Memory): string {
   const pin = memory.pinned ? ' · pinned' : '';
-  return `- [${shortMemoryId(memory.id)} · ${formatDate(memory.updated_at)}${pin}] ${memory.content}`;
+  const project = memory.app_id ? ' · this project' : '';
+  return `- [${shortMemoryId(memory.id)} · ${formatDate(memory.updated_at)}${pin}${project}] ${memory.content}`;
 }
 
 /** The user profile summary block, or empty string if there's no profile yet. */
@@ -75,7 +77,11 @@ export interface BuildMemoryContextOptions {
  * Returns empty string if there are no memories.
  */
 export function buildMemoryContext(options: BuildMemoryContextOptions = {}): string {
-  const all = getMemories();
+  const conversation = options.conversationId ? getConversation(options.conversationId) : null;
+  if (conversation?.temporary === 1) return '';
+
+  // Global memories plus, in a project chat, that project's own.
+  const all = getMemoriesForScope(conversation?.app_id);
   if (all.length === 0) return '';
 
   const query = options.conversationId

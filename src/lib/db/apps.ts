@@ -136,7 +136,7 @@ export function getAppCount(): number {
 export function getAppConversationCount(appId: string): number {
   const db = getDatabase();
   const row = db.getFirstSync<{ count: number }>(
-    'SELECT COUNT(*) as count FROM conversations WHERE app_id = ?',
+    'SELECT COUNT(*) as count FROM conversations WHERE app_id = ? AND COALESCE(temporary, 0) = 0',
     [appId]
   );
   return row?.count ?? 0;

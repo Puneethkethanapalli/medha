@@ -4,7 +4,7 @@ import { Text } from '@/components/ui/text';
 import { useUIStore } from '@/stores/ui-store';
 import { useSettingsStore } from '@/stores/settings-store';
 import { getConversation, updateConversation } from '@/lib/db/conversations';
-import { Brain, Globe, SlidersHorizontal, X } from 'lucide-react-native';
+import { Brain, Ghost, Globe, SlidersHorizontal, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import type { ThinkingMode } from '@/lib/storage/mmkv';
 
@@ -18,6 +18,10 @@ export function ChatSettingsSheet() {
   const showToast = useUIStore((s) => s.showToast);
   const pendingRule = useUIStore((s) => s.pendingConversationRule);
   const setPendingRule = useUIStore((s) => s.setPendingConversationRule);
+  const pendingTemporaryChat = useUIStore((s) => s.pendingTemporaryChat);
+  const setPendingTemporaryChat = useUIStore((s) => s.setPendingTemporaryChat);
+  // Temporary mode is chosen before the first message and can't change afterwards.
+  const [conversationTemporary, setConversationTemporary] = useState(false);
 
   const currentTheme = useSettingsStore((s) => s.theme);
   const thinkingMode = useSettingsStore((s) => s.thinkingMode);
@@ -45,6 +49,7 @@ export function ChatSettingsSheet() {
     if (!isOpen) return;
     if (activeConversationId) {
       const conv = getConversation(activeConversationId);
+      setConversationTemporary(conv?.temporary === 1);
       const prompt = conv?.system_prompt ?? '';
       setConvRule(prompt);
       setInitialRule(prompt);
@@ -80,6 +85,17 @@ export function ChatSettingsSheet() {
     const nextIndex = (currentIndex + 1) % MODE_CYCLE.length;
     setThinkingMode(MODE_CYCLE[nextIndex]);
   }, [thinkingMode, setThinkingMode]);
+
+  const toggleTemporary = useCallback(() => {
+    if (activeConversationId) {
+      showToast('Start a new chat to change temporary mode');
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setPendingTemporaryChat(!pendingTemporaryChat);
+  }, [activeConversationId, pendingTemporaryChat, setPendingTemporaryChat, showToast]);
+
+  const temporaryOn = activeConversationId ? conversationTemporary : pendingTemporaryChat;
 
   const toggleSearch = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -232,6 +248,58 @@ export function ChatSettingsSheet() {
                   }}
                 />
               </Pressable>
+            </Pressable>
+
+            {/* Temporary chat */}
+            <Pressable
+              onPress={toggleTemporary}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 14,
+                borderBottomWidth: 1,
+                borderBottomColor: rowBorder,
+                gap: 12,
+                opacity: activeConversationId ? 0.6 : 1,
+              }}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: temporaryOn, disabled: !!activeConversationId }}
+            >
+              <View style={{ width: 36, height: 36, backgroundColor: iconBg, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }}>
+                <Ghost size={18} color={iconColor} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text className="text-foreground text-[15px] font-medium">
+                  Temporary Chat
+                </Text>
+                <Text className="text-muted-foreground text-[12px] mt-0.5">
+                  {activeConversationId
+                    ? temporaryOn
+                      ? 'Not saved to history or memory'
+                      : 'Start a new chat to go temporary'
+                    : "No memory, hidden from history, deleted when you reopen the app"}
+                </Text>
+              </View>
+              <View
+                style={{
+                  width: 48,
+                  height: 28,
+                  borderRadius: 14,
+                  justifyContent: 'center',
+                  paddingHorizontal: 3,
+                  backgroundColor: temporaryOn ? (isLight ? '#09090B' : '#FAFAFA') : (isLight ? '#E4E4E7' : '#27272A'),
+                }}
+              >
+                <View
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: 11,
+                    backgroundColor: isLight ? '#FFFFFF' : '#09090B',
+                    transform: [{ translateX: temporaryOn ? 19 : 0 }],
+                  }}
+                />
+              </View>
             </Pressable>
 
             {/* Per-conversation instructions */}

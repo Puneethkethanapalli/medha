@@ -4,7 +4,7 @@
  * "Reference chat history" is on). Users can read and edit it in Settings.
  */
 
-import { countMemoriesUpdatedSince, getMemories, getMemoryStats, type Memory } from '@/lib/db/memories';
+import { countMemoriesUpdatedSince, getMemoriesForScope, getMemoryStats, type Memory } from '@/lib/db/memories';
 import {
   getLatestConversationUpdate,
   getRecentChats,
@@ -97,7 +97,8 @@ export async function generateMemoryProfile(
   context: ProfileGenerationContext
 ): Promise<MemoryProfile | null> {
   const stats = getMemoryStats();
-  const memories = getMemories().slice(0, PROFILE_MEMORY_LIMIT);
+  // The profile describes the user everywhere, so project-only memories stay out.
+  const memories = getMemoriesForScope(null).slice(0, PROFILE_MEMORY_LIMIT);
   const includeChats = isMemoryChatHistoryEnabledSync();
   const chats = includeChats ? getRecentChats({ limit: RECENT_CHAT_TOPICS }) : [];
   const userMessages = includeChats ? getRecentUserMessages(RECENT_USER_MESSAGES) : [];

@@ -132,6 +132,18 @@ export function initializeDatabase(): void {
     // Column already exists — ignore
   }
 
+  // Temporary chats (no memory, hidden from history) and project-scoped memories
+  try {
+    database.runSync('ALTER TABLE conversations ADD COLUMN temporary INTEGER DEFAULT 0');
+  } catch {
+    // Column already exists — ignore
+  }
+  try {
+    database.runSync('ALTER TABLE memories ADD COLUMN app_id TEXT');
+  } catch {
+    // Column already exists — ignore
+  }
+
   // Memory changes made automatically after a reply, so they can be shown and undone per message
   database.runSync(`
     CREATE TABLE IF NOT EXISTS memory_events (

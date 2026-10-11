@@ -261,6 +261,9 @@ function AuthGate() {
       try {
         await initialize();
         initializeDatabase();
+        // Temporary chats only live until the app is reopened.
+        const { purgeTemporaryConversations } = await import('@/lib/db/conversations');
+        purgeTemporaryConversations();
         initializeSkills();
         seedBuiltinApps();
       } catch (e) {

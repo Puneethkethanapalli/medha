@@ -23,6 +23,8 @@ export interface Memory {
   source: string | null;
   /** Conversation the memory was saved from, if any. */
   conversation_id: string | null;
+  /** Project (app) this memory is limited to; null for memories that apply everywhere. */
+  app_id: string | null;
   /** Number of requests the memory was actually sent with. */
   hit_count: number;
   last_used_at: number | null;
@@ -41,16 +43,16 @@ export function shortMemoryId(id: string): string {
 export function addMemory(
   content: string,
   category: MemoryCategory = 'general',
-  options: { source?: MemorySource; conversationId?: string | null } = {}
+  options: { source?: MemorySource; conversationId?: string | null; appId?: string | null } = {}
 ): string {
   const db = getDatabase();
   const id = uuidv4();
   const now = Date.now();
 
   db.runSync(
-    `INSERT INTO memories (id, content, category, source, conversation_id, hit_count, pinned, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?)`,
-    [id, content, category, options.source ?? null, options.conversationId ?? null, now, now]
+    `INSERT INTO memories (id, content, category, source, conversation_id, app_id, hit_count, pinned, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, ?)`,
+    [id, content, category, options.source ?? null, options.conversationId ?? null, options.appId ?? null, now, now]
   );
 
   return id;
@@ -61,14 +63,15 @@ export function restoreMemory(memory: Memory): void {
   const db = getDatabase();
   db.runSync(
     `INSERT OR REPLACE INTO memories
-       (id, content, category, source, conversation_id, hit_count, last_used_at, pinned, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, content, category, source, conversation_id, app_id, hit_count, last_used_at, pinned, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       memory.id,
       memory.content,
       memory.category,
       memory.source,
       memory.conversation_id,
+      memory.app_id ?? null,
       memory.hit_count,
       memory.last_used_at,
       memory.pinned,
@@ -87,6 +90,22 @@ export function getMemories(limit?: number): Memory[] {
     ? db.getAllSync<Memory>(sql, [limit])
     : db.getAllSync<Memory>(sql);
   return rows;
+}
+
+/**
+ * Memories visible in a context: global ones, plus the project's own when
+ * appId is given. Other projects' memories are never included.
+ */
+export function getMemoriesForScope(appId: string | null | undefined): Memory[] {
+  const db = getDatabase();
+  return appId
+    ? db.getAllSync<Memory>(
+        'SELECT * FROM memories WHERE app_id IS NULL OR app_id = ? ORDER BY pinned DESC, updated_at DESC',
+        [appId]
+      )
+    : db.getAllSync<Memory>(
+        'SELECT * FROM memories WHERE app_id IS NULL ORDER BY pinned DESC, updated_at DESC'
+      );
 }
 
 export function getMemoriesByCategory(category: MemoryCategory): Memory[] {
@@ -127,7 +146,7 @@ export function resolveMemoryId(idOrPrefix: string): Memory | null {
 
 export function updateMemory(
   id: string,
-  fields: Partial<Pick<Memory, 'content' | 'category' | 'pinned'>>
+  fields: Partial<Pick<Memory, 'content' | 'category' | 'pinned' | 'app_id'>>
 ): void {
   const db = getDatabase();
   const sets: string[] = [];
@@ -144,6 +163,10 @@ export function updateMemory(
   if (fields.pinned !== undefined) {
     sets.push('pinned = ?');
     values.push(fields.pinned);
+  }
+  if (fields.app_id !== undefined) {
+    sets.push('app_id = ?');
+    values.push(fields.app_id);
   }
 
   if (sets.length === 0) return;
@@ -184,11 +207,11 @@ export function searchMemories(query: string): Memory[] {
   );
 }
 
-/** Count and newest update time, used to detect whether memories changed. */
+/** Count and newest update of global memories, used to tell whether the profile is stale. */
 export function getMemoryStats(): { count: number; latestUpdate: number } {
   const db = getDatabase();
   const row = db.getFirstSync<{ count: number; latest: number | null }>(
-    'SELECT COUNT(*) AS count, MAX(updated_at) AS latest FROM memories'
+    'SELECT COUNT(*) AS count, MAX(updated_at) AS latest FROM memories WHERE app_id IS NULL'
   );
   return { count: row?.count ?? 0, latestUpdate: row?.latest ?? 0 };
 }
@@ -196,7 +219,7 @@ export function getMemoryStats(): { count: number; latestUpdate: number } {
 export function countMemoriesUpdatedSince(timestamp: number): number {
   const db = getDatabase();
   const row = db.getFirstSync<{ count: number }>(
-    'SELECT COUNT(*) AS count FROM memories WHERE updated_at > ?',
+    'SELECT COUNT(*) AS count FROM memories WHERE app_id IS NULL AND updated_at > ?',
     [timestamp]
   );
   return row?.count ?? 0;

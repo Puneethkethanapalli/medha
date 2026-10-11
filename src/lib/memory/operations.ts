@@ -6,7 +6,7 @@
 import {
   addMemory,
   deleteMemory,
-  getMemories,
+  getMemoriesForScope,
   getMemoryById,
   updateMemory,
   type Memory,
@@ -81,13 +81,21 @@ export type SaveMemoryOutcome =
 export function saveMemory(
   rawContent: unknown,
   category: MemoryCategory,
-  options: { source: MemorySource; conversationId?: string | null; relatedLimit?: number }
+  options: {
+    source: MemorySource;
+    conversationId?: string | null;
+    /** Project of the chat; dedupe runs against what that chat can see. */
+    projectId?: string | null;
+    /** Store the memory for this project only instead of everywhere. */
+    projectOnly?: boolean;
+    relatedLimit?: number;
+  }
 ): SaveMemoryOutcome {
   const content = normalizeMemoryContent(rawContent);
   const invalid = validateMemoryContent(content);
   if (invalid) return { kind: 'rejected', reason: invalid };
 
-  const existing = getMemories();
+  const existing = getMemoriesForScope(options.projectId);
 
   const duplicate = existing.find((memory) => classifyDuplicate(content, memory.content) === 'duplicate');
   if (duplicate) return { kind: 'duplicate', memory: duplicate };
@@ -106,6 +114,7 @@ export function saveMemory(
   const id = addMemory(content, category, {
     source: options.source,
     conversationId: options.conversationId,
+    appId: options.projectOnly && options.projectId ? options.projectId : null,
   });
   const memory = getMemoryById(id)!;
   const related = rankMemoriesByRelevance(existing, content)

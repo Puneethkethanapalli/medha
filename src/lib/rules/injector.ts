@@ -8,7 +8,7 @@
  * Order: Rules → Skill Catalog → Active Skill Content → Project Context → Memory → Custom Instructions
  */
 
-import { getConversation } from '@/lib/db/conversations';
+import { getConversation, isTemporaryConversation } from '@/lib/db/conversations';
 import { getGlobalRulesSync, type RuleItem, DEFAULT_RULES, isMemoryEnabledSync } from '@/lib/storage/mmkv';
 import { buildMemoryContext, buildProfileContext } from '@/lib/memory/injector';
 import { buildProjectContext } from '@/lib/projects/context';
@@ -91,7 +91,8 @@ export function composeSystemPrompt(
   if (projectContext) parts.push(projectContext);
 
   // Memory injection (Sprint 14)
-  if (isMemoryEnabledSync()) {
+  // Temporary chats neither read nor write memory.
+  if (isMemoryEnabledSync() && !isTemporaryConversation(conversationId)) {
     const profile = buildProfileContext();
     if (profile) parts.push(profile);
 

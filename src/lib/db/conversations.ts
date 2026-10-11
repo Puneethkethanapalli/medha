@@ -6,27 +6,46 @@ export function createConversation(
   title: string = 'New Chat',
   model?: string,
   systemPrompt?: string,
-  provider: string = 'openrouter'
+  provider: string = 'openrouter',
+  options: { temporary?: boolean } = {}
 ): string {
   const db = getDatabase();
   const id = uuidv4();
   const now = Date.now();
 
   db.runSync(
-    `INSERT INTO conversations (id, title, model, provider, system_prompt, created_at, updated_at, pinned)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
-    [id, title, model ?? null, provider, systemPrompt ?? null, now, now]
+    `INSERT INTO conversations (id, title, model, provider, system_prompt, created_at, updated_at, pinned, temporary)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+    [id, title, model ?? null, provider, systemPrompt ?? null, now, now, options.temporary ? 1 : 0]
   );
 
   return id;
 }
 
+/** Conversations shown in history. Temporary chats are never listed. */
 export function getConversations(): Conversation[] {
   const db = getDatabase();
   const rows = db.getAllSync<Conversation>(
-    'SELECT * FROM conversations ORDER BY pinned DESC, updated_at DESC'
+    'SELECT * FROM conversations WHERE COALESCE(temporary, 0) = 0 ORDER BY pinned DESC, updated_at DESC'
   );
   return rows;
+}
+
+export function isTemporaryConversation(id: string | null | undefined): boolean {
+  if (!id) return false;
+  const db = getDatabase();
+  const row = db.getFirstSync<{ temporary: number | null }>(
+    'SELECT temporary FROM conversations WHERE id = ?',
+    [id]
+  );
+  return row?.temporary === 1;
+}
+
+/** Delete every temporary chat (run at launch, when none can be open). */
+export function purgeTemporaryConversations(): number {
+  const db = getDatabase();
+  const result = db.runSync('DELETE FROM conversations WHERE temporary = 1');
+  return result.changes;
 }
 
 export function getConversation(id: string): Conversation | null {

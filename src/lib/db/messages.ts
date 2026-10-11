@@ -135,6 +135,7 @@ export function searchConversationMessages(query: string, limit: number = 50): M
      FROM messages m
      INNER JOIN conversations c ON c.id = m.conversation_id
      WHERE m.role != 'system'
+       AND COALESCE(c.temporary, 0) = 0
        AND LENGTH(TRIM(m.content)) > 0
        AND LOWER(m.content) LIKE '%' || LOWER(?) || '%' ESCAPE '\\'
      ORDER BY c.updated_at DESC, m.created_at DESC

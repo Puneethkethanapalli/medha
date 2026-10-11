@@ -11,6 +11,8 @@ export interface Conversation {
   created_at: number;
   updated_at: number;
   pinned: number;
+  /** 1 for temporary chats: no memory, hidden from history, deleted on next launch. */
+  temporary?: number;
 }
 
 export interface Attachment {

@@ -6,8 +6,9 @@
  */
 
 import type { ToolDefinition, ToolExecutionContext, ToolResult } from './types';
+import { getConversation } from '@/lib/db/conversations';
 import {
-  getMemories,
+  getMemoriesForScope,
   resolveMemoryId,
   restoreMemory,
   shortMemoryId,
@@ -25,6 +26,12 @@ import {
 import { useUIStore } from '@/stores/ui-store';
 
 const FORGET_CANDIDATE_LIMIT = 5;
+
+/** The chat's project (memories are scoped to it) and whether it's temporary. */
+function getChatScope(context: ToolExecutionContext): { projectId: string | null; temporary: boolean } {
+  const conversation = context.conversationId ? getConversation(context.conversationId) : null;
+  return { projectId: conversation?.app_id ?? null, temporary: conversation?.temporary === 1 };
+}
 
 function formatRef(memory: Pick<Memory, 'id' | 'content'>): string {
   return `[${shortMemoryId(memory.id)}] ${memory.content}`;
@@ -59,9 +66,16 @@ async function executeSaveMemory(
   args: Record<string, unknown>,
   context: ToolExecutionContext
 ): Promise<ToolResult> {
+  const scope = getChatScope(context);
+  if (scope.temporary) {
+    return rejected('Memory not saved', 'This is a temporary chat, so nothing is saved to memory.');
+  }
+
   const outcome = saveMemory(args.content, normalizeMemoryCategory(args.category) ?? 'general', {
     source: 'assistant',
     conversationId: context.conversationId,
+    projectId: scope.projectId,
+    projectOnly: String(args.scope ?? '') === 'project',
   });
 
   switch (outcome.kind) {
@@ -131,7 +145,10 @@ async function executeUpdateMemory(args: Record<string, unknown>): Promise<ToolR
   );
 }
 
-async function executeForgetMemory(args: Record<string, unknown>): Promise<ToolResult> {
+async function executeForgetMemory(
+  args: Record<string, unknown>,
+  context: ToolExecutionContext
+): Promise<ToolResult> {
   const id = String(args.id ?? '').trim();
   const query = String(args.query ?? '').trim();
 
@@ -145,7 +162,8 @@ async function executeForgetMemory(args: Record<string, unknown>): Promise<ToolR
       );
     }
   } else if (query) {
-    const matches = rankMemoriesByRelevance(getMemories(), query).slice(0, FORGET_CANDIDATE_LIMIT);
+    const visible = getMemoriesForScope(getChatScope(context).projectId);
+    const matches = rankMemoriesByRelevance(visible, query).slice(0, FORGET_CANDIDATE_LIMIT);
     if (matches.length === 0) {
       return rejected('Memory not removed', `No saved memory matches "${query}".`);
     }
@@ -199,6 +217,12 @@ export const saveMemoryTool: ToolDefinition = {
       description: "Category of the memory: 'preference' (user likes/dislikes), 'fact' (objective info about user), 'instruction' (how user wants responses), or 'general' (default).",
       required: false,
       enum: ['preference', 'fact', 'instruction', 'general'],
+    },
+    scope: {
+      type: 'string',
+      description: "Only in project chats: 'project' keeps the memory to this project (its codebase, goals, decisions); 'global' (default) for facts about the user.",
+      required: false,
+      enum: ['global', 'project'],
     },
   },
   execute: executeSaveMemory,

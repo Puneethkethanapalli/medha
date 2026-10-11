@@ -3,7 +3,7 @@ import { View, Pressable, AppState, type AppStateStatus, type LayoutChangeEvent 
 import { KeyboardStickyView, useKeyboardState } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { Menu, PenSquare, Zap } from 'lucide-react-native';
+import { Menu, PenSquare, Zap, Ghost } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { ModelPill } from '@/components/chat/ModelPill';
 import { ChatSettingsButton } from '@/components/chat/ChatSettingsButton';
@@ -108,6 +108,9 @@ export const ChatScreen = React.memo(function ChatScreen({
   const memoryEnabled = useSettingsStore((s) => s.memoryEnabled);
   const memoryAutoEnabled = useSettingsStore((s) => s.memoryAutoEnabled);
   const memoryChatHistoryEnabled = useSettingsStore((s) => s.memoryChatHistoryEnabled);
+  const pendingTemporaryChat = useUIStore((s) => s.pendingTemporaryChat);
+  const setPendingTemporaryChat = useUIStore((s) => s.setPendingTemporaryChat);
+  const [conversationTemporary, setConversationTemporary] = useState(false);
   const loadMemoryEvents = useMemoryEventsStore((s) => s.loadConversation);
   // Set when the chat model called a memory tool this turn; background extraction then skips it.
   const memoryToolUsedInTurnRef = useRef(false);
@@ -235,6 +238,9 @@ export const ChatScreen = React.memo(function ChatScreen({
       setActiveConversation(currentConvId);
       // Load active skill from conversation
       const conv = getConversation(currentConvId);
+      setConversationTemporary(conv?.temporary === 1);
+      // A pending temporary toggle only applies to the next brand-new chat.
+      setPendingTemporaryChat(false);
       setActiveSkillName(conv?.active_skill_name ?? null);
       // Load linked app
       if (conv?.app_id) {
@@ -243,10 +249,11 @@ export const ChatScreen = React.memo(function ChatScreen({
     } else {
       setMessages([]);
       loadMemoryEvents(null);
+      setConversationTemporary(false);
       setActiveConversation(null);
       setActiveSkillName(null);
     }
-  }, [currentConvId, loadMemoryEvents, setActiveConversation]);
+  }, [currentConvId, loadMemoryEvents, setActiveConversation, setPendingTemporaryChat]);
 
   // Handle app-based conversation creation
   useEffect(() => {
@@ -291,6 +298,12 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       const model = activeApp?.model || lastModel || getDefaultModel(providerId);
       const conversation = getConversation(convId);
+      // Temporary chats never use memory, search history, or teach the profile.
+      const temporaryChat = conversation?.temporary === 1;
+      const useMemory = memoryEnabled && !temporaryChat;
+      const project = conversation?.app_id
+        ? { id: conversation.app_id, name: activeApp?.name ?? getApp(conversation.app_id)?.name ?? 'Project' }
+        : null;
       const convActiveSkill = activeSkillName ?? conversation?.active_skill_name ?? null;
       let systemPrompt = composeSystemPrompt(
         convId,
@@ -310,7 +323,7 @@ export const ChatScreen = React.memo(function ChatScreen({
       }
 
       // Append memory tool instruction when memory is enabled
-      if (memoryEnabled) {
+      if (useMemory) {
         let memoryInstruction = getMemoryToolInstruction(memoryAutoEnabled);
         if (memoryChatHistoryEnabled) {
           memoryInstruction = `${memoryInstruction}\n${CHAT_HISTORY_TOOL_INSTRUCTION}`;
@@ -366,7 +379,7 @@ export const ChatScreen = React.memo(function ChatScreen({
         activeToolNames.push('web_search');
         activeToolNames.push('deep_research');
       }
-      if (memoryEnabled) {
+      if (useMemory) {
         activeToolNames.push('save_memory');
         activeToolNames.push('update_memory');
         activeToolNames.push('forget_memory');
@@ -503,7 +516,7 @@ export const ChatScreen = React.memo(function ChatScreen({
         // Learn from this exchange in the background, unless the model already
         // handled memory itself via a tool this turn.
         const lastUserMessage = [...fullMessages].reverse().find((m) => m.role === 'user');
-        if (accumulated.trim() && lastUserMessage && !memoryToolUsedInTurnRef.current) {
+        if (useMemory && accumulated.trim() && lastUserMessage && !memoryToolUsedInTurnRef.current) {
           scheduleMemoryExtraction({
             conversationId: convId,
             userMessageId: lastUserMessage.id,
@@ -513,9 +526,10 @@ export const ChatScreen = React.memo(function ChatScreen({
             providerId,
             apiKey,
             chatModel: model,
+            project,
           });
         }
-        if (accumulated.trim()) {
+        if (useMemory && accumulated.trim()) {
           scheduleProfileRefresh({
             providerId,
             apiKey,
@@ -662,7 +676,7 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       abortRef.current = response;
     },
-    [activeApp?.model, activeApp?.provider, lastModel, lastProvider, thinkingMode, webSearchEnabled, memoryEnabled, memoryAutoEnabled, memoryChatHistoryEnabled, imageGenEnabled, activeSkillName, startStreaming, appendToken, appendReasoningToken, setStreamingActivity, setStreamingTokensPerSecond, startToolActivity, stopToolActivity, stopStreaming, setError]
+    [activeApp?.model, activeApp?.provider, activeApp?.name, lastModel, lastProvider, thinkingMode, webSearchEnabled, memoryEnabled, memoryAutoEnabled, memoryChatHistoryEnabled, imageGenEnabled, activeSkillName, startStreaming, appendToken, appendReasoningToken, setStreamingActivity, setStreamingTokensPerSecond, startToolActivity, stopToolActivity, stopStreaming, setError]
   );
 
   const handleSend = useCallback(
@@ -677,7 +691,13 @@ export const ChatScreen = React.memo(function ChatScreen({
         // Use app rules as system prompt, or pending conversation rule
         const systemPrompt = activeApp?.rules || pendingConversationRule || undefined;
         const title = text.replace(/\n/g, ' ').slice(0, 50);
-        convId = createConversation(title, model, systemPrompt);
+        convId = createConversation(title, model, systemPrompt, undefined, {
+          temporary: pendingTemporaryChat,
+        });
+        if (pendingTemporaryChat) {
+          setConversationTemporary(true);
+          setPendingTemporaryChat(false);
+        }
         setCurrentConvId(convId);
         setActiveConversation(convId);
 
@@ -744,7 +764,7 @@ export const ChatScreen = React.memo(function ChatScreen({
       // Stream assistant response
       await streamNewResponse(convId);
     },
-    [currentConvId, lastModel, lastProvider, activeApp, setActiveConversation, streamNewResponse, pendingConversationRule, setPendingConversationRule, activeSkillName]
+    [currentConvId, lastModel, lastProvider, activeApp, setActiveConversation, streamNewResponse, pendingConversationRule, setPendingConversationRule, pendingTemporaryChat, setPendingTemporaryChat, activeSkillName]
   );
 
   const handleStop = useCallback(() => {
@@ -1061,6 +1081,17 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       {/* Offline Banner */}
       <OfflineBanner />
+
+      {(currentConvId ? conversationTemporary : pendingTemporaryChat) && (
+        <View className="items-center px-4 pb-1" accessibilityRole="text">
+          <View className="flex-row items-center gap-1.5 rounded-full border border-outline-variant/20 bg-surface-container-low px-3 py-1">
+            <Ghost size={12} color="hsl(0, 0%, 55%)" />
+            <Text className="text-muted-foreground text-[11px]">
+              Temporary chat · not saved to history or memory
+            </Text>
+          </View>
+        </View>
+      )}
 
       {/* Content */}
       <View className="flex-1">

@@ -82,7 +82,7 @@ export function searchPastChats(
        FROM messages_fts f
        JOIN messages m ON m.id = f.message_id
        JOIN conversations c ON c.id = m.conversation_id
-       WHERE messages_fts MATCH ? AND m.conversation_id != ?
+       WHERE messages_fts MATCH ? AND m.conversation_id != ? AND COALESCE(c.temporary, 0) = 0
        ORDER BY bm25(messages_fts)
        LIMIT ?`,
       [ftsQuery, exclude, limit * 12]
@@ -95,6 +95,7 @@ export function searchPastChats(
        FROM messages m
        JOIN conversations c ON c.id = m.conversation_id
        WHERE m.role IN ('user', 'assistant') AND m.conversation_id != ?
+         AND COALESCE(c.temporary, 0) = 0
          AND LOWER(m.content) LIKE '%' || ? || '%' ESCAPE '\\'
        ORDER BY m.created_at DESC
        LIMIT ?`,
@@ -133,7 +134,7 @@ export function getRecentChats(
           WHERE m.conversation_id = c.id AND m.role = 'user'
           ORDER BY m.created_at DESC LIMIT 1) AS last_user_message
        FROM conversations c
-       WHERE c.id != ?
+       WHERE c.id != ? AND COALESCE(c.temporary, 0) = 0
        ORDER BY c.updated_at DESC
        LIMIT ?`,
       [options.excludeConversationId ?? '', options.limit ?? 5]
@@ -151,9 +152,10 @@ export function getRecentUserMessages(limit: number): { content: string; created
   const db = getDatabase();
   return db
     .getAllSync<{ content: string; created_at: number }>(
-      `SELECT content, created_at FROM messages
-       WHERE role = 'user' AND LENGTH(TRIM(content)) > 0
-       ORDER BY created_at DESC
+      `SELECT m.content, m.created_at FROM messages m
+       JOIN conversations c ON c.id = m.conversation_id
+       WHERE m.role = 'user' AND LENGTH(TRIM(m.content)) > 0 AND COALESCE(c.temporary, 0) = 0
+       ORDER BY m.created_at DESC
        LIMIT ?`,
       [limit]
     )
@@ -163,5 +165,9 @@ export function getRecentUserMessages(limit: number): { content: string; created
 /** Most recent time any conversation changed, or 0 if there are none. */
 export function getLatestConversationUpdate(): number {
   const db = getDatabase();
-  return db.getFirstSync<{ latest: number | null }>('SELECT MAX(updated_at) AS latest FROM conversations')?.latest ?? 0;
+  return (
+    db.getFirstSync<{ latest: number | null }>(
+      'SELECT MAX(updated_at) AS latest FROM conversations WHERE COALESCE(temporary, 0) = 0'
+    )?.latest ?? 0
+  );
 }

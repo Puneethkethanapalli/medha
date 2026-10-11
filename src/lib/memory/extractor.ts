@@ -7,7 +7,8 @@
  * so it works with every model and never slows the reply down.
  */
 
-import { getMemories, type Memory } from '@/lib/db/memories';
+import { getMemoriesForScope, type Memory } from '@/lib/db/memories';
+import { isTemporaryConversation } from '@/lib/db/conversations';
 import { addMemoryEvent, type MemoryEvent } from '@/lib/db/memory-events';
 import { recordUsage } from '@/lib/db/token-usage';
 import { completeText } from '@/lib/llm/complete';
@@ -64,12 +65,12 @@ Do NOT save:
 - anything an existing memory already covers
 
 Operations:
-- add: a new memory, written as one short third-person sentence starting with "User" (e.g. "User is vegetarian."). Turn relative dates into absolute ones using today's date.
+- add: a new memory, written as one short third-person sentence starting with "User" (e.g. "User is vegetarian."). Turn relative dates into absolute ones using today's date. In a project conversation, set "scope": "project" when the memory only matters for that project (its codebase, goals, decisions) and "global" when it is about the user in general.
 - update: the exchange changes or corrects an existing memory. Give its id and the full corrected sentence.
 - delete: only when the user explicitly asks to forget something or says a memory is no longer true. Give its id.
 
 Most exchanges need no changes. Respond with JSON only, no other text:
-{"operations": [{"op": "add", "content": "...", "category": "fact|preference|instruction|general"}, {"op": "update", "id": "...", "content": "..."}, {"op": "delete", "id": "..."}]}
+{"operations": [{"op": "add", "content": "...", "category": "fact|preference|instruction|general", "scope": "global|project"}, {"op": "update", "id": "...", "content": "..."}, {"op": "delete", "id": "..."}]}
 Respond {"operations": []} when nothing should change.`;
 
 export interface MemoryExtractionRequest {
@@ -81,6 +82,8 @@ export interface MemoryExtractionRequest {
   providerId: string;
   apiKey: string;
   chatModel: string;
+  /** Project (app) the conversation belongs to, if any. */
+  project?: { id: string; name: string } | null;
 }
 
 interface RawOperation {
@@ -88,6 +91,7 @@ interface RawOperation {
   id?: unknown;
   content?: unknown;
   category?: unknown;
+  scope?: unknown;
 }
 
 const processedUserMessages = new Set<string>();
@@ -111,7 +115,10 @@ export function isWorthExtracting(userText: string): boolean {
 }
 
 async function runExtraction(request: MemoryExtractionRequest): Promise<void> {
-  const memories = getMemories();
+  // Temporary chats never write memory (ChatScreen also skips them).
+  if (isTemporaryConversation(request.conversationId)) return;
+
+  const memories = getMemoriesForScope(request.project?.id);
   const shown = pickMemoriesForPrompt(memories, `${request.userText}\n${request.assistantText}`);
   const model = await pickFastModel(request.providerId, request.chatModel);
 
@@ -170,13 +177,20 @@ function truncate(text: string, maxChars: number): string {
   return trimmed.length <= maxChars ? trimmed : `${trimmed.slice(0, maxChars)}…`;
 }
 
-export function buildPrompt(shown: Memory[], request: Pick<MemoryExtractionRequest, 'userText' | 'assistantText'>): string {
+export function buildPrompt(
+  shown: Memory[],
+  request: Pick<MemoryExtractionRequest, 'userText' | 'assistantText' | 'project'>
+): string {
   const memoryLines = shown.length
-    ? shown.map((memory) => `- [${memory.id.slice(0, 8)}${memory.pinned ? ', pinned' : ''}] ${memory.content}`)
+    ? shown.map(
+        (memory) =>
+          `- [${memory.id.slice(0, 8)}${memory.pinned ? ', pinned' : ''}${memory.app_id ? ', this project' : ''}] ${memory.content}`
+      )
     : ['(none)'];
 
   return [
     `Today is ${new Date().toISOString().slice(0, 10)}.`,
+    ...(request.project ? [`This conversation is in the project "${request.project.name}".`] : []),
     '',
     'Saved memories:',
     ...memoryLines,
@@ -214,7 +228,7 @@ export function parseOperations(text: string): RawOperation[] | null {
 export function applyOperations(
   operations: RawOperation[],
   shown: Memory[],
-  request: Pick<MemoryExtractionRequest, 'conversationId' | 'assistantMessageId' | 'userText'>
+  request: Pick<MemoryExtractionRequest, 'conversationId' | 'assistantMessageId' | 'userText' | 'project'>
 ): MemoryEvent[] {
   const events: MemoryEvent[] = [];
   const record = (event: Omit<MemoryEvent, 'id' | 'undone_at' | 'created_at' | 'conversation_id' | 'message_id'>) => {
@@ -245,6 +259,8 @@ export function applyOperations(
       const outcome = saveMemory(operation.content, normalizeMemoryCategory(operation.category) ?? 'general', {
         source: 'auto',
         conversationId: request.conversationId,
+        projectId: request.project?.id,
+        projectOnly: String(operation.scope ?? '').toLowerCase() === 'project',
         relatedLimit: 0,
       });
       if (outcome.kind === 'added') {

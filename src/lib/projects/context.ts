@@ -31,7 +31,7 @@ export function buildProjectContext(conversationId: string | null): string {
   const relatedConversations = db.getAllSync<RelatedConversationRow>(
     `SELECT id, title, updated_at
      FROM conversations
-     WHERE app_id = ? AND id != ?
+     WHERE app_id = ? AND id != ? AND COALESCE(temporary, 0) = 0
      ORDER BY updated_at DESC
      LIMIT ?`,
     [conversation.app_id, conversationId, MAX_RELATED_CHATS]
