@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { PROVIDER_IDS } from '@/lib/providers/catalog';
 import type { Theme, ThinkingMode, RuleItem, ImageGenService, MemoryProfile } from '@/lib/storage/mmkv';
 
 interface SettingsState {
@@ -7,7 +8,6 @@ interface SettingsState {
   lastModelName: string | null;
   lastProvider: string | null;
   onboardingComplete: boolean;
-  biometricLockEnabled: boolean;
   thinkingMode: ThinkingMode;
   webSearchEnabled: boolean;
   globalRules: RuleItem[];
@@ -27,7 +27,6 @@ interface SettingsActions {
   setLastProvider: (provider: string | null) => Promise<void>;
   setLastModelSelection: (model: string | null, provider: string | null, modelName?: string | null) => Promise<void>;
   setOnboardingComplete: (complete: boolean) => Promise<void>;
-  setBiometricLockEnabled: (enabled: boolean) => Promise<void>;
   setThinkingMode: (mode: ThinkingMode) => Promise<void>;
   setWebSearchEnabled: (enabled: boolean) => Promise<void>;
   setGlobalRules: (rules: RuleItem[]) => Promise<void>;
@@ -67,7 +66,6 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
   lastModelName: null,
   lastProvider: null,
   onboardingComplete: false,
-  biometricLockEnabled: false,
   thinkingMode: 'auto' as ThinkingMode,
   webSearchEnabled: false,
   globalRules: [],
@@ -119,12 +117,6 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
     await loadModules();
     await mmkv!.setOnboardingComplete(complete);
     set({ onboardingComplete: complete });
-  },
-
-  setBiometricLockEnabled: async (enabled) => {
-    await loadModules();
-    await mmkv!.setBiometricLockEnabled(enabled);
-    set({ biometricLockEnabled: enabled });
   },
 
   setThinkingMode: async (mode) => {
@@ -202,7 +194,6 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
       lastModelName: mmkv!.getLastModelNameSync(),
       lastProvider: mmkv!.getLastProviderSync(),
       onboardingComplete: mmkv!.isOnboardingCompleteSync(),
-      biometricLockEnabled: mmkv!.isBiometricLockEnabledSync(),
       thinkingMode: mmkv!.getThinkingModeSync(),
       webSearchEnabled: mmkv!.isWebSearchEnabledSync(),
       globalRules: mmkv!.getGlobalRulesSync(),
@@ -238,11 +229,10 @@ export function peekConfiguredProviders(): string[] | null {
 export async function getConfiguredProviders(): Promise<string[]> {
   if (configuredProvidersCache) return configuredProvidersCache;
 
-  const allProviders = ['openrouter', 'openai', 'openai-codex', 'google-ai', 'anthropic', 'minimax', 'cloudflare-ai'];
   const configured = await Promise.all(
-    allProviders.map(async (provider) => (await hasProviderKey(provider) ? provider : null))
+    PROVIDER_IDS.map(async (provider) => (await hasProviderKey(provider) ? provider : null))
   );
-  configuredProvidersCache = configured.filter((provider): provider is string => provider !== null);
+  configuredProvidersCache = configured.filter((provider) => provider !== null);
   return configuredProvidersCache;
 }
 

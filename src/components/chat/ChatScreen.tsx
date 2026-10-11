@@ -57,7 +57,7 @@ import { getIconByName } from '@/lib/apps/icons';
 import { parseExamplePrompts } from '@/lib/apps/types';
 import { getModelContextWindow } from '@/lib/models/capabilities';
 import { loadModelMetadata, useModelListStore } from '@/lib/models/model-list-sync';
-import { useRouter } from 'expo-router';
+import { useIsFocused, useRouter } from 'expo-router';
 import type { Message, Attachment } from '@/types';
 
 interface ChatScreenProps {
@@ -121,15 +121,14 @@ export const ChatScreen = React.memo(function ChatScreen({
   const closeSkillPicker = useUIStore((s) => s.closeSkillPicker);
   const openSkillPicker = useUIStore((s) => s.openSkillPicker);
   const openModelPicker = useUIStore((s) => s.openModelPicker);
+  // Home and /chat/[id] can both be mounted, and overlays open from global UI
+  // state, so only the focused screen renders them (one modal, wired to the
+  // visible conversation).
+  const isFocused = useIsFocused();
 
-  const {
-    streamingMessageId,
-    streamingContent,
-    streamingReasoning,
-    isStreaming,
-    streamingTokensPerSecond,
-    stopStreaming,
-  } = useChatStore();
+  // Only the (stable) action: the per-frame streaming state is read by the
+  // small live components below, so a streamed token doesn't re-render this.
+  const stopStreaming = useChatStore((s) => s.stopStreaming);
 
   // Ensure providers and tools are registered
   useEffect(() => {
@@ -549,9 +548,6 @@ export const ChatScreen = React.memo(function ChatScreen({
     lastModel
   );
   const contextCircleBottomOffset = (inputBarHeight || Math.max(insets.bottom, 12) + 72) + 12;
-  const liveTokensPerSecondLabel = isStreaming
-    ? formatTokensPerSecond(streamingTokensPerSecond)
-    : null;
   const contextWindow = useMemo(
     () => {
       // Re-read LiteLLM fallback data after the async registry fetch completes.
@@ -570,22 +566,6 @@ export const ChatScreen = React.memo(function ChatScreen({
       activeSkillName ?? conversation?.active_skill_name ?? null
     );
   }, [activeApp?.rules, activeSkillName, currentConvId, pendingConversationRule]);
-  const contextMessages = useMemo(() => {
-    if (!streamingMessageId) return messages;
-
-    return messages.map((message) => {
-      if (message.id !== streamingMessageId) return message;
-      return {
-        ...message,
-        content: streamingContent,
-        reasoning: streamingReasoning || message.reasoning,
-      };
-    });
-  }, [messages, streamingContent, streamingMessageId, streamingReasoning]);
-  const contextUsedTokens = useMemo(() => {
-    if (!contextWindow || contextMessages.length === 0) return 0;
-    return estimateMessageTokens(contextMessages, contextSystemPrompt);
-  }, [contextMessages, contextSystemPrompt, contextWindow]);
   const pendingChoiceMessage = useMemo(
     () => messages.find((message) =>
       message.status === 'waiting' && parseAskUserChoiceToolCall(message.tool_calls)
@@ -746,31 +726,16 @@ export const ChatScreen = React.memo(function ChatScreen({
           elevation: 1000,
         }}
       >
-        <ContextWindowCircle
-          usedTokens={contextUsedTokens}
+        <LiveContextWindowCircle
+          messages={messages}
+          systemPrompt={contextSystemPrompt}
           contextWindow={contextWindow}
         />
       </View>
 
       {/* Input — sticks above keyboard */}
       <KeyboardStickyView offset={{ closed: 0, opened: 0 }} onLayout={handleInputBarLayout}>
-        {liveTokensPerSecondLabel && (
-          <Animated.View
-            entering={FadeIn.duration(Motion.duration.base)}
-            exiting={FadeOut.duration(Motion.duration.fast)}
-            pointerEvents="none"
-            style={{ alignItems: 'center', backgroundColor: palette.background, paddingHorizontal: 16, paddingBottom: 4 }}
-          >
-            <View className="rounded-full border border-outline-variant/20 bg-surface-container-low px-3 py-1">
-              <Text
-                className="text-muted-foreground text-[11px]"
-                style={{ fontVariant: ['tabular-nums'] }}
-              >
-                {liveTokensPerSecondLabel} tokens/s
-              </Text>
-            </View>
-          </Animated.View>
-        )}
+        <LiveTokensPerSecond />
         <InputBar
           onSend={handleSend}
           onStop={handleStop}
@@ -783,6 +748,7 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       {/* Message Actions Menu */}
       <MessageActionsMenu
+        active={isFocused}
         onEditAndResend={handleEditAndResend}
         onRegenerate={handleRegenerate}
         onDelete={handleDeleteMessage}
@@ -790,7 +756,7 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       {/* Skill Picker */}
       <SkillPicker
-        open={skillPickerOpen}
+        open={skillPickerOpen && isFocused}
         onClose={closeSkillPicker}
         activeSkillName={activeSkillName}
         onSelectSkill={(skillName) => {
@@ -804,3 +770,75 @@ export const ChatScreen = React.memo(function ChatScreen({
     </View>
   );
 });
+
+// ─── Live streaming readouts ────────────────────────────────────────────
+// These subscribe to the chat store themselves so the per-frame streaming
+// updates re-render only them, not the whole ChatScreen.
+
+interface LiveContextWindowCircleProps {
+  messages: Message[];
+  systemPrompt: string | undefined;
+  contextWindow: number | undefined;
+}
+
+/** Context ring that counts the reply as it streams in. */
+function LiveContextWindowCircle({
+  messages,
+  systemPrompt,
+  contextWindow,
+}: LiveContextWindowCircleProps) {
+  const streamingMessageId = useChatStore((s) => s.streamingMessageId);
+  // Home and /chat/[id] can both be mounted; only the screen holding the
+  // streaming message follows its text (the other's count is unaffected).
+  const isLive =
+    streamingMessageId !== null && messages.some((m) => m.id === streamingMessageId);
+  const streamingContent = useChatStore((s) => (isLive ? s.streamingContent : ''));
+  const streamingReasoning = useChatStore((s) => (isLive ? s.streamingReasoning : ''));
+
+  const contextMessages = useMemo(() => {
+    if (!isLive) return messages;
+
+    return messages.map((message) => {
+      if (message.id !== streamingMessageId) return message;
+      return {
+        ...message,
+        content: streamingContent,
+        reasoning: streamingReasoning || message.reasoning,
+      };
+    });
+  }, [isLive, messages, streamingContent, streamingMessageId, streamingReasoning]);
+  const usedTokens = useMemo(() => {
+    if (!contextWindow || contextMessages.length === 0) return 0;
+    return estimateMessageTokens(contextMessages, systemPrompt);
+  }, [contextMessages, systemPrompt, contextWindow]);
+
+  return <ContextWindowCircle usedTokens={usedTokens} contextWindow={contextWindow} />;
+}
+
+/** "N tokens/s" pill above the input while a reply streams. */
+function LiveTokensPerSecond() {
+  const palette = usePalette();
+  // The formatted label, so updates that round to the same text don't render.
+  const label = useChatStore((s) =>
+    s.isStreaming ? formatTokensPerSecond(s.streamingTokensPerSecond) : null
+  );
+  if (!label) return null;
+
+  return (
+    <Animated.View
+      entering={FadeIn.duration(Motion.duration.base)}
+      exiting={FadeOut.duration(Motion.duration.fast)}
+      pointerEvents="none"
+      style={{ alignItems: 'center', backgroundColor: palette.background, paddingHorizontal: 16, paddingBottom: 4 }}
+    >
+      <View className="rounded-full border border-outline-variant/20 bg-surface-container-low px-3 py-1">
+        <Text
+          className="text-muted-foreground text-[11px]"
+          style={{ fontVariant: ['tabular-nums'] }}
+        >
+          {label} tokens/s
+        </Text>
+      </View>
+    </Animated.View>
+  );
+}

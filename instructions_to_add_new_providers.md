@@ -2,7 +2,7 @@
 
 This guide documents the provider architecture and gives step-by-step instructions for adding a new AI provider. It covers the seven built-in providers — **OpenRouter**, **OpenAI**, **ChatGPT Codex**, **Google AI**, **Anthropic**, **MiniMax**, and **Cloudflare AI**.
 
-> **TL;DR** — Provider metadata (names, key copy, default/fallback models, display order) lives in **one file**: `src/lib/providers/catalog.ts`. A typical new provider touches the catalog, its provider class, `registry.ts`, the settings-store id list, and the catalog test. Onboarding, Settings › API Keys, the model picker, the model pill, and the chat default model all read from the catalog — don't edit them.
+> **TL;DR** — Provider metadata (names, key copy, default/fallback/fast models, LiteLLM prefix, display order) lives in **one file**: `src/lib/providers/catalog.ts`. A typical new provider touches the catalog, its provider class, `registry.ts`, and the catalog test. Onboarding, Settings › API Keys, the model picker, the model pill, the chat default model, the configured-provider list, background (fast) model selection, and LiteLLM lookups all read from the catalog — don't edit them.
 
 ---
 
@@ -47,7 +47,7 @@ src/lib/storage/
 └── secure.ts         # expo-secure-store wrappers for API key CRUD
 
 src/stores/
-└── settings-store.ts # Zustand store — provider list, key validation, hasAnyProviderKey()
+└── settings-store.ts # Zustand store — configured providers (catalog order), key validation, hasAnyProviderKey()
 
 src/app/settings/
 └── api-keys.tsx      # UI for adding/deleting provider API keys (renders from the catalog)
@@ -79,7 +79,7 @@ User sends message
 
 `src/lib/providers/catalog.ts` is plain data: it imports nothing at runtime (only `import type`), so it loads in Node unit tests. **Keep it that way** — never import `react-native`, `expo`, storage, or a provider class into it.
 
-Each provider has one `ProviderInfo` entry in `PROVIDER_CATALOG`, and `PROVIDER_IDS` sets the display order:
+Each provider has one `ProviderInfo` entry in `PROVIDER_CATALOG`, and `PROVIDER_IDS` sets the display order (and the order `getConfiguredProviders()` in the settings store returns):
 
 | Field | Required | Where it shows up |
 |---|---|---|
@@ -94,6 +94,8 @@ Each provider has one `ProviderInfo` entry in `PROVIDER_CATALOG`, and `PROVIDER_
 | `keyLabel` | no | Label above the key input in Settings when `setupFields` precede it (e.g. `'API Token'`) |
 | `defaultModel` | yes | Chat model used before the user picks one (`getDefaultModel()`) |
 | `fallbackModels` | yes | Picker list when there's no cached list and the live fetch failed (`id`, `name`, `provider` only) |
+| `fastModels` | no | Cheap models for background work (memory extraction, profile updates), in preference order. `pickFastModel()` (`src/lib/llm/fast-model.ts`) uses the first one in the provider's cached model list, else the chat model; omit to always use the chat model |
+| `litellmPrefix` | yes | Prefix of the provider's keys in LiteLLM's registry (`'gemini'` → `gemini/<model>`), or `''` for bare model ids. Read by `litellm-registry.ts` and `npm run check:litellm` |
 
 Helpers (all safe for unknown ids):
 
@@ -194,7 +196,7 @@ Google AI supports both an OpenAI-compat endpoint and a native Gemini endpoint. 
 
 ### Step 1: Add the Catalog Entry
 
-Edit `src/lib/providers/catalog.ts` — this one entry feeds onboarding, Settings › API Keys, the model picker, the model pill, and the chat default model.
+Edit `src/lib/providers/catalog.ts` — this one entry feeds onboarding, Settings › API Keys, the model picker, the model pill, the chat default model, the configured-provider list, fast-model selection, and LiteLLM lookups.
 
 ```diff
  export const PROVIDER_IDS = [
@@ -219,6 +221,8 @@ Edit `src/lib/providers/catalog.ts` — this one entry feeds onboarding, Setting
 +      { id: 'example-large', name: 'Example Large', provider: 'example' },
 +      { id: 'example-small', name: 'Example Small', provider: 'example' },
 +    ],
++    fastModels: ['example-small'],
++    litellmPrefix: 'example',
 +  },
  };
 ```
@@ -226,7 +230,9 @@ Edit `src/lib/providers/catalog.ts` — this one entry feeds onboarding, Setting
 - **Order:** the position in `PROVIDER_IDS` is the order in onboarding and Settings.
 - **Record type:** `PROVIDER_CATALOG` is a `Record<ProviderId, ProviderInfo>`, so TypeScript reports a missing entry as soon as you add the id.
 - **`defaultModel`:** it should also be in `fallbackModels`, so the picker can show it offline. The catalog test enforces this.
-- **`fallbackModels`:** only `id`, `name`, and `provider`. See the hard rule in Step 6.
+- **`fallbackModels`:** only `id`, `name`, and `provider`. See the hard rule in Step 5.
+- **`fastModels`:** optional. List cheap models the provider actually serves; one is used only if it shows up in the provider's cached model list, so a stale id just falls back to the chat model.
+- **`litellmPrefix`:** how LiteLLM keys this provider's models — `''` if they appear as bare ids (`gpt-4o`), otherwise the prefix (`minimax` for `minimax/MiniMax-M2.5`). Check with `npm run check:litellm` (Step 5).
 
 ### Step 2: Create the Provider File
 
@@ -371,21 +377,7 @@ Edit `src/lib/providers/registry.ts`:
 
 `catalog.test.ts` reads `registry.ts` and fails if a registered provider has no catalog entry, or if a catalog entry has no registered provider.
 
-### Step 4: Add to the Settings Store Provider List
-
-`getConfiguredProviders()` in `src/stores/settings-store.ts` has its own hardcoded id array, and `hasAnyProviderKey()` uses it. Add the new id there in catalog order:
-
-```diff
- export async function getConfiguredProviders(): Promise<string[]> {
--  const allProviders = ['openrouter', 'openai', 'openai-codex', 'google-ai', 'anthropic', 'minimax', 'cloudflare-ai'];
-+  const allProviders = ['openrouter', 'openai', 'openai-codex', 'google-ai', 'anthropic', 'minimax', 'cloudflare-ai', 'example'];
-   // ...
- }
-```
-
-> Once this list reads `PROVIDER_IDS` from the catalog, this step goes away.
-
-### Step 5: Extra Setup Fields (only if needed)
+### Step 4: Extra Setup Fields (only if needed)
 
 Onboarding and Settings › API Keys need **no edits** for a standard API-key provider; both screens render from `listProviderInfo()`.
 
@@ -412,7 +404,7 @@ Both screens then render the field and refuse to continue while it's blank. They
 
 > **New auth flows** (another OAuth provider, say) are the exception: add an `authMode` value and handle it in `onboarding.tsx` and `api-keys.tsx`, following the `'codex-oauth'` branches.
 
-### Step 6: Add Model Metadata
+### Step 5: Add Model Metadata
 
 Model capabilities and context windows should come from model metadata, not local model-name lists.
 
@@ -477,7 +469,7 @@ The command prints every lookup key Medha will try and exits with:
 
 Use this to distinguish "LiteLLM fallback is working but the model is absent from LiteLLM" from "the app lookup is wrong".
 
-### Step 7: Handle Non-OpenAI SSE Formats (if needed)
+### Step 6: Handle Non-OpenAI SSE Formats (if needed)
 
 If the provider uses a proprietary streaming format, you have two options:
 
@@ -520,7 +512,7 @@ export function buildExampleMessages(messages: Message[]): ExampleMessage[] {
 }
 ```
 
-### Step 8: Handle Tool Call Format Differences (if needed)
+### Step 7: Handle Tool Call Format Differences (if needed)
 
 Most providers use OpenAI-format tools (`config.tools`). If your provider needs a different schema:
 
@@ -543,7 +535,7 @@ export interface StreamConfig {
 
 3. The turn runner (`createTurnRunner` in `src/lib/chat/run-turn.ts`) builds `toolConfig` and passes tools in OpenAI format via `config.tools`; only Anthropic also gets `config.anthropicTools`. Either convert `config.tools` in your provider's `stream()` method, or fill the new field there (next to the `providerId === 'anthropic'` branch) and add its converter to `TurnServices.tools`, wired in `src/lib/chat/run-turn.deps.ts`.
 
-### Step 9: Update and Run the Catalog Test
+### Step 8: Update and Run the Catalog Test
 
 `src/lib/providers/catalog.test.ts` locks every catalog value, so silent copy changes show up in review. Add the new provider's expected values to `EXPECTED`, in catalog order, then run:
 
@@ -556,6 +548,7 @@ The test also checks:
 - every fallback model is tagged with its provider and carries only `id` / `name` / `provider`
 - each `defaultModel` appears in its fallback list
 - the catalog and `registry.ts` list the same providers
+- `scripts/check-litellm-model.js` can still load the catalog under plain Node (`scripts/test/check-litellm-model.test.mjs`)
 
 ---
 
@@ -563,17 +556,16 @@ The test also checks:
 
 Use this checklist when adding a new provider:
 
-- [ ] **Catalog entry** — `PROVIDER_IDS` + `PROVIDER_CATALOG` in `src/lib/providers/catalog.ts` (name, short name, description, auth mode, key placeholder/hint, default model, fallback models)
+- [ ] **Catalog entry** — `PROVIDER_IDS` + `PROVIDER_CATALOG` in `src/lib/providers/catalog.ts` (name, short name, description, auth mode, key placeholder/hint, default model, fallback models, LiteLLM prefix, optional fast models)
 - [ ] **Provider file** — `src/lib/providers/<id>.ts` implementing `AIProvider`, `name` taken from the catalog
 - [ ] **Registry** — Added to `registerBuiltInProviders()` in `registry.ts`
-- [ ] **Settings store** — Added to the `getConfiguredProviders()` array in `settings-store.ts`
 - [ ] **Setup fields** (only if needed) — `setupFields` / `keyLabel` in the catalog, storage in `mmkv.ts`, setter in `setup-fields.ts`
 - [ ] **Catalog test** — Expected values added to `catalog.test.ts`; `npm test` passes
 - [ ] **No UI edits** — Onboarding, API Keys, model picker, and model pill render from the catalog; touch them only for a new `authMode`
 - [ ] **Model capabilities** — If the provider API returns capability metadata, populate `capabilities` on returned `Model` objects via `capabilitiesFromMetadata()`. If not, verify LiteLLM coverage with `npm run check:litellm -- <provider> <model>` and leave unknown models unbadged.
 - [ ] **Context windows** — If your provider's API returns context info in `listModels()`, populate `contextWindow` on `Model` objects. If not, verify LiteLLM coverage and leave unknown models in the unknown context state.
 - [ ] **Model listing** — Prefer dynamic fetch with a hardcoded model-list fallback; fallback objects should only include `id`, `name`, and `provider`
-- [ ] **LiteLLM mapping** — If LiteLLM uses a provider prefix, add it to `PROVIDER_PREFIX_MAP` and test at least one known hit and one known miss with `npm run check:litellm`
+- [ ] **LiteLLM mapping** — Set `litellmPrefix` on the catalog entry (`''` if LiteLLM uses bare model ids) and test at least one known hit and one known miss with `npm run check:litellm`
 - [ ] **SSE format** — If non-OpenAI: new format in `stream.ts` + extractor in `sse-parser.ts`
 - [ ] **Message format** — If non-OpenAI: new builder in `multimodal.ts`
 - [ ] **Tool format** — If non-OpenAI: new converter in `tools/registry.ts` + `StreamConfig` field
@@ -603,7 +595,7 @@ Use this checklist when adding a new provider:
 
 9. **Thinking mode has three states** — `'auto'` means the provider decides. `'on'` means explicitly enable. `'off'` means swallow reasoning tokens client-side (via no-op handler). Always implement the no-op pattern for `'off'`.
 
-10. **Providers needing extra config** — If a provider needs more than just an API key (e.g. Cloudflare needs an Account ID), declare `setupFields` on its catalog entry, store the value in MMKV (`src/lib/storage/mmkv.ts`), and map the field to its setter in `src/lib/providers/setup-fields.ts`. Both `api-keys.tsx` and `onboarding.tsx` render and validate the fields from the catalog (see Step 5).
+10. **Providers needing extra config** — If a provider needs more than just an API key (e.g. Cloudflare needs an Account ID), declare `setupFields` on its catalog entry, store the value in MMKV (`src/lib/storage/mmkv.ts`), and map the field to its setter in `src/lib/providers/setup-fields.ts`. Both `api-keys.tsx` and `onboarding.tsx` render and validate the fields from the catalog (see Step 4).
 
 11. **Keep the catalog Node-safe** — `catalog.ts` is unit-tested under plain Node. Use `import type` only; anything native (storage, `expo/fetch`, provider classes) belongs elsewhere.
 
@@ -613,7 +605,7 @@ Use this checklist when adding a new provider:
 
 | File | Purpose | When to modify |
 |------|---------|----------------|
-| `src/lib/providers/catalog.ts` | Provider metadata: names, key copy, setup fields, default + fallback models, display order | Always — add your provider's entry here |
+| `src/lib/providers/catalog.ts` | Provider metadata: names, key copy, setup fields, default + fallback + fast models, LiteLLM prefix, display order | Always — add your provider's entry here |
 | `src/lib/providers/catalog.test.ts` | Locks catalog values; checks catalog ↔ registry coverage | Always — add expected values |
 | `src/lib/providers/setup-fields.ts` | Storage setters for catalog `setupFields` | Only if the provider needs extra config |
 | `src/lib/providers/types.ts` | `AIProvider` interface, `StreamConfig` | Only if adding a new config field (e.g. new tool format) |
@@ -626,11 +618,12 @@ Use this checklist when adding a new provider:
 | `src/lib/chat/run-turn.deps.ts` | Wires `TurnServices` (incl. tool schema converters) to the real modules | Only if adding a new tool format |
 | `src/lib/models/capabilities.ts` | Dynamic model metadata cache + metadata lookup | Rarely — only for metadata resolution behavior |
 | `src/lib/models/capability-metadata.ts` | Converts provider/LiteLLM metadata fields into app capability flags | Rarely — only for new capability field shapes |
-| `src/lib/models/litellm-registry.ts` | LiteLLM community model metadata fallback (context windows + capabilities) | Only to add provider prefix mappings |
-| `scripts/check-litellm-model.js` | CLI check for LiteLLM lookup keys and derived metadata | Only if LiteLLM lookup behavior changes |
+| `src/lib/models/litellm-registry.ts` | LiteLLM community model metadata fallback (context windows + capabilities); prefixes come from the catalog | Only if LiteLLM lookup behavior changes |
+| `scripts/check-litellm-model.js` | CLI check for LiteLLM lookup keys and derived metadata; requires the catalog for prefixes | Only if LiteLLM lookup behavior changes |
+| `src/lib/llm/fast-model.ts` | Picks a background-work model from the catalog's `fastModels` | Never for a new provider |
 | `src/lib/storage/secure.ts` | API key CRUD | Never — generic, works for any provider ID |
 | `src/lib/storage/mmkv.ts` | Non-secret config (e.g. Account IDs) | Only if provider needs extra config beyond an API key |
-| `src/stores/settings-store.ts` | Configured-provider list + key validation | Always — add the id to the `getConfiguredProviders()` array |
+| `src/stores/settings-store.ts` | Configured-provider list (from `PROVIDER_IDS`) + key validation | Never for a new provider |
 | `src/app/settings/api-keys.tsx` | API key management UI (renders from the catalog) | Only for a new `authMode` |
 | `src/app/onboarding.tsx` | First-run provider selection (renders from the catalog) | Only for a new `authMode` |
 | `src/components/chat/ModelPicker.tsx` / `ModelPill.tsx` | Provider tabs, fallback lists, short badge (from the catalog) | Never for a new provider |
@@ -692,7 +685,7 @@ For providers whose APIs don't return context info (OpenAI, MiniMax, Codex), Med
 - Lookup tries `modelId` directly, then `litellm_prefix/modelId`
 - Missing LiteLLM entries intentionally resolve to unknown; do not patch them with local hardcoded context windows
 
-**Provider prefix mapping** (in `litellm-registry.ts`):
+**Provider prefix mapping** (each catalog entry's `litellmPrefix`):
 
 | Medha Provider ID | LiteLLM Key Format | Example |
 |---|---|---|
@@ -703,7 +696,7 @@ For providers whose APIs don't return context info (OpenAI, MiniMax, Codex), Med
 | `cloudflare-ai` | `cloudflare/modelId` | `cloudflare/@cf/mistral/mistral-7b-instruct-v0.1` |
 | `openrouter` | `openrouter/modelId` | `openrouter/google/gemini-2.0-flash` |
 
-If you add a new provider and its models are in the LiteLLM registry, add the provider prefix mapping to `PROVIDER_PREFIX_MAP` in `src/lib/models/litellm-registry.ts`.
+If you add a new provider and its models are in the LiteLLM registry, set `litellmPrefix` on its catalog entry. `litellm-registry.ts` and `npm run check:litellm` both read it, so there is no second map to update.
 
 ### Testing LiteLLM Lookup
 
@@ -764,4 +757,4 @@ Capabilities are derived from metadata fields, not model IDs:
 | `thinking` | `supports_reasoning`, `supported_parameters: ['reasoning'/'include_reasoning']` |
 | `long-context` | Resolved context window greater than 100K tokens |
 
-**To add capability support for a new provider:** In `listModels()`, extract capability-related fields from the API response and pass them to `capabilitiesFromMetadata()`. If the provider does not expose these fields, leave `capabilities` unset, make sure the provider has a LiteLLM prefix mapping if needed, and test representative models with `npm run check:litellm -- <provider> <model>`.
+**To add capability support for a new provider:** In `listModels()`, extract capability-related fields from the API response and pass them to `capabilitiesFromMetadata()`. If the provider does not expose these fields, leave `capabilities` unset, make sure its catalog entry has the right `litellmPrefix`, and test representative models with `npm run check:litellm -- <provider> <model>`.

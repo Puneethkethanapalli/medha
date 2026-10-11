@@ -1,11 +1,13 @@
 /**
  * Provider catalog — the single source of truth for per-provider metadata:
- * display names, key-entry copy, extra setup fields, default and fallback
- * models, and the order providers appear in onboarding and Settings.
+ * display names, key-entry copy, extra setup fields, default, fallback, and
+ * fast models, LiteLLM key prefixes, and the order providers appear in
+ * onboarding and Settings.
  *
  * Plain data only. This module must not import react-native, expo, or any
  * provider implementation (directly or transitively) so it stays loadable in
- * Node unit tests — keep every import here `import type`.
+ * Node unit tests and scripts/check-litellm-model.js — keep every import here
+ * `import type`.
  *
  * Streaming / model listing lives in the provider classes next to this file,
  * which are registered in registry.ts. Every registered provider must have an
@@ -13,7 +15,10 @@
  */
 import type { Model } from '@/types';
 
-/** Display order for onboarding, Settings › API Keys, and the default provider. */
+/**
+ * Display order for onboarding, Settings › API Keys, and the default provider;
+ * also the providers whose keys `getConfiguredProviders()` checks.
+ */
 export const PROVIDER_IDS = [
   'openrouter',
   'openai',
@@ -85,6 +90,19 @@ export interface ProviderInfo {
    * capabilities (those come from provider metadata or LiteLLM).
    */
   fallbackModels: Model[];
+  /**
+   * Cheap models for background work (memory extraction and profile updates),
+   * in order of preference. `pickFastModel()` uses the first one in the
+   * provider's cached model list, else the chat model. Omit to always use the
+   * chat model.
+   */
+  fastModels?: readonly string[];
+  /**
+   * Prefix of this provider's keys in LiteLLM's model registry, e.g.
+   * `'gemini'` for `gemini/gemini-2.0-flash`; `''` when LiteLLM keys are the
+   * bare model id. Read by `litellm-registry.ts` and `npm run check:litellm`.
+   */
+  litellmPrefix: string;
 }
 
 // MiniMax doesn't have a public model list endpoint, so this is only a model-list fallback.
@@ -131,6 +149,15 @@ export const PROVIDER_CATALOG: Readonly<Record<ProviderId, ProviderInfo>> = {
       { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', provider: 'openrouter' },
       { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'openrouter' },
     ],
+    fastModels: [
+      'google/gemini-2.5-flash-lite',
+      'openai/gpt-4.1-mini',
+      'google/gemini-2.5-flash',
+      'openai/gpt-4o-mini',
+      'anthropic/claude-haiku-4.5',
+    ],
+    // OpenRouter lists its own metadata; LiteLLM is only a fallback.
+    litellmPrefix: 'openrouter',
   },
   openai: {
     id: 'openai',
@@ -150,6 +177,8 @@ export const PROVIDER_CATALOG: Readonly<Record<ProviderId, ProviderInfo>> = {
       { id: 'gpt-4.1', name: 'GPT-4.1', provider: 'openai' },
       { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'openai' },
     ],
+    fastModels: ['gpt-5.4-nano', 'gpt-5.4-mini', 'gpt-4.1-mini', 'gpt-4o-mini'],
+    litellmPrefix: '',
   },
   'openai-codex': {
     id: 'openai-codex',
@@ -170,6 +199,8 @@ export const PROVIDER_CATALOG: Readonly<Record<ProviderId, ProviderInfo>> = {
       { id: 'gpt-5.1-codex', name: 'GPT-5.1 Codex', provider: 'openai-codex' },
       { id: 'gpt-5.1-codex-mini', name: 'GPT-5.1 Codex Mini', provider: 'openai-codex' },
     ],
+    fastModels: ['gpt-5.4-mini', 'gpt-5.1-codex-mini'],
+    litellmPrefix: '',
   },
   'google-ai': {
     id: 'google-ai',
@@ -186,6 +217,8 @@ export const PROVIDER_CATALOG: Readonly<Record<ProviderId, ProviderInfo>> = {
       { id: 'gemini-2.5-pro-preview-03-25', name: 'Gemini 2.5 Pro Preview', provider: 'google-ai' },
       { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'google-ai' },
     ],
+    fastModels: ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-flash'],
+    litellmPrefix: 'gemini',
   },
   anthropic: {
     id: 'anthropic',
@@ -202,6 +235,8 @@ export const PROVIDER_CATALOG: Readonly<Record<ProviderId, ProviderInfo>> = {
       { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku', provider: 'anthropic' },
       { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet v2', provider: 'anthropic' },
     ],
+    fastModels: ['claude-haiku-5-5', 'claude-haiku-4-5', 'claude-3-5-haiku-latest'],
+    litellmPrefix: '',
   },
   minimax: {
     id: 'minimax',
@@ -213,6 +248,7 @@ export const PROVIDER_CATALOG: Readonly<Record<ProviderId, ProviderInfo>> = {
     keyHint: 'platform.minimax.io',
     defaultModel: 'MiniMax-M2.7',
     fallbackModels: MINIMAX_MODELS,
+    litellmPrefix: 'minimax',
   },
   'cloudflare-ai': {
     id: 'cloudflare-ai',
@@ -234,6 +270,7 @@ export const PROVIDER_CATALOG: Readonly<Record<ProviderId, ProviderInfo>> = {
     ],
     defaultModel: '@cf/openai/gpt-oss-120b',
     fallbackModels: CLOUDFLARE_FALLBACK_MODELS,
+    litellmPrefix: 'cloudflare',
   },
 };
 

@@ -5,7 +5,7 @@
  * Built on the shared Sheet (@/components/ui/sheet).
  */
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback } from 'react';
 import { View, FlatList } from 'react-native';
 import { Sparkles, Check, X } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
@@ -25,13 +25,17 @@ interface SkillPickerProps {
 export function SkillPicker({ open, onClose, activeSkillName, onSelectSkill }: SkillPickerProps) {
   const palette = usePalette();
 
-  // Keep the list while the sheet animates closed.
-  const skills = useMemo(() => {
-    if (!open) return null;
-    return getEnabledSkills();
-  }, [open]);
-  const [shownSkills, setShownSkills] = React.useState<SkillRecord[]>([]);
-  if (skills && skills !== shownSkills) setShownSkills(skills);
+  // Re-read the list each time the sheet opens and keep it while the sheet
+  // animates closed. Keyed on the `open` flag rather than the list itself:
+  // React Compiler drops a useMemo whose result never reaches JSX, so every
+  // render got a fresh array from SQLite and the sync looped until React threw
+  // "Too many re-renders".
+  const [shownSkills, setShownSkills] = React.useState<SkillRecord[]>(() => (open ? getEnabledSkills() : []));
+  const [prevOpen, setPrevOpen] = React.useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) setShownSkills(getEnabledSkills());
+  }
 
   const handleSelect = useCallback(
     (skill: SkillRecord) => {

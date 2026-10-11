@@ -9,6 +9,8 @@ import { useUIStore } from '@/stores/ui-store';
 import { usePalette } from '@/lib/palette';
 
 interface MessageActionsMenuProps {
+  /** Whether this screen may show the menu (the menu state is app-wide). */
+  active: boolean;
   onEditAndResend: (messageId: string) => void;
   onRegenerate: (messageId: string) => void;
   onDelete: (messageId: string) => void;
@@ -18,6 +20,7 @@ interface MessageActionsMenuProps {
 const ACTION_DELAY_MS = 160;
 
 export function MessageActionsMenu({
+  active,
   onEditAndResend,
   onRegenerate,
   onDelete,
@@ -59,7 +62,7 @@ export function MessageActionsMenu({
   }, [message, hideMenu, onDelete]);
 
   return (
-    <Sheet open={message !== null} onClose={hideMenu} floating>
+    <Sheet open={active && message !== null} onClose={hideMenu} floating>
       {!!shown?.content && (
         <View className="px-5 pb-3">
           <Text className="text-muted-foreground text-[13px] leading-[19px]" numberOfLines={2}>

@@ -10,23 +10,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ModelCapability } from '@/types';
 import { capabilitiesFromMetadata } from '@/lib/models/capability-metadata';
+import { getProviderInfo } from '@/lib/providers/catalog';
 
 const LITELLM_URL =
   'https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json';
 
 const CACHE_KEY = 'litellm_model_registry';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
-
-// Provider ID mapping: Medha provider IDs → LiteLLM provider prefixes
-const PROVIDER_PREFIX_MAP: Record<string, string> = {
-  openai: '',              // LiteLLM keys: "gpt-4o" (no prefix for OpenAI)
-  'openai-codex': '',      // Same models, no prefix
-  'google-ai': 'gemini',   // LiteLLM keys: "gemini/gemini-2.0-flash"
-  anthropic: '',           // LiteLLM keys: "claude-sonnet-4-20250514" (no prefix)
-  minimax: 'minimax',      // LiteLLM keys: "minimax/MiniMax-M2.5"
-  'cloudflare-ai': 'cloudflare', // LiteLLM keys: "cloudflare/@cf/..."
-  openrouter: 'openrouter', // LiteLLM keys: "openrouter/..." (but OpenRouter has its own API)
-};
 
 type LiteLLMEntry = {
   max_input_tokens?: number;
@@ -193,7 +183,8 @@ function getLookupKeys(modelId: string, provider?: string): string[] {
   add(normalized);
 
   if (provider) {
-    const prefix = PROVIDER_PREFIX_MAP[provider];
+    // Medha provider id → LiteLLM key prefix, e.g. 'google-ai' → 'gemini/...'.
+    const prefix = getProviderInfo(provider)?.litellmPrefix;
     if (prefix) add(`${prefix}/${normalized}`);
   }
 

@@ -7,6 +7,7 @@
  */
 
 import type { SkillFrontmatter, ParsedSkill } from './types';
+import { normalizeAllowedTools } from './allowed-tools';
 
 /**
  * Parse a SKILL.md file into frontmatter + body.
@@ -95,7 +96,8 @@ export function generateSkillMd(frontmatter: SkillFrontmatter, body: string): st
 
 /**
  * Lightweight YAML frontmatter parser.
- * Handles flat key-value pairs and one level of nesting (for metadata block).
+ * Handles flat key-value pairs, one level of nesting (for metadata block) and
+ * block lists (`- item`, e.g. allowed-tools written as a list).
  * NOT a full YAML parser — only covers the Agent Skills frontmatter subset.
  */
 function parseSimpleYaml(yaml: string): SkillFrontmatter | null {
@@ -104,10 +106,23 @@ function parseSimpleYaml(yaml: string): SkillFrontmatter | null {
     const lines = yaml.split('\n');
     let currentNestedKey: string | null = null;
     let nestedObj: Record<string, string> = {};
+    let nestedList: string[] = [];
+    let listIndent: number | null = null;
 
     for (const line of lines) {
       // Skip empty lines and comments
       if (line.trim() === '' || line.trim().startsWith('#')) continue;
+
+      // Block list item directly under the current key. Once the key holds
+      // mapping entries (e.g. metadata), deeper `- item` lines belong to one of
+      // those entries and are skipped like other unsupported nesting.
+      const listItem =
+        currentNestedKey && Object.keys(nestedObj).length === 0 ? line.match(/^(\s*)-\s+(.*)$/) : null;
+      if (listItem && (listIndent === null || listItem[1].length === listIndent)) {
+        listIndent = listItem[1].length;
+        nestedList.push(unquoteYaml(listItem[2].trim()));
+        continue;
+      }
 
       // Check if this is a nested value (indented with spaces)
       if (currentNestedKey && /^\s{2,}/.test(line)) {
@@ -120,9 +135,11 @@ function parseSimpleYaml(yaml: string): SkillFrontmatter | null {
 
       // If we were building a nested object, flush it
       if (currentNestedKey) {
-        result[currentNestedKey] = { ...nestedObj };
+        result[currentNestedKey] = nestedList.length > 0 ? [...nestedList] : { ...nestedObj };
         currentNestedKey = null;
         nestedObj = {};
+        nestedList = [];
+        listIndent = null;
       }
 
       // Top-level key: value
@@ -137,6 +154,8 @@ function parseSimpleYaml(yaml: string): SkillFrontmatter | null {
         // Check if next lines are indented (we'll handle it on next iteration)
         currentNestedKey = key;
         nestedObj = {};
+        nestedList = [];
+        listIndent = null;
       } else {
         result[key] = unquoteYaml(value);
       }
@@ -144,7 +163,17 @@ function parseSimpleYaml(yaml: string): SkillFrontmatter | null {
 
     // Flush any remaining nested object
     if (currentNestedKey) {
-      result[currentNestedKey] = Object.keys(nestedObj).length > 0 ? { ...nestedObj } : undefined;
+      result[currentNestedKey] =
+        nestedList.length > 0 ? [...nestedList]
+        : Object.keys(nestedObj).length > 0 ? { ...nestedObj }
+        : undefined;
+    }
+
+    // Callers treat allowed-tools as the spec's space-separated string.
+    if ('allowed-tools' in result) {
+      const allowedTools = normalizeAllowedTools(result['allowed-tools']);
+      if (allowedTools) result['allowed-tools'] = allowedTools;
+      else delete result['allowed-tools'];
     }
 
     // Validate required fields

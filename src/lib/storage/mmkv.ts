@@ -11,7 +11,6 @@ const KEYS = {
   lastProvider: 'medha:lastProvider',
   cachedModels: 'medha:cachedModels',
   onboardingComplete: 'medha:onboardingComplete',
-  biometricLockEnabled: 'medha:biometricLockEnabled',
   thinkingMode: 'medha:thinkingMode',
   customCommands: 'medha:customCommands',
   webSearchEnabled: 'medha:webSearchEnabled',
@@ -121,16 +120,6 @@ export async function isOnboardingComplete(): Promise<boolean> {
 
 export async function setOnboardingComplete(complete: boolean): Promise<void> {
   await AsyncStorage.setItem(KEYS.onboardingComplete, String(complete));
-}
-
-// Biometric lock enabled
-export async function isBiometricLockEnabled(): Promise<boolean> {
-  const value = await AsyncStorage.getItem(KEYS.biometricLockEnabled);
-  return value === 'true';
-}
-
-export async function setBiometricLockEnabled(enabled: boolean): Promise<void> {
-  await AsyncStorage.setItem(KEYS.biometricLockEnabled, String(enabled));
 }
 
 // Thinking mode
@@ -302,7 +291,6 @@ let _lastModel: string | null = null;
 let _lastModelName: string | null = null;
 let _lastProvider: string | null = null;
 let _onboardingComplete = false;
-let _biometricLockEnabled = false;
 let _thinkingMode: ThinkingMode = 'auto';
 let _customCommands: StoredCustomCommand[] = [];
 let _webSearchEnabled = false;
@@ -335,10 +323,6 @@ export function getLastProviderSync(): string | null {
 
 export function isOnboardingCompleteSync(): boolean {
   return _onboardingComplete;
-}
-
-export function isBiometricLockEnabledSync(): boolean {
-  return _biometricLockEnabled;
 }
 
 export function getThinkingModeSync(): ThinkingMode {
@@ -410,7 +394,6 @@ export async function initStorage(): Promise<void> {
   const lastModelName = await getLastModelName();
   const lastProvider = await getLastProvider();
   const onboarding = await isOnboardingComplete();
-  const biometric = await isBiometricLockEnabled();
   const thinking = await getThinkingMode();
   const customCmds = await getCustomCommands();
   const webSearch = await isWebSearchEnabled();
@@ -428,7 +411,6 @@ export async function initStorage(): Promise<void> {
   _lastModelName = lastModelName;
   _lastProvider = lastProvider;
   _onboardingComplete = onboarding;
-  _biometricLockEnabled = biometric;
   _thinkingMode = thinking;
   _customCommands = customCmds;
   _webSearchEnabled = webSearch;

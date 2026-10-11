@@ -27,8 +27,11 @@ const models = (provider: string, entries: [id: string, name: string][]): Model[
  * Values from before the catalog existed, when they were spread across
  * ModelPill (short names), ModelPicker (display names, fallback lists),
  * onboarding.tsx (placeholders, hints, auth mode), settings/api-keys.tsx
- * (descriptions, Cloudflare fields), and ChatScreen (default models). The
- * catalog must reproduce them exactly, in this order.
+ * (descriptions, Cloudflare fields), ChatScreen (default models),
+ * llm/fast-model.ts (fast models), litellm-registry.ts and
+ * scripts/check-litellm-model.js (LiteLLM prefixes), and settings-store.ts
+ * (the configured-provider order). The catalog must reproduce them exactly,
+ * in this order.
  */
 const EXPECTED: ProviderInfo[] = [
   {
@@ -48,6 +51,14 @@ const EXPECTED: ProviderInfo[] = [
       ['openai/gpt-4o-mini', 'GPT-4o Mini'],
       ['anthropic/claude-3.5-sonnet', 'Claude 3.5 Sonnet'],
     ]),
+    fastModels: [
+      'google/gemini-2.5-flash-lite',
+      'openai/gpt-4.1-mini',
+      'google/gemini-2.5-flash',
+      'openai/gpt-4o-mini',
+      'anthropic/claude-haiku-4.5',
+    ],
+    litellmPrefix: 'openrouter',
   },
   {
     id: 'openai',
@@ -67,6 +78,8 @@ const EXPECTED: ProviderInfo[] = [
       ['gpt-4.1', 'GPT-4.1'],
       ['gpt-4o-mini', 'GPT-4o Mini'],
     ]),
+    fastModels: ['gpt-5.4-nano', 'gpt-5.4-mini', 'gpt-4.1-mini', 'gpt-4o-mini'],
+    litellmPrefix: '',
   },
   {
     id: 'openai-codex',
@@ -87,6 +100,8 @@ const EXPECTED: ProviderInfo[] = [
       ['gpt-5.1-codex', 'GPT-5.1 Codex'],
       ['gpt-5.1-codex-mini', 'GPT-5.1 Codex Mini'],
     ]),
+    fastModels: ['gpt-5.4-mini', 'gpt-5.1-codex-mini'],
+    litellmPrefix: '',
   },
   {
     id: 'google-ai',
@@ -103,6 +118,8 @@ const EXPECTED: ProviderInfo[] = [
       ['gemini-2.5-pro-preview-03-25', 'Gemini 2.5 Pro Preview'],
       ['gemini-1.5-pro', 'Gemini 1.5 Pro'],
     ]),
+    fastModels: ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-flash'],
+    litellmPrefix: 'gemini',
   },
   {
     id: 'anthropic',
@@ -119,6 +136,8 @@ const EXPECTED: ProviderInfo[] = [
       ['claude-3-5-haiku-20241022', 'Claude 3.5 Haiku'],
       ['claude-3-5-sonnet-20241022', 'Claude 3.5 Sonnet v2'],
     ]),
+    fastModels: ['claude-haiku-5-5', 'claude-haiku-4-5', 'claude-3-5-haiku-latest'],
+    litellmPrefix: '',
   },
   {
     id: 'minimax',
@@ -138,6 +157,7 @@ const EXPECTED: ProviderInfo[] = [
       ['MiniMax-M2.1-highspeed', 'MiniMax M2.1 Highspeed'],
       ['MiniMax-M2', 'MiniMax M2'],
     ]),
+    litellmPrefix: 'minimax',
   },
   {
     id: 'cloudflare-ai',
@@ -169,6 +189,7 @@ const EXPECTED: ProviderInfo[] = [
       ['@hf/mistral/mistral-7b-instruct-v0.2', 'Mistral 7B v0.2'],
       ['@hf/google/gemma-7b-it', 'Gemma 7B'],
     ]),
+    litellmPrefix: 'cloudflare',
   },
 ];
 

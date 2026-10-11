@@ -1,17 +1,12 @@
 #!/usr/bin/env node
 
+// Provider → LiteLLM prefixes come from the app's catalog (`litellmPrefix`), so
+// this check can't drift from litellm-registry.ts. The catalog is plain data
+// with type-only imports, which Node loads directly by stripping the types.
+const { getProviderInfo } = require('../src/lib/providers/catalog.ts');
+
 const LITELLM_URL =
   'https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json';
-
-const PROVIDER_PREFIX_MAP = {
-  openai: '',
-  'openai-codex': '',
-  'google-ai': 'gemini',
-  anthropic: '',
-  minimax: 'minimax',
-  'cloudflare-ai': 'cloudflare',
-  openrouter: 'openrouter',
-};
 
 function getLookupKeys(modelId, provider) {
   const keys = [];
@@ -23,7 +18,7 @@ function getLookupKeys(modelId, provider) {
   add(modelId);
   add(normalized);
 
-  const prefix = PROVIDER_PREFIX_MAP[provider];
+  const prefix = getProviderInfo(provider)?.litellmPrefix;
   if (prefix) add(`${prefix}/${normalized}`);
 
   const slashIdx = normalized.indexOf('/');

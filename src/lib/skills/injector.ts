@@ -53,6 +53,16 @@ export function getActiveSkillContent(skillName: string): string | null {
   const cached = skillBodyCache.get(skillName);
   if (cached) return cached;
 
+  // Called while rendering the chat screen, so a file system error must not throw.
+  try {
+    return loadActiveSkillContent(skillName);
+  } catch (e) {
+    console.error(`[SkillInjector] Failed to load skill "${skillName}":`, e);
+    return null;
+  }
+}
+
+function loadActiveSkillContent(skillName: string): string | null {
   // Verify skill still exists in DB
   const record = getSkillByName(skillName);
   if (!record) return null;
@@ -98,14 +108,7 @@ export function getSkillAllowedTools(skillName: string): string[] | null {
   return null; // Will be populated when skill is activated
 }
 
-/**
- * Parse allowed-tools from a skill's frontmatter.
- * Returns null if no restriction, or array of tool names.
- */
-export function parseAllowedTools(allowedToolsField: string | undefined): string[] | null {
-  if (!allowedToolsField || allowedToolsField.trim().length === 0) return null;
-  return allowedToolsField.trim().split(/\s+/);
-}
+export { parseAllowedTools } from './allowed-tools';
 
 /**
  * Clear the cached skill body (e.g., when a skill is updated or deactivated).
