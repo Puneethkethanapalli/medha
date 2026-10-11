@@ -28,6 +28,7 @@ import {
   Zap,
   Search,
   MessageSquare,
+  Sparkles,
 } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useUIStore } from '@/stores/ui-store';
@@ -151,6 +152,8 @@ function MemoryCard({
             </Pressable>
           ) : memory.source === 'user' ? (
             <Text className="text-muted-foreground text-[11px] mt-2">Added by you</Text>
+          ) : memory.source === 'auto' ? (
+            <Text className="text-muted-foreground text-[11px] mt-2">Learned from a chat</Text>
           ) : null}
         </View>
 
@@ -184,6 +187,8 @@ export default function MemoriesScreen() {
   const setActiveConversation = useUIStore((s) => s.setActiveConversation);
   const memoryEnabled = useSettingsStore((s) => s.memoryEnabled);
   const setMemoryEnabled = useSettingsStore((s) => s.setMemoryEnabled);
+  const memoryAutoEnabled = useSettingsStore((s) => s.memoryAutoEnabled);
+  const setMemoryAutoEnabled = useSettingsStore((s) => s.setMemoryAutoEnabled);
 
   const [memories, setMemories] = useState<Memory[]>([]);
   const [count, setCount] = useState(0);
@@ -337,6 +342,19 @@ export default function MemoriesScreen() {
           }}
         />
       </View>
+
+      {memoryEnabled && (
+        <View className="mx-4 mt-2 mb-1 flex-row items-center bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3.5">
+          <Sparkles size={20} color="hsl(0, 0%, 63%)" />
+          <View className="flex-1 ml-3">
+            <Text className="text-foreground text-[15px] font-medium">Learn from chats</Text>
+            <Text className="text-on-surface-variant text-[12px] mt-0.5">
+              After each reply, a fast model from your provider picks out lasting facts and preferences
+            </Text>
+          </View>
+          <Toggle value={memoryAutoEnabled} onValueChange={setMemoryAutoEnabled} />
+        </View>
+      )}
 
       {/* Search bar */}
       <View className="px-4 py-3">

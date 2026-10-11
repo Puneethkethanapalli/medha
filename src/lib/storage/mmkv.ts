@@ -17,6 +17,7 @@ const KEYS = {
   webSearchEnabled: 'medha:webSearchEnabled',
   globalRules: 'medha:globalRules',
   memoryEnabled: 'medha:memoryEnabled',
+  memoryAutoEnabled: 'medha:memoryAutoEnabled',
   imageGenService: 'medha:imageGenService',
   imageGenEnabled: 'medha:imageGenEnabled',
   cloudflareAccountId: 'medha:cloudflareAccountId',
@@ -206,6 +207,17 @@ export async function setMemoryEnabled(enabled: boolean): Promise<void> {
   _memoryEnabled = enabled;
 }
 
+// Learn memories from chats automatically (on by default once memory is enabled)
+export async function isMemoryAutoEnabled(): Promise<boolean> {
+  const value = await AsyncStorage.getItem(KEYS.memoryAutoEnabled);
+  return value !== 'false';
+}
+
+export async function setMemoryAutoEnabled(enabled: boolean): Promise<void> {
+  await AsyncStorage.setItem(KEYS.memoryAutoEnabled, String(enabled));
+  _memoryAutoEnabled = enabled;
+}
+
 // Global rules (stored as JSON array of RuleItem)
 export async function getGlobalRules(): Promise<RuleItem[]> {
   const value = await AsyncStorage.getItem(KEYS.globalRules);
@@ -236,6 +248,7 @@ let _customCommands: StoredCustomCommand[] = [];
 let _webSearchEnabled = false;
 let _globalRules: RuleItem[] = DEFAULT_RULES.map((r) => ({ ...r }));
 let _memoryEnabled = false;
+let _memoryAutoEnabled = true;
 let _imageGenService: ImageGenService = 'openai';
 let _imageGenEnabled = false;
 let _cloudflareAccountId: string | null = null;
@@ -285,6 +298,10 @@ export function isMemoryEnabledSync(): boolean {
   return _memoryEnabled;
 }
 
+export function isMemoryAutoEnabledSync(): boolean {
+  return _memoryAutoEnabled;
+}
+
 export function getImageGenServiceSync(): ImageGenService {
   return _imageGenService;
 }
@@ -324,6 +341,7 @@ export async function initStorage(): Promise<void> {
   const webSearch = await isWebSearchEnabled();
   const globalRules = await getGlobalRules();
   const memoryEnabled = await isMemoryEnabled();
+  const memoryAutoEnabled = await isMemoryAutoEnabled();
   const imageGenService = await getImageGenService();
   const imageGenEnabled = await isImageGenEnabled();
   const cfAccountId = await getCloudflareAccountId();
@@ -338,6 +356,7 @@ export async function initStorage(): Promise<void> {
   _webSearchEnabled = webSearch;
   _globalRules = globalRules;
   _memoryEnabled = memoryEnabled;
+  _memoryAutoEnabled = memoryAutoEnabled;
   _imageGenService = imageGenService;
   _imageGenEnabled = imageGenEnabled;
   _cloudflareAccountId = cfAccountId;

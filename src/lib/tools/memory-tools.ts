@@ -7,61 +7,27 @@
 
 import type { ToolDefinition, ToolExecutionContext, ToolResult } from './types';
 import {
-  addMemory,
-  deleteMemory,
   getMemories,
   resolveMemoryId,
   restoreMemory,
   shortMemoryId,
   updateMemory,
+  deleteMemory,
   type Memory,
-  type MemoryCategory,
 } from '@/lib/db/memories';
-import { classifyDuplicate, scoreDocuments } from '@/lib/memory/retrieval';
+import {
+  normalizeMemoryCategory,
+  rankMemoriesByRelevance,
+  removeMemory,
+  replaceMemory,
+  saveMemory,
+} from '@/lib/memory/operations';
 import { useUIStore } from '@/stores/ui-store';
 
-const VALID_CATEGORIES: MemoryCategory[] = ['preference', 'fact', 'instruction', 'general'];
-const MAX_MEMORY_CHARS = 500;
-const RELATED_LIMIT = 3;
 const FORGET_CANDIDATE_LIMIT = 5;
-
-// Never persist secrets, even if a model tries to.
-const CREDENTIAL_PATTERNS: RegExp[] = [
-  /\b(?:sk|pk|rk)-[A-Za-z0-9_-]{16,}/,
-  /\bgh[pousr]_[A-Za-z0-9]{20,}/,
-  /\bAKIA[0-9A-Z]{16}\b/,
-  /\bAIza[0-9A-Za-z_-]{30,}/,
-  /\bxox[abprs]-[A-Za-z0-9-]{10,}/,
-  /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
-  /\b(?:password|passcode|passphrase|pin|otp|cvv)\b\s*(?:is|:|=)\s*\S+/i,
-  /\b(?:\d[ -]?){13,19}\b/,
-];
-
-function looksLikeCredential(text: string): boolean {
-  return CREDENTIAL_PATTERNS.some((pattern) => pattern.test(text));
-}
-
-function normalizeContent(value: unknown): string {
-  return String(value ?? '').replace(/\s+/g, ' ').trim();
-}
-
-function normalizeCategory(value: unknown): MemoryCategory | undefined {
-  const category = String(value ?? '');
-  return VALID_CATEGORIES.includes(category as MemoryCategory)
-    ? (category as MemoryCategory)
-    : undefined;
-}
 
 function formatRef(memory: Pick<Memory, 'id' | 'content'>): string {
   return `[${shortMemoryId(memory.id)}] ${memory.content}`;
-}
-
-function rankByRelevance(memories: Memory[], query: string): { memory: Memory; score: number }[] {
-  const scores = scoreDocuments(memories.map((memory) => memory.content), query);
-  return memories
-    .map((memory, index) => ({ memory, score: scores[index] }))
-    .filter((entry) => entry.score > 0)
-    .sort((a, b) => b.score - a.score);
 }
 
 function rejected(title: string, reason: string): ToolResult {
@@ -69,23 +35,6 @@ function rejected(title: string, reason: string): ToolResult {
     content: reason,
     display: { kind: 'memory', title, status: 'error', summary: reason },
   };
-}
-
-function validateContent(content: string): ToolResult | null {
-  if (!content) return rejected('Memory not saved', 'No memory content provided.');
-  if (content.length > MAX_MEMORY_CHARS) {
-    return rejected(
-      'Memory not saved',
-      `Memory is too long (${content.length} characters). Keep it to one short sentence.`
-    );
-  }
-  if (looksLikeCredential(content)) {
-    return rejected(
-      'Memory not saved',
-      'Not saved: this looks like a password, API key, or card number. Credentials are never stored in memory.'
-    );
-  }
-  return null;
 }
 
 function memoryResult(
@@ -110,58 +59,51 @@ async function executeSaveMemory(
   args: Record<string, unknown>,
   context: ToolExecutionContext
 ): Promise<ToolResult> {
-  const content = normalizeContent(args.content);
-  const invalid = validateContent(content);
-  if (invalid) return invalid;
-
-  const category = normalizeCategory(args.category) ?? 'general';
-  const existing = getMemories();
-
-  // Same fact already saved — don't create a duplicate.
-  const duplicate = existing.find((memory) => classifyDuplicate(content, memory.content) === 'duplicate');
-  if (duplicate) {
-    return memoryResult(
-      'Already remembered',
-      duplicate,
-      `Already saved as ${formatRef(duplicate)}. Nothing new was stored.`
-    );
-  }
-
-  // Same fact with more detail — replace the old wording instead of adding another.
-  const refined = existing.find((memory) => classifyDuplicate(content, memory.content) === 'refinement');
-  if (refined) {
-    const nextCategory = category !== 'general' ? category : refined.category;
-    updateMemory(refined.id, { content, category: nextCategory });
-    useUIStore.getState().showToast('Memory updated', {
-      label: 'Undo',
-      onPress: () => updateMemory(refined.id, { content: refined.content, category: refined.category }),
-    });
-    return memoryResult(
-      'Memory updated',
-      { id: refined.id, content, category: nextCategory },
-      `Updated existing memory [${shortMemoryId(refined.id)}] from "${refined.content}" to "${content}".`
-    );
-  }
-
-  const id = addMemory(content, category, {
+  const outcome = saveMemory(args.content, normalizeMemoryCategory(args.category) ?? 'general', {
     source: 'assistant',
     conversationId: context.conversationId,
   });
-  useUIStore.getState().showToast('Memory saved', {
-    label: 'Undo',
-    onPress: () => deleteMemory(id),
-  });
 
-  const related = rankByRelevance(existing, content).slice(0, RELATED_LIMIT);
-  const lines = [`Saved memory [${shortMemoryId(id)}]: "${content}"`];
-  if (related.length > 0) {
-    lines.push(
-      'Related existing memories — if the new one replaces or contradicts any of these, call update_memory or forget_memory with that id:',
-      ...related.map(({ memory }) => `- ${formatRef(memory)}`)
-    );
+  switch (outcome.kind) {
+    case 'rejected':
+      return rejected('Memory not saved', outcome.reason);
+
+    case 'duplicate':
+      return memoryResult(
+        'Already remembered',
+        outcome.memory,
+        `Already saved as ${formatRef(outcome.memory)}. Nothing new was stored.`
+      );
+
+    case 'refined': {
+      const { memory, previous } = outcome;
+      useUIStore.getState().showToast('Memory updated', {
+        label: 'Undo',
+        onPress: () => updateMemory(previous.id, { content: previous.content, category: previous.category }),
+      });
+      return memoryResult(
+        'Memory updated',
+        memory,
+        `Updated existing memory [${shortMemoryId(memory.id)}] from "${previous.content}" to "${memory.content}".`
+      );
+    }
+
+    case 'added': {
+      const { memory, related } = outcome;
+      useUIStore.getState().showToast('Memory saved', {
+        label: 'Undo',
+        onPress: () => deleteMemory(memory.id),
+      });
+      const lines = [`Saved memory [${shortMemoryId(memory.id)}]: "${memory.content}"`];
+      if (related.length > 0) {
+        lines.push(
+          'Related existing memories — if the new one replaces or contradicts any of these, call update_memory or forget_memory with that id:',
+          ...related.map((item) => `- ${formatRef(item)}`)
+        );
+      }
+      return memoryResult('Memory saved', memory, lines.join('\n'));
+    }
   }
-
-  return memoryResult('Memory saved', { id, content, category }, lines.join('\n'));
 }
 
 async function executeUpdateMemory(args: Record<string, unknown>): Promise<ToolResult> {
@@ -173,21 +115,19 @@ async function executeUpdateMemory(args: Record<string, unknown>): Promise<ToolR
     );
   }
 
-  const content = normalizeContent(args.content);
-  const invalid = validateContent(content);
-  if (invalid) return { ...invalid, display: { ...invalid.display!, title: 'Memory not updated' } };
+  const outcome = replaceMemory(memory, args.content, normalizeMemoryCategory(args.category));
+  if (outcome.kind === 'rejected') return rejected('Memory not updated', outcome.reason);
 
-  const category = normalizeCategory(args.category) ?? memory.category;
-  updateMemory(memory.id, { content, category });
+  const { memory: updated, previous } = outcome;
   useUIStore.getState().showToast('Memory updated', {
     label: 'Undo',
-    onPress: () => updateMemory(memory.id, { content: memory.content, category: memory.category }),
+    onPress: () => updateMemory(previous.id, { content: previous.content, category: previous.category }),
   });
 
   return memoryResult(
     'Memory updated',
-    { id: memory.id, content, category },
-    `Updated memory [${shortMemoryId(memory.id)}] from "${memory.content}" to "${content}".`
+    updated,
+    `Updated memory [${shortMemoryId(updated.id)}] from "${previous.content}" to "${updated.content}".`
   );
 }
 
@@ -205,7 +145,7 @@ async function executeForgetMemory(args: Record<string, unknown>): Promise<ToolR
       );
     }
   } else if (query) {
-    const matches = rankByRelevance(getMemories(), query).slice(0, FORGET_CANDIDATE_LIMIT);
+    const matches = rankMemoriesByRelevance(getMemories(), query).slice(0, FORGET_CANDIDATE_LIMIT);
     if (matches.length === 0) {
       return rejected('Memory not removed', `No saved memory matches "${query}".`);
     }
@@ -232,7 +172,7 @@ async function executeForgetMemory(args: Record<string, unknown>): Promise<ToolR
   }
 
   const removed = target;
-  deleteMemory(removed.id);
+  removeMemory(removed);
   useUIStore.getState().showToast('Memory removed', {
     label: 'Undo',
     onPress: () => restoreMemory(removed),

@@ -22,14 +22,24 @@ const MAX_MEMORY_TOKENS = 800;
 const QUERY_USER_MESSAGES = 2;
 const MAX_QUERY_CHARS = 2000;
 
-/** Guidance appended to the system prompt when the memory tools are available. */
-export const MEMORY_TOOL_INSTRUCTION = [
-  'You can remember things about the user across conversations.',
-  '- Call save_memory when the user shares a durable fact, preference, or standing instruction (name, job, location, tools they use, how they want answers), or explicitly asks you to remember something. Write one short third-person sentence, e.g. "User is vegetarian."',
-  "- Don't save one-off task details, anything already in [User Memory], or sensitive data (passwords, keys, financial or health details) unless the user explicitly asks.",
-  '- If new information changes an existing memory, call update_memory with that memory\'s id instead of saving a duplicate. When the user asks you to forget something, call forget_memory with the memory\'s id.',
-  '- Use memories naturally when relevant. Don\'t list or mention them unless the user asks what you remember.',
-].join('\n');
+/**
+ * Guidance appended to the system prompt when the memory tools are available.
+ * With automatic extraction on, durable facts are captured after each reply,
+ * so the chat model only needs the tools for explicit requests.
+ */
+export function getMemoryToolInstruction(autoExtraction: boolean): string {
+  const saveGuidance = autoExtraction
+    ? '- Memories are captured automatically after each reply, so only call save_memory when the user explicitly asks you to remember something. Write one short third-person sentence, e.g. "User is vegetarian."'
+    : '- Call save_memory when the user shares a durable fact, preference, or standing instruction (name, job, location, tools they use, how they want answers), or explicitly asks you to remember something. Write one short third-person sentence, e.g. "User is vegetarian."';
+
+  return [
+    'You can remember things about the user across conversations.',
+    saveGuidance,
+    "- Don't save one-off task details, anything already in [User Memory], or sensitive data (passwords, keys, financial or health details) unless the user explicitly asks.",
+    '- If new information changes an existing memory, call update_memory with that memory\'s id instead of saving a duplicate. When the user asks you to forget something, call forget_memory with the memory\'s id.',
+    '- Use memories naturally when relevant. Don\'t list or mention them unless the user asks what you remember.',
+  ].join('\n');
+}
 
 function formatDate(timestamp: number): string {
   return new Date(timestamp).toISOString().slice(0, 10);

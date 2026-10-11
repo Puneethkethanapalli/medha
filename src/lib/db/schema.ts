@@ -131,6 +131,23 @@ export function initializeDatabase(): void {
     // Column already exists — ignore
   }
 
+  // Memory changes made automatically after a reply, so they can be shown and undone per message
+  database.runSync(`
+    CREATE TABLE IF NOT EXISTS memory_events (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      memory_id TEXT NOT NULL,
+      op TEXT NOT NULL,
+      before_json TEXT,
+      after_content TEXT,
+      undone_at INTEGER,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
+    )
+  `);
+  database.runSync('CREATE INDEX IF NOT EXISTS idx_memory_events_conv ON memory_events(conversation_id)');
+
   // Create token_usage table (Sprint 18)
   database.runSync(`
     CREATE TABLE IF NOT EXISTS token_usage (

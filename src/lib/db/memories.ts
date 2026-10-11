@@ -10,8 +10,11 @@ import { getDatabase } from './schema';
 
 export type MemoryCategory = 'preference' | 'fact' | 'instruction' | 'general';
 
-/** Who created the memory: the user in Settings, or the assistant via a tool. */
-export type MemorySource = 'user' | 'assistant';
+/**
+ * Who created the memory: the user in Settings, the assistant via a tool, or
+ * background extraction after a reply.
+ */
+export type MemorySource = 'user' | 'assistant' | 'auto';
 
 export interface Memory {
   id: string;

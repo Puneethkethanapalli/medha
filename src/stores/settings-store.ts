@@ -12,6 +12,7 @@ interface SettingsState {
   webSearchEnabled: boolean;
   globalRules: RuleItem[];
   memoryEnabled: boolean;
+  memoryAutoEnabled: boolean;
   imageGenEnabled: boolean;
   imageGenService: ImageGenService;
   isInitialized: boolean;
@@ -28,6 +29,7 @@ interface SettingsActions {
   setWebSearchEnabled: (enabled: boolean) => Promise<void>;
   setGlobalRules: (rules: RuleItem[]) => Promise<void>;
   setMemoryEnabled: (enabled: boolean) => Promise<void>;
+  setMemoryAutoEnabled: (enabled: boolean) => Promise<void>;
   setImageGenEnabled: (enabled: boolean) => Promise<void>;
   setImageGenService: (service: ImageGenService) => Promise<void>;
   validateApiKey: (provider: string, key: string) => Promise<boolean>;
@@ -64,6 +66,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
   webSearchEnabled: false,
   globalRules: [],
   memoryEnabled: false,
+  memoryAutoEnabled: true,
   imageGenEnabled: false,
   imageGenService: 'openai' as ImageGenService,
   isInitialized: false,
@@ -139,6 +142,12 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
     set({ memoryEnabled: enabled });
   },
 
+  setMemoryAutoEnabled: async (enabled) => {
+    await loadModules();
+    await mmkv!.setMemoryAutoEnabled(enabled);
+    set({ memoryAutoEnabled: enabled });
+  },
+
   setImageGenEnabled: async (enabled) => {
     await loadModules();
     await mmkv!.setImageGenEnabled(enabled);
@@ -171,6 +180,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
       webSearchEnabled: mmkv!.isWebSearchEnabledSync(),
       globalRules: mmkv!.getGlobalRulesSync(),
       memoryEnabled: mmkv!.isMemoryEnabledSync(),
+      memoryAutoEnabled: mmkv!.isMemoryAutoEnabledSync(),
       imageGenEnabled: mmkv!.isImageGenEnabledSync(),
       imageGenService: mmkv!.getImageGenServiceSync(),
       isInitialized: true,

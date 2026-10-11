@@ -32,7 +32,9 @@ import { registerTool, listTools, getOpenAIToolSchemas, getAnthropicToolSchemas,
 import { deepResearchTool, webSearchTool } from '@/lib/tools/web-search';
 import { generateImageTool } from '@/lib/tools/image-gen';
 import { saveMemoryTool, updateMemoryTool, forgetMemoryTool } from '@/lib/tools/memory-tools';
-import { MEMORY_TOOL_INSTRUCTION } from '@/lib/memory/injector';
+import { getMemoryToolInstruction } from '@/lib/memory/injector';
+import { scheduleMemoryExtraction } from '@/lib/memory/extractor';
+import { useMemoryEventsStore } from '@/stores/memory-events-store';
 import {
   ASK_USER_CHOICE_TOOL_NAME,
   askUserChoiceTool,
@@ -65,6 +67,7 @@ import { useRouter } from 'expo-router';
 import type { Message, Attachment } from '@/types';
 
 const MAX_TOOL_ROUNDS = 5;
+const MEMORY_TOOL_NAMES = new Set(['save_memory', 'update_memory', 'forget_memory']);
 
 interface ChatScreenProps {
   conversationId: string | null;
@@ -101,6 +104,10 @@ export const ChatScreen = React.memo(function ChatScreen({
   const thinkingMode = useSettingsStore((s) => s.thinkingMode);
   const webSearchEnabled = useSettingsStore((s) => s.webSearchEnabled);
   const memoryEnabled = useSettingsStore((s) => s.memoryEnabled);
+  const memoryAutoEnabled = useSettingsStore((s) => s.memoryAutoEnabled);
+  const loadMemoryEvents = useMemoryEventsStore((s) => s.loadConversation);
+  // Set when the chat model called a memory tool this turn; background extraction then skips it.
+  const memoryToolUsedInTurnRef = useRef(false);
   const imageGenEnabled = useSettingsStore((s) => s.imageGenEnabled);
   const skillPickerOpen = useUIStore((s) => s.skillPickerOpen);
   const closeSkillPicker = useUIStore((s) => s.closeSkillPicker);
@@ -215,6 +222,7 @@ export const ChatScreen = React.memo(function ChatScreen({
     if (currentConvId) {
       const msgs = getMessages(currentConvId);
       setMessages(msgs);
+      loadMemoryEvents(currentConvId);
       setActiveConversation(currentConvId);
       // Load active skill from conversation
       const conv = getConversation(currentConvId);
@@ -225,10 +233,11 @@ export const ChatScreen = React.memo(function ChatScreen({
       }
     } else {
       setMessages([]);
+      loadMemoryEvents(null);
       setActiveConversation(null);
       setActiveSkillName(null);
     }
-  }, [currentConvId, setActiveConversation]);
+  }, [currentConvId, loadMemoryEvents, setActiveConversation]);
 
   // Handle app-based conversation creation
   useEffect(() => {
@@ -293,9 +302,10 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       // Append memory tool instruction when memory is enabled
       if (memoryEnabled) {
+        const memoryInstruction = getMemoryToolInstruction(memoryAutoEnabled);
         systemPrompt = systemPrompt
-          ? `${systemPrompt}\n\n${MEMORY_TOOL_INSTRUCTION}`
-          : MEMORY_TOOL_INSTRUCTION;
+          ? `${systemPrompt}\n\n${memoryInstruction}`
+          : memoryInstruction;
       }
 
       if (imageGenEnabled) {
@@ -387,6 +397,7 @@ export const ChatScreen = React.memo(function ChatScreen({
       // Reset usage accumulator for this response (accumulates across tool call rounds)
       if (toolRound === 0) {
         usageAccumRef.current = { promptTokens: 0, completionTokens: 0 };
+        memoryToolUsedInTurnRef.current = false;
       }
 
       const fireFirstTokenHaptic = () => {
@@ -472,6 +483,22 @@ export const ChatScreen = React.memo(function ChatScreen({
           )
         );
         stopStreaming();
+
+        // Learn from this exchange in the background, unless the model already
+        // handled memory itself via a tool this turn.
+        const lastUserMessage = [...fullMessages].reverse().find((m) => m.role === 'user');
+        if (accumulated.trim() && lastUserMessage && !memoryToolUsedInTurnRef.current) {
+          scheduleMemoryExtraction({
+            conversationId: convId,
+            userMessageId: lastUserMessage.id,
+            assistantMessageId: assistantMsgId,
+            userText: lastUserMessage.content,
+            assistantText: accumulated,
+            providerId,
+            apiKey,
+            chatModel: model,
+          });
+        }
       };
 
       const handleError = (error: Error) => {
@@ -555,6 +582,9 @@ export const ChatScreen = React.memo(function ChatScreen({
         startToolActivity(assistantMsgId, toolActivity);
 
         // Execute tool calls in parallel, then save results in model-emitted order.
+        if (toolCalls.some((call) => MEMORY_TOOL_NAMES.has(call.name))) {
+          memoryToolUsedInTurnRef.current = true;
+        }
         const outcomes = await Promise.all(
           toolCalls.map((tc) => executeToolCall(tc, { conversationId: convId }))
         );
@@ -608,7 +638,7 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       abortRef.current = response;
     },
-    [activeApp?.model, activeApp?.provider, lastModel, lastProvider, thinkingMode, webSearchEnabled, memoryEnabled, imageGenEnabled, activeSkillName, startStreaming, appendToken, appendReasoningToken, setStreamingActivity, setStreamingTokensPerSecond, startToolActivity, stopToolActivity, stopStreaming, setError]
+    [activeApp?.model, activeApp?.provider, lastModel, lastProvider, thinkingMode, webSearchEnabled, memoryEnabled, memoryAutoEnabled, imageGenEnabled, activeSkillName, startStreaming, appendToken, appendReasoningToken, setStreamingActivity, setStreamingTokensPerSecond, startToolActivity, stopToolActivity, stopStreaming, setError]
   );
 
   const handleSend = useCallback(

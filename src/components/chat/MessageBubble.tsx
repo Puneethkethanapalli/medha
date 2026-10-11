@@ -18,6 +18,7 @@ import { StreamingCursor } from './StreamingCursor';
 import { SearchResults } from './SearchResults';
 import { ToolResultCard } from './ToolResultCard';
 import { ChoiceCard } from './ChoiceCard';
+import { MemoryUpdateChip } from './MemoryUpdateChip';
 import { formatTokensPerSecond, parseResponseTokenMetrics, type ResponseTokenMetrics } from '@/lib/tokens/metrics';
 import type { AskUserChoiceSubmission } from '@/lib/tools/ask-user-choice';
 import type { Message } from '@/types';
@@ -334,6 +335,8 @@ export const MessageBubble = React.memo(function MessageBubble({
             )}
           </View>
         )}
+
+        {!isStreaming && <MemoryUpdateChip messageId={message.id} />}
       </View>
     </View>
   );
