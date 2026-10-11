@@ -1,7 +1,8 @@
 /**
  * Memory management screen — Sprint 14
  *
- * Users can view, search, add, pin, and delete memories.
+ * Users can view, search, add, edit, pin, and delete memories, and jump to
+ * the chat a memory was saved from.
  * Memories are facts/preferences the AI remembers across conversations.
  */
 
@@ -26,10 +27,12 @@ import {
   X,
   Zap,
   Search,
+  MessageSquare,
 } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useUIStore } from '@/stores/ui-store';
 import { useSettingsStore } from '@/stores/settings-store';
+import { getConversation } from '@/lib/db/conversations';
 import {
   getMemories,
   deleteMemory,
@@ -73,24 +76,51 @@ function Toggle({ value, onValueChange }: { value: boolean; onValueChange: (v: b
   );
 }
 
+function formatRelativeTime(timestamp: number): string {
+  const minutes = Math.floor((Date.now() - timestamp) / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(timestamp).toLocaleDateString();
+}
+
 /** A single memory card */
 function MemoryCard({
   memory,
+  sourceChatTitle,
+  onEdit,
   onTogglePin,
   onDelete,
+  onOpenSource,
 }: {
   memory: Memory;
+  /** Title of the chat the memory came from, if that chat still exists. */
+  sourceChatTitle: string | null;
+  onEdit: (memory: Memory) => void;
   onTogglePin: (id: string, pinned: boolean) => void;
   onDelete: (id: string) => void;
+  onOpenSource: (conversationId: string) => void;
 }) {
+  const usage = memory.hit_count > 0 && memory.last_used_at
+    ? `Used ${memory.hit_count}× · ${formatRelativeTime(memory.last_used_at)}`
+    : 'Not used yet';
+
   return (
-    <View className="bg-surface-container-low border border-outline-variant/20 rounded-xl p-4">
+    <Pressable
+      onPress={() => onEdit(memory)}
+      className="bg-surface-container-low border border-outline-variant/20 rounded-xl p-4 active:opacity-80"
+      accessibilityRole="button"
+      accessibilityHint="Edit memory"
+    >
       <View className="flex-row items-start gap-3">
         <View className="flex-1">
           <Text className="text-foreground text-[15px] leading-5">
             {memory.content}
           </Text>
-          <View className="flex-row items-center gap-2 mt-2.5">
+          <View className="flex-row flex-wrap items-center gap-2 mt-2.5">
             <View
               className="px-2 py-0.5 rounded-full bg-muted"
               style={{ borderWidth: 0 }}
@@ -104,11 +134,24 @@ function MemoryCard({
             </View>
             <View className="flex-row items-center gap-1">
               <Zap size={12} color="hsl(0, 0%, 44%)" />
-              <Text className="text-muted-foreground text-[11px]">
-                {memory.hit_count}
-              </Text>
+              <Text className="text-muted-foreground text-[11px]">{usage}</Text>
             </View>
           </View>
+          {memory.conversation_id && sourceChatTitle ? (
+            <Pressable
+              onPress={() => onOpenSource(memory.conversation_id!)}
+              hitSlop={6}
+              className="flex-row items-center gap-1 mt-2 self-start active:opacity-60"
+              accessibilityRole="link"
+            >
+              <MessageSquare size={12} color="hsl(0, 0%, 44%)" />
+              <Text className="text-muted-foreground text-[11px]" numberOfLines={1}>
+                From: {sourceChatTitle}
+              </Text>
+            </Pressable>
+          ) : memory.source === 'user' ? (
+            <Text className="text-muted-foreground text-[11px] mt-2">Added by you</Text>
+          ) : null}
         </View>
 
         <View className="flex-row items-center gap-1">
@@ -130,7 +173,7 @@ function MemoryCard({
           </Pressable>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -138,6 +181,7 @@ export default function MemoriesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const showToast = useUIStore((s) => s.showToast);
+  const setActiveConversation = useUIStore((s) => s.setActiveConversation);
   const memoryEnabled = useSettingsStore((s) => s.memoryEnabled);
   const setMemoryEnabled = useSettingsStore((s) => s.setMemoryEnabled);
 
@@ -145,7 +189,10 @@ export default function MemoriesScreen() {
   const [count, setCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [chatTitles, setChatTitles] = useState<Record<string, string>>({});
   const [addModalOpen, setAddModalOpen] = useState(false);
+  /** Memory being edited; null when the modal is adding a new one. */
+  const [editingMemory, setEditingMemory] = useState<Memory | null>(null);
   const [newContent, setNewContent] = useState('');
   const [newCategory, setNewCategory] = useState<MemoryCategory>('general');
 
@@ -153,6 +200,15 @@ export default function MemoriesScreen() {
     const all = getMemories();
     setMemories(all);
     setCount(getMemoryCount());
+
+    const titles: Record<string, string> = {};
+    for (const memory of all) {
+      const conversationId = memory.conversation_id;
+      if (!conversationId || conversationId in titles) continue;
+      const conversation = getConversation(conversationId);
+      if (conversation) titles[conversationId] = conversation.title || 'Untitled chat';
+    }
+    setChatTitles(titles);
   }, []);
 
   useEffect(() => {
@@ -191,15 +247,47 @@ export default function MemoriesScreen() {
     [loadMemories, showToast]
   );
 
-  const handleAddMemory = useCallback(() => {
-    if (!newContent.trim()) return;
-    addMemory(newContent.trim(), newCategory);
+  const openAddModal = useCallback(() => {
+    setEditingMemory(null);
     setNewContent('');
     setNewCategory('general');
+    setAddModalOpen(true);
+  }, []);
+
+  const openEditModal = useCallback((memory: Memory) => {
+    setEditingMemory(memory);
+    setNewContent(memory.content);
+    setNewCategory((memory.category as MemoryCategory) || 'general');
+    setAddModalOpen(true);
+  }, []);
+
+  const closeModal = useCallback(() => {
     setAddModalOpen(false);
+    setEditingMemory(null);
+  }, []);
+
+  const handleSaveMemory = useCallback(() => {
+    const content = newContent.trim().replace(/\s+/g, ' ');
+    if (!content) return;
+    if (editingMemory) {
+      updateMemory(editingMemory.id, { content, category: newCategory });
+    } else {
+      addMemory(content, newCategory, { source: 'user' });
+    }
+    setNewContent('');
+    setNewCategory('general');
+    closeModal();
     loadMemories();
-    showToast('Memory added');
-  }, [newContent, newCategory, loadMemories, showToast]);
+    showToast(editingMemory ? 'Memory updated' : 'Memory added');
+  }, [closeModal, editingMemory, newContent, newCategory, loadMemories, showToast]);
+
+  const handleOpenSource = useCallback(
+    (conversationId: string) => {
+      setActiveConversation(conversationId);
+      router.navigate(`/chat/${conversationId}` as any);
+    },
+    [router, setActiveConversation]
+  );
 
   return (
     <View className="flex-1 bg-background">
@@ -225,7 +313,7 @@ export default function MemoriesScreen() {
         </View>
 
         <Pressable
-          onPress={() => setAddModalOpen(true)}
+          onPress={openAddModal}
           className="w-10 h-10 items-center justify-center -mr-2"
         >
           <Plus size={22} color="hsl(0, 0%, 63%)" />
@@ -294,8 +382,11 @@ export default function MemoriesScreen() {
             <MemoryCard
               key={memory.id}
               memory={memory}
+              sourceChatTitle={memory.conversation_id ? chatTitles[memory.conversation_id] ?? null : null}
+              onEdit={openEditModal}
               onTogglePin={handleTogglePin}
               onDelete={handleDelete}
+              onOpenSource={handleOpenSource}
             />
           ))
         )}
@@ -306,15 +397,15 @@ export default function MemoriesScreen() {
         transparent
         animationType="fade"
         visible={addModalOpen}
-        onRequestClose={() => setAddModalOpen(false)}
+        onRequestClose={closeModal}
       >
         <View className="flex-1 bg-black/60 items-center justify-center px-6">
           <View className="w-full max-w-[360px] rounded-2xl bg-card border border-outline-variant/20 p-5">
             <View className="flex-row items-center justify-between mb-4">
               <Text className="text-foreground text-[18px] font-semibold">
-                Add Memory
+                {editingMemory ? 'Edit Memory' : 'Add Memory'}
               </Text>
-              <Pressable onPress={() => setAddModalOpen(false)} className="p-1">
+              <Pressable onPress={closeModal} className="p-1">
                 <X size={20} color="hsl(0, 0%, 63%)" />
               </Pressable>
             </View>
@@ -361,7 +452,7 @@ export default function MemoriesScreen() {
             </View>
 
             <Pressable
-              onPress={handleAddMemory}
+              onPress={handleSaveMemory}
               disabled={!newContent.trim()}
               className={`mt-5 h-12 rounded-xl items-center justify-center ${
                 newContent.trim() ? 'bg-foreground' : 'bg-muted'
@@ -372,7 +463,7 @@ export default function MemoriesScreen() {
                   newContent.trim() ? 'text-background' : 'text-muted-foreground'
                 }`}
               >
-                Add Memory
+                {editingMemory ? 'Save' : 'Add Memory'}
               </Text>
             </Pressable>
           </View>

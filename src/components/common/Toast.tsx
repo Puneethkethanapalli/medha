@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, View } from 'react-native';
+import { Animated, Easing, Pressable, View } from 'react-native';
 import { Check } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useUIStore } from '@/stores/ui-store';
@@ -7,6 +7,10 @@ import { useUIStore } from '@/stores/ui-store';
 interface ToastProps {
   bottomOffset?: number;
 }
+
+const TOAST_DURATION_MS = 2000;
+// Give people time to reach an action like "Undo".
+const ACTION_TOAST_DURATION_MS = 4500;
 
 export function Toast({ bottomOffset = 96 }: ToastProps) {
   const toast = useUIStore((s) => s.toast);
@@ -56,7 +60,7 @@ export function Toast({ bottomOffset = 96 }: ToastProps) {
           hideToast();
         }
       });
-    }, 2000);
+    }, toast.action ? ACTION_TOAST_DURATION_MS : TOAST_DURATION_MS);
 
     return () => {
       clearTimeout(timeout);
@@ -67,9 +71,17 @@ export function Toast({ bottomOffset = 96 }: ToastProps) {
     return null;
   }
 
+  const action = toast.action;
+  const handleActionPress = () => {
+    if (useUIStore.getState().toast?.id === toast.id) {
+      hideToast();
+    }
+    action?.onPress();
+  };
+
   return (
     <View
-      pointerEvents="none"
+      pointerEvents={action ? 'box-none' : 'none'}
       className="absolute left-0 right-0 items-center"
       style={{ bottom: bottomOffset }}
     >
@@ -79,6 +91,19 @@ export function Toast({ bottomOffset = 96 }: ToastProps) {
       >
         <Check size={15} color="hsl(240, 3.7%, 7.5%)" strokeWidth={2.5} />
         <Text className="text-background text-[13px] font-medium">{toast.message}</Text>
+        {action && (
+          <Pressable
+            onPress={handleActionPress}
+            hitSlop={10}
+            className="ml-1 active:opacity-60"
+            accessibilityRole="button"
+            accessibilityLabel={action.label}
+          >
+            <Text className="text-background text-[13px] font-semibold underline">
+              {action.label}
+            </Text>
+          </Pressable>
+        )}
       </Animated.View>
     </View>
   );

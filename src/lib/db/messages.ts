@@ -41,6 +41,19 @@ export function getMessages(conversationId: string): Message[] {
   }));
 }
 
+/** Content of the latest user messages in a conversation, newest first. */
+export function getRecentUserMessageContents(conversationId: string, limit: number): string[] {
+  const db = getDatabase();
+  const rows = db.getAllSync<{ content: string }>(
+    `SELECT content FROM messages
+     WHERE conversation_id = ? AND role = 'user' AND LENGTH(TRIM(content)) > 0
+     ORDER BY created_at DESC
+     LIMIT ?`,
+    [conversationId, limit]
+  );
+  return rows.map((row) => row.content);
+}
+
 export function updateMessage(
   id: string,
   fields: Partial<Pick<Message, 'content' | 'status' | 'tokens_used' | 'reasoning' | 'attachments' | 'tool_calls'>>

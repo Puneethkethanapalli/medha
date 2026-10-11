@@ -31,7 +31,8 @@ import { getProvider, registerBuiltInProviders, listProviders } from '@/lib/prov
 import { registerTool, listTools, getOpenAIToolSchemas, getAnthropicToolSchemas, getTool } from '@/lib/tools/registry';
 import { deepResearchTool, webSearchTool } from '@/lib/tools/web-search';
 import { generateImageTool } from '@/lib/tools/image-gen';
-import { saveMemoryTool, forgetMemoryTool } from '@/lib/tools/memory-tools';
+import { saveMemoryTool, updateMemoryTool, forgetMemoryTool } from '@/lib/tools/memory-tools';
+import { MEMORY_TOOL_INSTRUCTION } from '@/lib/memory/injector';
 import {
   ASK_USER_CHOICE_TOOL_NAME,
   askUserChoiceTool,
@@ -154,6 +155,9 @@ export const ChatScreen = React.memo(function ChatScreen({
     if (!getTool('save_memory')) {
       registerTool(saveMemoryTool);
     }
+    if (!getTool('update_memory')) {
+      registerTool(updateMemoryTool);
+    }
     if (!getTool('forget_memory')) {
       registerTool(forgetMemoryTool);
     }
@@ -273,7 +277,9 @@ export const ChatScreen = React.memo(function ChatScreen({
       let systemPrompt = composeSystemPrompt(
         convId,
         conversation?.system_prompt,
-        convActiveSkill
+        convActiveSkill,
+        // Tool follow-up rounds re-send the same turn; count memory use once.
+        { recordMemoryUse: toolRound === 0 }
       );
 
       // If active skill declares allowed-tools, scope tool access
@@ -287,11 +293,9 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       // Append memory tool instruction when memory is enabled
       if (memoryEnabled) {
-        const memoryInstruction =
-          'You have access to memory tools. When the user shares a personal preference, fact about themselves, or instruction for future conversations, use the save_memory tool to remember it. When they ask you to forget something, use the forget_memory tool.';
         systemPrompt = systemPrompt
-          ? `${systemPrompt}\n\n${memoryInstruction}`
-          : memoryInstruction;
+          ? `${systemPrompt}\n\n${MEMORY_TOOL_INSTRUCTION}`
+          : MEMORY_TOOL_INSTRUCTION;
       }
 
       if (imageGenEnabled) {
@@ -342,6 +346,7 @@ export const ChatScreen = React.memo(function ChatScreen({
       }
       if (memoryEnabled) {
         activeToolNames.push('save_memory');
+        activeToolNames.push('update_memory');
         activeToolNames.push('forget_memory');
       }
       if (imageGenEnabled) activeToolNames.push('generate_image');
@@ -550,7 +555,9 @@ export const ChatScreen = React.memo(function ChatScreen({
         startToolActivity(assistantMsgId, toolActivity);
 
         // Execute tool calls in parallel, then save results in model-emitted order.
-        const outcomes = await Promise.all(toolCalls.map((tc) => executeToolCall(tc)));
+        const outcomes = await Promise.all(
+          toolCalls.map((tc) => executeToolCall(tc, { conversationId: convId }))
+        );
         for (const outcome of outcomes) {
           addMessage(
             convId,

@@ -65,7 +65,8 @@ export function buildRulesContext(conversationId?: string | null): string {
 export function composeSystemPrompt(
   conversationId: string | null,
   customSystemPrompt?: string | null,
-  activeSkillName?: string | null
+  activeSkillName?: string | null,
+  options: { recordMemoryUse?: boolean } = {}
 ): string | undefined {
   const parts: string[] = [];
 
@@ -91,7 +92,10 @@ export function composeSystemPrompt(
 
   // Memory injection (Sprint 14)
   if (isMemoryEnabledSync()) {
-    const memory = buildMemoryContext();
+    const memory = buildMemoryContext({
+      conversationId,
+      recordUse: options.recordMemoryUse,
+    });
     if (memory) parts.push(memory);
   }
 

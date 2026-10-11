@@ -119,6 +119,18 @@ export function initializeDatabase(): void {
   database.runSync('CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category)');
   database.runSync('CREATE INDEX IF NOT EXISTS idx_memories_hits ON memories(hit_count DESC)');
 
+  // Memory provenance + real usage tracking
+  try {
+    database.runSync('ALTER TABLE memories ADD COLUMN conversation_id TEXT');
+  } catch {
+    // Column already exists — ignore
+  }
+  try {
+    database.runSync('ALTER TABLE memories ADD COLUMN last_used_at INTEGER');
+  } catch {
+    // Column already exists — ignore
+  }
+
   // Create token_usage table (Sprint 18)
   database.runSync(`
     CREATE TABLE IF NOT EXISTS token_usage (

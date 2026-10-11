@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import type { Attachment, Message } from '@/types';
 
+export interface ToastAction {
+  label: string;
+  onPress: () => void;
+}
+
 interface UIState {
   drawerOpen: boolean;
   modelPickerOpen: boolean;
@@ -12,6 +17,7 @@ interface UIState {
   toast: {
     id: number;
     message: string;
+    action?: ToastAction;
   } | null;
   // Message actions menu
   actionsMenuMessage: Message | null;
@@ -36,7 +42,7 @@ interface UIActions {
   openThemePicker: () => void;
   closeThemePicker: () => void;
   setActiveConversation: (id: string | null) => void;
-  showToast: (message: string) => void;
+  showToast: (message: string, action?: ToastAction) => void;
   hideToast: () => void;
   showActionsMenu: (message: Message) => void;
   hideActionsMenu: () => void;
@@ -72,7 +78,7 @@ export const useUIStore = create<UIState & UIActions>((set) => ({
   openThemePicker: () => set({ themePickerOpen: true }),
   closeThemePicker: () => set({ themePickerOpen: false }),
   setActiveConversation: (id) => set({ activeConversationId: id }),
-  showToast: (message) => set({ toast: { id: Date.now(), message } }),
+  showToast: (message, action) => set({ toast: { id: Date.now(), message, action } }),
   hideToast: () => set({ toast: null }),
   showActionsMenu: (message) => set({ actionsMenuMessage: message }),
   hideActionsMenu: () => set({ actionsMenuMessage: null }),

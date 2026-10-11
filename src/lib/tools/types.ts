@@ -57,11 +57,16 @@ export interface ToolDisplay {
   metadata?: ToolDisplayMeta[];
 }
 
+/** Where a tool call is running. Tools that don't need it can ignore it. */
+export interface ToolExecutionContext {
+  conversationId?: string | null;
+}
+
 export interface ToolDefinition {
   name: string;
   description: string;
   parameters: Record<string, ToolParameter>;
-  execute: (args: Record<string, unknown>) => Promise<ToolResult>;
+  execute: (args: Record<string, unknown>, context: ToolExecutionContext) => Promise<ToolResult>;
 }
 
 /**

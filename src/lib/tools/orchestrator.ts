@@ -1,6 +1,6 @@
 import type { AccumulatedToolCall } from '@/lib/streaming/stream';
 import { getTool } from './registry';
-import type { ToolDisplay, ToolResult } from './types';
+import type { ToolDisplay, ToolExecutionContext, ToolResult } from './types';
 import { ToolValidationError, validateToolArguments } from './validation';
 
 const DEFAULT_TOOL_TIMEOUT_MS = 45_000;
@@ -15,6 +15,7 @@ export interface ToolExecutionOutcome {
 
 export async function executeToolCall(
   toolCall: AccumulatedToolCall,
+  context: ToolExecutionContext = {},
   timeoutMs: number = DEFAULT_TOOL_TIMEOUT_MS
 ): Promise<ToolExecutionOutcome> {
   const startedAt = Date.now();
@@ -30,7 +31,7 @@ export async function executeToolCall(
 
   try {
     const validatedArgs = validateToolArguments(tool, toolCall.arguments);
-    const result = await withTimeout(tool.execute(validatedArgs), timeoutMs, tool.name);
+    const result = await withTimeout(tool.execute(validatedArgs, context), timeoutMs, tool.name);
     const durationMs = Date.now() - startedAt;
     const display = normalizeDisplay(tool.name, result, durationMs);
 
