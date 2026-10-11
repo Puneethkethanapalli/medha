@@ -17,6 +17,7 @@ const KEYS = {
   webSearchEnabled: 'medha:webSearchEnabled',
   globalRules: 'medha:globalRules',
   memoryEnabled: 'medha:memoryEnabled',
+  memoryIntroSeen: 'medha:memoryIntroSeen',
   memoryAutoEnabled: 'medha:memoryAutoEnabled',
   memoryChatHistoryEnabled: 'medha:memoryChatHistoryEnabled',
   memoryProfile: 'medha:memoryProfile',
@@ -198,15 +199,30 @@ export const DEFAULT_RULES: RuleItem[] = [
   { id: 'preset-formal', label: 'Use formal tone', description: 'Always use a formal, professional tone. Avoid slang and contractions.', enabled: false, isCustom: false },
 ];
 
-// Memory enabled
+// Memory enabled — on by default; only an explicit "off" disables it
 export async function isMemoryEnabled(): Promise<boolean> {
   const value = await AsyncStorage.getItem(KEYS.memoryEnabled);
-  return value === 'true';
+  return value !== 'false';
 }
 
 export async function setMemoryEnabled(enabled: boolean): Promise<void> {
   await AsyncStorage.setItem(KEYS.memoryEnabled, String(enabled));
   _memoryEnabled = enabled;
+}
+
+// One-time "Memory is on" notice
+export async function isMemoryIntroSeen(): Promise<boolean> {
+  const [seen, enabled] = await Promise.all([
+    AsyncStorage.getItem(KEYS.memoryIntroSeen),
+    AsyncStorage.getItem(KEYS.memoryEnabled),
+  ]);
+  // Someone who switched memory on themselves already knows about it.
+  return seen === 'true' || enabled === 'true';
+}
+
+export async function setMemoryIntroSeen(seen: boolean): Promise<void> {
+  await AsyncStorage.setItem(KEYS.memoryIntroSeen, String(seen));
+  _memoryIntroSeen = seen;
 }
 
 // Learn memories from chats automatically (on by default once memory is enabled)
@@ -291,7 +307,8 @@ let _thinkingMode: ThinkingMode = 'auto';
 let _customCommands: StoredCustomCommand[] = [];
 let _webSearchEnabled = false;
 let _globalRules: RuleItem[] = DEFAULT_RULES.map((r) => ({ ...r }));
-let _memoryEnabled = false;
+let _memoryEnabled = true;
+let _memoryIntroSeen = false;
 let _memoryAutoEnabled = true;
 let _memoryChatHistoryEnabled = true;
 let _memoryProfile: MemoryProfile | null = null;
@@ -342,6 +359,10 @@ export function getGlobalRulesSync(): RuleItem[] {
 
 export function isMemoryEnabledSync(): boolean {
   return _memoryEnabled;
+}
+
+export function isMemoryIntroSeenSync(): boolean {
+  return _memoryIntroSeen;
 }
 
 export function isMemoryAutoEnabledSync(): boolean {
@@ -396,6 +417,7 @@ export async function initStorage(): Promise<void> {
   const globalRules = await getGlobalRules();
   const memoryEnabled = await isMemoryEnabled();
   const memoryAutoEnabled = await isMemoryAutoEnabled();
+  const memoryIntroSeen = await isMemoryIntroSeen();
   const memoryChatHistoryEnabled = await isMemoryChatHistoryEnabled();
   const memoryProfile = await getMemoryProfile();
   const imageGenService = await getImageGenService();
@@ -413,6 +435,7 @@ export async function initStorage(): Promise<void> {
   _globalRules = globalRules;
   _memoryEnabled = memoryEnabled;
   _memoryAutoEnabled = memoryAutoEnabled;
+  _memoryIntroSeen = memoryIntroSeen;
   _memoryChatHistoryEnabled = memoryChatHistoryEnabled;
   _memoryProfile = memoryProfile;
   _imageGenService = imageGenService;

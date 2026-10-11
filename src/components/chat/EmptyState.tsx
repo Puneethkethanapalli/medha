@@ -32,9 +32,11 @@ interface EmptyStateProps {
   appGreeting?: string | null;
   /** App-specific suggestion prompts (overrides defaults) */
   appPrompts?: string[];
+  /** Optional content under the suggestions, e.g. a one-time notice */
+  footer?: React.ReactNode;
 }
 
-export function EmptyState({ onSuggestionPress, appName, appGreeting, appPrompts }: EmptyStateProps) {
+export function EmptyState({ onSuggestionPress, appName, appGreeting, appPrompts, footer }: EmptyStateProps) {
   const suggestions = appPrompts && appPrompts.length > 0
     ? appPrompts.map((text) => ({ icon: Lightbulb, text }))
     : DEFAULT_SUGGESTIONS;
@@ -76,6 +78,8 @@ export function EmptyState({ onSuggestionPress, appName, appGreeting, appPrompts
           );
         })}
       </View>
+
+      {footer ? <View className="w-full max-w-sm mt-4">{footer}</View> : null}
     </View>
   );
 }

@@ -14,6 +14,7 @@ import { MessageActionsMenu } from '@/components/chat/MessageActionsMenu';
 import { OfflineBanner } from '@/components/chat/OfflineBanner';
 import { InputBar } from '@/components/chat/InputBar';
 import { EmptyState } from '@/components/chat/EmptyState';
+import { MemoryIntroCard } from '@/components/chat/MemoryIntroCard';
 import { Toast } from '@/components/common/Toast';
 import { SkillPicker } from '@/components/skills/SkillPicker';
 import { useChatStore } from '@/stores/chat-store';
@@ -1108,6 +1109,7 @@ export const ChatScreen = React.memo(function ChatScreen({
             appName={activeApp?.name}
             appGreeting={activeApp?.greeting}
             appPrompts={activeApp?.example_prompts ? parseExamplePrompts(activeApp.example_prompts) : undefined}
+            footer={pendingTemporaryChat ? null : <MemoryIntroCard />}
           />
         )}
       </View>

@@ -13,6 +13,7 @@ interface SettingsState {
   globalRules: RuleItem[];
   memoryEnabled: boolean;
   memoryAutoEnabled: boolean;
+  memoryIntroSeen: boolean;
   memoryChatHistoryEnabled: boolean;
   memoryProfile: MemoryProfile | null;
   imageGenEnabled: boolean;
@@ -32,6 +33,7 @@ interface SettingsActions {
   setGlobalRules: (rules: RuleItem[]) => Promise<void>;
   setMemoryEnabled: (enabled: boolean) => Promise<void>;
   setMemoryAutoEnabled: (enabled: boolean) => Promise<void>;
+  setMemoryIntroSeen: (seen: boolean) => Promise<void>;
   setMemoryChatHistoryEnabled: (enabled: boolean) => Promise<void>;
   setMemoryProfile: (profile: MemoryProfile | null) => Promise<void>;
   setImageGenEnabled: (enabled: boolean) => Promise<void>;
@@ -69,8 +71,9 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
   thinkingMode: 'auto' as ThinkingMode,
   webSearchEnabled: false,
   globalRules: [],
-  memoryEnabled: false,
+  memoryEnabled: true,
   memoryAutoEnabled: true,
+  memoryIntroSeen: false,
   memoryChatHistoryEnabled: true,
   memoryProfile: null,
   imageGenEnabled: false,
@@ -154,6 +157,12 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
     set({ memoryAutoEnabled: enabled });
   },
 
+  setMemoryIntroSeen: async (seen) => {
+    set({ memoryIntroSeen: seen });
+    await loadModules();
+    await mmkv!.setMemoryIntroSeen(seen);
+  },
+
   setMemoryChatHistoryEnabled: async (enabled) => {
     await loadModules();
     await mmkv!.setMemoryChatHistoryEnabled(enabled);
@@ -199,6 +208,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
       globalRules: mmkv!.getGlobalRulesSync(),
       memoryEnabled: mmkv!.isMemoryEnabledSync(),
       memoryAutoEnabled: mmkv!.isMemoryAutoEnabledSync(),
+      memoryIntroSeen: mmkv!.isMemoryIntroSeenSync(),
       memoryChatHistoryEnabled: mmkv!.isMemoryChatHistoryEnabledSync(),
       memoryProfile: mmkv!.getMemoryProfileSync(),
       imageGenEnabled: mmkv!.isImageGenEnabledSync(),
