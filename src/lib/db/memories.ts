@@ -184,6 +184,24 @@ export function searchMemories(query: string): Memory[] {
   );
 }
 
+/** Count and newest update time, used to detect whether memories changed. */
+export function getMemoryStats(): { count: number; latestUpdate: number } {
+  const db = getDatabase();
+  const row = db.getFirstSync<{ count: number; latest: number | null }>(
+    'SELECT COUNT(*) AS count, MAX(updated_at) AS latest FROM memories'
+  );
+  return { count: row?.count ?? 0, latestUpdate: row?.latest ?? 0 };
+}
+
+export function countMemoriesUpdatedSince(timestamp: number): number {
+  const db = getDatabase();
+  const row = db.getFirstSync<{ count: number }>(
+    'SELECT COUNT(*) AS count FROM memories WHERE updated_at > ?',
+    [timestamp]
+  );
+  return row?.count ?? 0;
+}
+
 export function getMemoryCount(): number {
   const db = getDatabase();
   const result = db.getFirstSync<{ count: number }>('SELECT COUNT(*) as count FROM memories');

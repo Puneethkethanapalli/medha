@@ -34,6 +34,8 @@ import { generateImageTool } from '@/lib/tools/image-gen';
 import { saveMemoryTool, updateMemoryTool, forgetMemoryTool } from '@/lib/tools/memory-tools';
 import { getMemoryToolInstruction } from '@/lib/memory/injector';
 import { scheduleMemoryExtraction } from '@/lib/memory/extractor';
+import { scheduleProfileRefresh } from '@/lib/memory/profile';
+import { searchPastChatsTool, recentChatsTool, CHAT_HISTORY_TOOL_INSTRUCTION } from '@/lib/tools/chat-history-tools';
 import { useMemoryEventsStore } from '@/stores/memory-events-store';
 import {
   ASK_USER_CHOICE_TOOL_NAME,
@@ -105,6 +107,7 @@ export const ChatScreen = React.memo(function ChatScreen({
   const webSearchEnabled = useSettingsStore((s) => s.webSearchEnabled);
   const memoryEnabled = useSettingsStore((s) => s.memoryEnabled);
   const memoryAutoEnabled = useSettingsStore((s) => s.memoryAutoEnabled);
+  const memoryChatHistoryEnabled = useSettingsStore((s) => s.memoryChatHistoryEnabled);
   const loadMemoryEvents = useMemoryEventsStore((s) => s.loadConversation);
   // Set when the chat model called a memory tool this turn; background extraction then skips it.
   const memoryToolUsedInTurnRef = useRef(false);
@@ -164,6 +167,12 @@ export const ChatScreen = React.memo(function ChatScreen({
     }
     if (!getTool('update_memory')) {
       registerTool(updateMemoryTool);
+    }
+    if (!getTool('search_past_chats')) {
+      registerTool(searchPastChatsTool);
+    }
+    if (!getTool('recent_chats')) {
+      registerTool(recentChatsTool);
     }
     if (!getTool('forget_memory')) {
       registerTool(forgetMemoryTool);
@@ -302,7 +311,10 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       // Append memory tool instruction when memory is enabled
       if (memoryEnabled) {
-        const memoryInstruction = getMemoryToolInstruction(memoryAutoEnabled);
+        let memoryInstruction = getMemoryToolInstruction(memoryAutoEnabled);
+        if (memoryChatHistoryEnabled) {
+          memoryInstruction = `${memoryInstruction}\n${CHAT_HISTORY_TOOL_INSTRUCTION}`;
+        }
         systemPrompt = systemPrompt
           ? `${systemPrompt}\n\n${memoryInstruction}`
           : memoryInstruction;
@@ -358,6 +370,10 @@ export const ChatScreen = React.memo(function ChatScreen({
         activeToolNames.push('save_memory');
         activeToolNames.push('update_memory');
         activeToolNames.push('forget_memory');
+        if (memoryChatHistoryEnabled) {
+          activeToolNames.push('search_past_chats');
+          activeToolNames.push('recent_chats');
+        }
       }
       if (imageGenEnabled) activeToolNames.push('generate_image');
 
@@ -499,6 +515,14 @@ export const ChatScreen = React.memo(function ChatScreen({
             chatModel: model,
           });
         }
+        if (accumulated.trim()) {
+          scheduleProfileRefresh({
+            providerId,
+            apiKey,
+            chatModel: model,
+            usageTarget: { conversationId: convId, messageId: assistantMsgId },
+          });
+        }
       };
 
       const handleError = (error: Error) => {
@@ -638,7 +662,7 @@ export const ChatScreen = React.memo(function ChatScreen({
 
       abortRef.current = response;
     },
-    [activeApp?.model, activeApp?.provider, lastModel, lastProvider, thinkingMode, webSearchEnabled, memoryEnabled, memoryAutoEnabled, imageGenEnabled, activeSkillName, startStreaming, appendToken, appendReasoningToken, setStreamingActivity, setStreamingTokensPerSecond, startToolActivity, stopToolActivity, stopStreaming, setError]
+    [activeApp?.model, activeApp?.provider, lastModel, lastProvider, thinkingMode, webSearchEnabled, memoryEnabled, memoryAutoEnabled, memoryChatHistoryEnabled, imageGenEnabled, activeSkillName, startStreaming, appendToken, appendReasoningToken, setStreamingActivity, setStreamingTokensPerSecond, startToolActivity, stopToolActivity, stopStreaming, setError]
   );
 
   const handleSend = useCallback(

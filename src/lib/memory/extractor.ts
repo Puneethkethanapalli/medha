@@ -11,7 +11,7 @@ import { getMemories, type Memory } from '@/lib/db/memories';
 import { addMemoryEvent, type MemoryEvent } from '@/lib/db/memory-events';
 import { recordUsage } from '@/lib/db/token-usage';
 import { completeText } from '@/lib/llm/complete';
-import { getCachedModelList } from '@/lib/models/model-list-cache';
+import { pickFastModel } from '@/lib/llm/fast-model';
 import {
   normalizeMemoryCategory,
   normalizeMemoryContent,
@@ -21,6 +21,7 @@ import {
   saveMemory,
 } from '@/lib/memory/operations';
 import { tokenize } from '@/lib/memory/retrieval';
+import { enqueueMemoryTask } from '@/lib/memory/queue';
 import { isMemoryAutoEnabledSync, isMemoryEnabledSync } from '@/lib/storage/mmkv';
 import { calculateCost } from '@/lib/tokens/pricing';
 import { useMemoryEventsStore } from '@/stores/memory-events-store';
@@ -46,25 +47,6 @@ const TRIVIAL_TOKENS = new Set([
  */
 const FORGET_CUES =
   /\b(forget|remove|delete|erase|no longer|not anymore|isn'?t true|is not true|not true anymore|wrong|incorrect|stop remembering)\b/i;
-
-/**
- * Fast, cheap models tried first for each provider. A candidate is only used
- * when it appears in the provider's cached model list; otherwise the chat
- * model is used, which is guaranteed to work with the user's key.
- */
-const FAST_MODEL_CANDIDATES: Record<string, string[]> = {
-  openrouter: [
-    'google/gemini-2.5-flash-lite',
-    'openai/gpt-4.1-mini',
-    'google/gemini-2.5-flash',
-    'openai/gpt-4o-mini',
-    'anthropic/claude-haiku-4.5',
-  ],
-  openai: ['gpt-5.4-nano', 'gpt-5.4-mini', 'gpt-4.1-mini', 'gpt-4o-mini'],
-  'openai-codex': ['gpt-5.4-mini', 'gpt-5.1-codex-mini'],
-  anthropic: ['claude-haiku-5-5', 'claude-haiku-4-5', 'claude-3-5-haiku-latest'],
-  'google-ai': ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-flash'],
-};
 
 const EXTRACTION_SYSTEM_PROMPT = `You maintain long-term memory about the user for an AI assistant. You see the user's saved memories and their latest exchange with the assistant, and decide whether the memories should change.
 
@@ -108,7 +90,6 @@ interface RawOperation {
   category?: unknown;
 }
 
-let queue: Promise<void> = Promise.resolve();
 const processedUserMessages = new Set<string>();
 
 /**
@@ -122,11 +103,7 @@ export function scheduleMemoryExtraction(request: MemoryExtractionRequest): void
   if (!isWorthExtracting(request.userText)) return;
 
   processedUserMessages.add(request.userMessageId);
-  queue = queue
-    .then(() => runExtraction(request))
-    .catch((error) => {
-      if (__DEV__) console.warn('[memory] extraction failed:', error);
-    });
+  enqueueMemoryTask('extraction', () => runExtraction(request));
 }
 
 export function isWorthExtracting(userText: string): boolean {
@@ -136,7 +113,7 @@ export function isWorthExtracting(userText: string): boolean {
 async function runExtraction(request: MemoryExtractionRequest): Promise<void> {
   const memories = getMemories();
   const shown = pickMemoriesForPrompt(memories, `${request.userText}\n${request.assistantText}`);
-  const model = await pickExtractionModel(request.providerId, request.chatModel);
+  const model = await pickFastModel(request.providerId, request.chatModel);
 
   const { text, usage } = await completeText({
     providerId: request.providerId,
@@ -186,19 +163,6 @@ export function pickMemoriesForPrompt(memories: Memory[], exchange: string): Mem
     picked.set(memory.id, memory);
   }
   return Array.from(picked.values());
-}
-
-async function pickExtractionModel(providerId: string, chatModel: string): Promise<string> {
-  const candidates = FAST_MODEL_CANDIDATES[providerId];
-  if (!candidates) return chatModel;
-
-  try {
-    const cached = await getCachedModelList(providerId);
-    const available = new Set((cached?.models ?? []).map((model) => model.id));
-    return candidates.find((candidate) => available.has(candidate)) ?? chatModel;
-  } catch {
-    return chatModel;
-  }
 }
 
 function truncate(text: string, maxChars: number): string {

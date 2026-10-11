@@ -9,6 +9,7 @@
 import { getMemories, markMemoriesUsed, shortMemoryId, type Memory } from '@/lib/db/memories';
 import { getRecentUserMessageContents } from '@/lib/db/messages';
 import { selectMemories } from '@/lib/memory/retrieval';
+import { getMemoryProfileSync } from '@/lib/storage/mmkv';
 
 /** Rough token estimate: ~4 chars per English token */
 function estimateTokens(text: string): number {
@@ -48,6 +49,18 @@ function formatDate(timestamp: number): string {
 function formatMemoryLine(memory: Memory): string {
   const pin = memory.pinned ? ' · pinned' : '';
   return `- [${shortMemoryId(memory.id)} · ${formatDate(memory.updated_at)}${pin}] ${memory.content}`;
+}
+
+/** The user profile summary block, or empty string if there's no profile yet. */
+export function buildProfileContext(): string {
+  const content = getMemoryProfileSync()?.content.trim();
+  if (!content) return '';
+  return [
+    '[User Profile]',
+    "A summary of who the user is. Use it to personalize answers; don't recite it.",
+    content,
+    '[/User Profile]',
+  ].join('\n');
 }
 
 export interface BuildMemoryContextOptions {

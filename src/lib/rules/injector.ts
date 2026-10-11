@@ -10,7 +10,7 @@
 
 import { getConversation } from '@/lib/db/conversations';
 import { getGlobalRulesSync, type RuleItem, DEFAULT_RULES, isMemoryEnabledSync } from '@/lib/storage/mmkv';
-import { buildMemoryContext } from '@/lib/memory/injector';
+import { buildMemoryContext, buildProfileContext } from '@/lib/memory/injector';
 import { buildProjectContext } from '@/lib/projects/context';
 import { buildSkillCatalog, buildSkillCatalogInstruction, getActiveSkillContent } from '@/lib/skills/injector';
 
@@ -92,6 +92,9 @@ export function composeSystemPrompt(
 
   // Memory injection (Sprint 14)
   if (isMemoryEnabledSync()) {
+    const profile = buildProfileContext();
+    if (profile) parts.push(profile);
+
     const memory = buildMemoryContext({
       conversationId,
       recordUse: options.recordMemoryUse,

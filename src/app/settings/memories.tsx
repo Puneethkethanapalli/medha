@@ -14,6 +14,7 @@ import {
   TextInput,
   Alert,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -29,11 +30,18 @@ import {
   Search,
   MessageSquare,
   Sparkles,
+  History,
+  UserRound,
+  Pencil,
+  RefreshCw,
 } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useUIStore } from '@/stores/ui-store';
 import { useSettingsStore } from '@/stores/settings-store';
 import { getConversation } from '@/lib/db/conversations';
+import { getApiKey } from '@/lib/storage/secure';
+import { generateMemoryProfile } from '@/lib/memory/profile';
+import type { MemoryProfile } from '@/lib/storage/mmkv';
 import {
   getMemories,
   deleteMemory,
@@ -74,6 +82,100 @@ function Toggle({ value, onValueChange }: { value: boolean; onValueChange: (v: b
         }`}
       />
     </Pressable>
+  );
+}
+
+function SettingToggleRow({
+  icon: Icon,
+  title,
+  description,
+  value,
+  onValueChange,
+}: {
+  icon: React.ComponentType<{ size: number; color: string }>;
+  title: string;
+  description: string;
+  value: boolean;
+  onValueChange: (value: boolean) => void;
+}) {
+  return (
+    <View className="flex-row items-center bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3.5">
+      <Icon size={20} color="hsl(0, 0%, 63%)" />
+      <View className="flex-1 ml-3 mr-3">
+        <Text className="text-foreground text-[15px] font-medium">{title}</Text>
+        <Text className="text-on-surface-variant text-[12px] mt-0.5">{description}</Text>
+      </View>
+      <Toggle value={value} onValueChange={onValueChange} />
+    </View>
+  );
+}
+
+/** The always-injected profile summary, with edit and regenerate. */
+function ProfileCard({
+  profile,
+  regenerating,
+  onEdit,
+  onRegenerate,
+}: {
+  profile: MemoryProfile | null;
+  regenerating: boolean;
+  onEdit: () => void;
+  onRegenerate: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const content = profile?.content.trim() ?? '';
+  // Headings come back as **bold** markdown; show them as plain text here.
+  const displayContent = content.replace(/\*\*/g, '');
+  const status = !profile
+    ? 'Not created yet'
+    : profile.userEdited
+      ? 'Edited by you · automatic updates paused'
+      : `Updated ${formatRelativeTime(profile.generatedAt)}`;
+
+  return (
+    <View className="bg-surface-container-low border border-outline-variant/20 rounded-xl p-4">
+      <View className="flex-row items-center">
+        <UserRound size={18} color="hsl(0, 0%, 63%)" />
+        <View className="flex-1 ml-3">
+          <Text className="text-foreground text-[15px] font-medium">Profile</Text>
+          <Text className="text-on-surface-variant text-[11px] mt-0.5">{status}</Text>
+        </View>
+        <Pressable onPress={onEdit} className="p-2" accessibilityRole="button" accessibilityLabel="Edit profile">
+          <Pencil size={16} color="hsl(0, 0%, 44%)" />
+        </Pressable>
+        <Pressable
+          onPress={onRegenerate}
+          disabled={regenerating}
+          className="p-2"
+          accessibilityRole="button"
+          accessibilityLabel="Regenerate profile"
+        >
+          {regenerating ? (
+            <ActivityIndicator size="small" color="hsl(0, 0%, 44%)" />
+          ) : (
+            <RefreshCw size={16} color="hsl(0, 0%, 44%)" />
+          )}
+        </Pressable>
+      </View>
+
+      {content ? (
+        <Pressable onPress={() => setExpanded((value) => !value)} className="mt-3">
+          <Text
+            className="text-foreground text-[13px] leading-5"
+            numberOfLines={expanded ? undefined : 6}
+          >
+            {displayContent}
+          </Text>
+          <Text className="text-muted-foreground text-[12px] mt-1.5">
+            {expanded ? 'Show less' : 'Show more'}
+          </Text>
+        </Pressable>
+      ) : (
+        <Text className="text-on-surface-variant text-[12px] mt-3 leading-4">
+          {"A short summary of you, included in every chat. It's written automatically once Medha has learned a few things about you, or tap regenerate."}
+        </Text>
+      )}
+    </View>
   );
 }
 
@@ -189,6 +291,13 @@ export default function MemoriesScreen() {
   const setMemoryEnabled = useSettingsStore((s) => s.setMemoryEnabled);
   const memoryAutoEnabled = useSettingsStore((s) => s.memoryAutoEnabled);
   const setMemoryAutoEnabled = useSettingsStore((s) => s.setMemoryAutoEnabled);
+  const memoryChatHistoryEnabled = useSettingsStore((s) => s.memoryChatHistoryEnabled);
+  const setMemoryChatHistoryEnabled = useSettingsStore((s) => s.setMemoryChatHistoryEnabled);
+  const memoryProfile = useSettingsStore((s) => s.memoryProfile);
+  const setMemoryProfile = useSettingsStore((s) => s.setMemoryProfile);
+  const [regeneratingProfile, setRegeneratingProfile] = useState(false);
+  const [profileEditorOpen, setProfileEditorOpen] = useState(false);
+  const [profileDraft, setProfileDraft] = useState('');
 
   const [memories, setMemories] = useState<Memory[]>([]);
   const [count, setCount] = useState(0);
@@ -286,6 +395,66 @@ export default function MemoriesScreen() {
     showToast(editingMemory ? 'Memory updated' : 'Memory added');
   }, [closeModal, editingMemory, newContent, newCategory, loadMemories, showToast]);
 
+  const openProfileEditor = useCallback(() => {
+    setProfileDraft(useSettingsStore.getState().memoryProfile?.content ?? '');
+    setProfileEditorOpen(true);
+  }, []);
+
+  const handleSaveProfile = useCallback(() => {
+    const content = profileDraft.trim();
+    const current = useSettingsStore.getState().memoryProfile;
+    setProfileEditorOpen(false);
+    if (!content) {
+      void setMemoryProfile(null);
+      showToast('Profile cleared');
+      return;
+    }
+    if (content === current?.content.trim()) return;
+    void setMemoryProfile({
+      content,
+      generatedAt: current?.generatedAt ?? Date.now(),
+      fingerprint: current?.fingerprint ?? '',
+      model: current?.model,
+      userEdited: true,
+    });
+    showToast('Profile saved');
+  }, [profileDraft, setMemoryProfile, showToast]);
+
+  const handleRegenerateProfile = useCallback(async () => {
+    const { lastProvider, lastModel } = useSettingsStore.getState();
+    if (!lastProvider || !lastModel) {
+      Alert.alert('Choose a model first', 'Pick a model in a chat, then try again.');
+      return;
+    }
+    const apiKey = await getApiKey(lastProvider);
+    if (!apiKey) {
+      Alert.alert('No API key', 'Add an API key for your current provider in Settings.');
+      return;
+    }
+
+    setRegeneratingProfile(true);
+    try {
+      const profile = await generateMemoryProfile({
+        providerId: lastProvider,
+        apiKey,
+        chatModel: lastModel,
+        force: true,
+      });
+      if (profile) {
+        showToast('Profile updated');
+      } else {
+        Alert.alert('Nothing to summarize yet', 'Chat a little or add a few memories first.');
+      }
+    } catch (error) {
+      Alert.alert(
+        "Couldn't update profile",
+        error instanceof Error ? error.message : 'Something went wrong. Try again.'
+      );
+    } finally {
+      setRegeneratingProfile(false);
+    }
+  }, [showToast]);
+
   const handleOpenSource = useCallback(
     (conversationId: string) => {
       setActiveConversation(conversationId);
@@ -325,40 +494,53 @@ export default function MemoriesScreen() {
         </Pressable>
       </View>
 
-      {/* Memory toggle */}
-      <View className="mx-4 mt-3 mb-1 flex-row items-center bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3.5">
-        <Brain size={20} color="hsl(0, 0%, 63%)" />
-        <View className="flex-1 ml-3">
-          <Text className="text-foreground text-[15px] font-medium">Memory</Text>
-          <Text className="text-on-surface-variant text-[12px] mt-0.5">
-            Let AI remember facts across conversations
-          </Text>
-        </View>
-        <Toggle
+      <ScrollView
+        className="flex-1 px-4"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{
+          paddingTop: 12,
+          paddingBottom: Math.max(insets.bottom, 20) + 40,
+          gap: 10,
+        }}
+      >
+        {/* Memory toggles */}
+        <SettingToggleRow
+          icon={Brain}
+          title="Memory"
+          description="Let AI remember facts across conversations"
           value={memoryEnabled}
           onValueChange={(v) => {
             setMemoryEnabled(v);
             showToast(v ? 'Memory enabled' : 'Memory disabled');
           }}
         />
-      </View>
+        {memoryEnabled && (
+          <>
+            <SettingToggleRow
+              icon={Sparkles}
+              title="Learn from chats"
+              description="After each reply, a fast model from your provider picks out lasting facts and keeps your profile up to date"
+              value={memoryAutoEnabled}
+              onValueChange={setMemoryAutoEnabled}
+            />
+            <SettingToggleRow
+              icon={History}
+              title="Reference chat history"
+              description="Let AI search your past chats when relevant. Excerpts are sent to whichever provider you're chatting with."
+              value={memoryChatHistoryEnabled}
+              onValueChange={setMemoryChatHistoryEnabled}
+            />
+            <ProfileCard
+              profile={memoryProfile}
+              regenerating={regeneratingProfile}
+              onEdit={openProfileEditor}
+              onRegenerate={handleRegenerateProfile}
+            />
+          </>
+        )}
 
-      {memoryEnabled && (
-        <View className="mx-4 mt-2 mb-1 flex-row items-center bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3.5">
-          <Sparkles size={20} color="hsl(0, 0%, 63%)" />
-          <View className="flex-1 ml-3">
-            <Text className="text-foreground text-[15px] font-medium">Learn from chats</Text>
-            <Text className="text-on-surface-variant text-[12px] mt-0.5">
-              After each reply, a fast model from your provider picks out lasting facts and preferences
-            </Text>
-          </View>
-          <Toggle value={memoryAutoEnabled} onValueChange={setMemoryAutoEnabled} />
-        </View>
-      )}
-
-      {/* Search bar */}
-      <View className="px-4 py-3">
-        <View className="flex-row items-center bg-surface-container-low border border-outline-variant/20 rounded-xl px-3 py-2.5">
+        {/* Search bar */}
+        <View className="flex-row items-center bg-surface-container-low border border-outline-variant/20 rounded-xl px-3 py-2.5 mt-1">
           <Search size={18} color="hsl(0, 0%, 44%)" />
           <TextInput
             value={searchQuery}
@@ -373,16 +555,8 @@ export default function MemoriesScreen() {
             </Pressable>
           )}
         </View>
-      </View>
 
-      {/* Memory list */}
-      <ScrollView
-        className="flex-1 px-4"
-        contentContainerStyle={{
-          paddingBottom: Math.max(insets.bottom, 20) + 40,
-          gap: 10,
-        }}
-      >
+        {/* Memory list */}
         {filteredMemories.length === 0 ? (
           <View className="items-center justify-center py-20">
             <Brain size={48} color="hsl(0, 0%, 30%)" />
@@ -409,6 +583,45 @@ export default function MemoriesScreen() {
           ))
         )}
       </ScrollView>
+
+      {/* Edit Profile Modal */}
+      <Modal
+        transparent
+        animationType="fade"
+        visible={profileEditorOpen}
+        onRequestClose={() => setProfileEditorOpen(false)}
+      >
+        <View className="flex-1 bg-black/60 items-center justify-center px-6">
+          <View className="w-full max-w-[420px] rounded-2xl bg-card border border-outline-variant/20 p-5">
+            <View className="flex-row items-center justify-between mb-2">
+              <Text className="text-foreground text-[18px] font-semibold">Edit Profile</Text>
+              <Pressable onPress={() => setProfileEditorOpen(false)} className="p-1">
+                <X size={20} color="hsl(0, 0%, 63%)" />
+              </Pressable>
+            </View>
+            <Text className="text-on-surface-variant text-[12px] mb-3 leading-4">
+              Included in every chat. Automatic updates pause after you edit; tap regenerate to resume. Clear it to delete.
+            </Text>
+            <TextInput
+              value={profileDraft}
+              onChangeText={setProfileDraft}
+              multiline
+              maxLength={2000}
+              placeholder={'e.g. **About**\n- User is a backend engineer in Bangalore'}
+              placeholderTextColor="hsl(0, 0%, 44%)"
+              className="min-h-[200px] max-h-[360px] rounded-xl border border-outline-variant/20 bg-muted px-4 py-3 text-foreground text-[14px] leading-5"
+              textAlignVertical="top"
+              autoFocus
+            />
+            <Pressable
+              onPress={handleSaveProfile}
+              className="mt-4 h-12 rounded-xl items-center justify-center bg-foreground"
+            >
+              <Text className="text-[15px] font-medium text-background">Save</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       {/* Add Memory Modal */}
       <Modal

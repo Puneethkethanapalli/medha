@@ -18,6 +18,8 @@ const KEYS = {
   globalRules: 'medha:globalRules',
   memoryEnabled: 'medha:memoryEnabled',
   memoryAutoEnabled: 'medha:memoryAutoEnabled',
+  memoryChatHistoryEnabled: 'medha:memoryChatHistoryEnabled',
+  memoryProfile: 'medha:memoryProfile',
   imageGenService: 'medha:imageGenService',
   imageGenEnabled: 'medha:imageGenEnabled',
   cloudflareAccountId: 'medha:cloudflareAccountId',
@@ -218,6 +220,48 @@ export async function setMemoryAutoEnabled(enabled: boolean): Promise<void> {
   _memoryAutoEnabled = enabled;
 }
 
+// Let the AI search past chats (on by default once memory is enabled)
+export async function isMemoryChatHistoryEnabled(): Promise<boolean> {
+  const value = await AsyncStorage.getItem(KEYS.memoryChatHistoryEnabled);
+  return value !== 'false';
+}
+
+export async function setMemoryChatHistoryEnabled(enabled: boolean): Promise<void> {
+  await AsyncStorage.setItem(KEYS.memoryChatHistoryEnabled, String(enabled));
+  _memoryChatHistoryEnabled = enabled;
+}
+
+/** Short summary of the user, regenerated from memories and recent chats. */
+export interface MemoryProfile {
+  content: string;
+  generatedAt: number;
+  /** True once the user edits it; automatic refresh pauses until they regenerate. */
+  userEdited: boolean;
+  /** Memory state when generated, used to tell whether anything changed since. */
+  fingerprint: string;
+  model?: string;
+}
+
+export async function getMemoryProfile(): Promise<MemoryProfile | null> {
+  const value = await AsyncStorage.getItem(KEYS.memoryProfile);
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as MemoryProfile;
+    return typeof parsed?.content === 'string' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setMemoryProfile(profile: MemoryProfile | null): Promise<void> {
+  if (profile) {
+    await AsyncStorage.setItem(KEYS.memoryProfile, JSON.stringify(profile));
+  } else {
+    await AsyncStorage.removeItem(KEYS.memoryProfile);
+  }
+  _memoryProfile = profile;
+}
+
 // Global rules (stored as JSON array of RuleItem)
 export async function getGlobalRules(): Promise<RuleItem[]> {
   const value = await AsyncStorage.getItem(KEYS.globalRules);
@@ -249,6 +293,8 @@ let _webSearchEnabled = false;
 let _globalRules: RuleItem[] = DEFAULT_RULES.map((r) => ({ ...r }));
 let _memoryEnabled = false;
 let _memoryAutoEnabled = true;
+let _memoryChatHistoryEnabled = true;
+let _memoryProfile: MemoryProfile | null = null;
 let _imageGenService: ImageGenService = 'openai';
 let _imageGenEnabled = false;
 let _cloudflareAccountId: string | null = null;
@@ -302,6 +348,14 @@ export function isMemoryAutoEnabledSync(): boolean {
   return _memoryAutoEnabled;
 }
 
+export function isMemoryChatHistoryEnabledSync(): boolean {
+  return _memoryChatHistoryEnabled;
+}
+
+export function getMemoryProfileSync(): MemoryProfile | null {
+  return _memoryProfile;
+}
+
 export function getImageGenServiceSync(): ImageGenService {
   return _imageGenService;
 }
@@ -342,6 +396,8 @@ export async function initStorage(): Promise<void> {
   const globalRules = await getGlobalRules();
   const memoryEnabled = await isMemoryEnabled();
   const memoryAutoEnabled = await isMemoryAutoEnabled();
+  const memoryChatHistoryEnabled = await isMemoryChatHistoryEnabled();
+  const memoryProfile = await getMemoryProfile();
   const imageGenService = await getImageGenService();
   const imageGenEnabled = await isImageGenEnabled();
   const cfAccountId = await getCloudflareAccountId();
@@ -357,6 +413,8 @@ export async function initStorage(): Promise<void> {
   _globalRules = globalRules;
   _memoryEnabled = memoryEnabled;
   _memoryAutoEnabled = memoryAutoEnabled;
+  _memoryChatHistoryEnabled = memoryChatHistoryEnabled;
+  _memoryProfile = memoryProfile;
   _imageGenService = imageGenService;
   _imageGenEnabled = imageGenEnabled;
   _cloudflareAccountId = cfAccountId;

@@ -4,6 +4,7 @@ const DB_NAME = 'medha.db';
 
 let db: SQLiteDatabase | null = null;
 let initialized = false;
+let messageSearchIndexAvailable = false;
 
 function openDatabase(): SQLiteDatabase {
   if (db) return db;
@@ -217,5 +218,64 @@ export function initializeDatabase(): void {
     // Column already exists — ignore
   }
 
+  messageSearchIndexAvailable = ensureMessageSearchIndex(database);
+
   initialized = true;
+}
+
+/** Whether the FTS5 index over chat messages exists (false if the SQLite build lacks FTS5). */
+export function isMessageSearchIndexAvailable(): boolean {
+  getDatabase();
+  return messageSearchIndexAvailable;
+}
+
+/**
+ * Full-text index over user/assistant messages, kept in sync by triggers.
+ * Rows share the message's rowid for cheap deletes, and also store the message
+ * id so lookups join on the real key. INSERT OR REPLACE keeps a rowid collision
+ * from ever failing a message write.
+ */
+function ensureMessageSearchIndex(database: SQLiteDatabase): boolean {
+  try {
+    const existing = database.getFirstSync<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'messages_fts'"
+    );
+    if (existing) return true;
+
+    database.withTransactionSync(() => {
+      database.runSync(
+        "CREATE VIRTUAL TABLE messages_fts USING fts5(content, message_id UNINDEXED, tokenize = 'unicode61 remove_diacritics 2')"
+      );
+      database.runSync(`
+        CREATE TRIGGER IF NOT EXISTS messages_fts_insert AFTER INSERT ON messages
+        WHEN new.role IN ('user', 'assistant')
+        BEGIN
+          INSERT OR REPLACE INTO messages_fts (rowid, content, message_id) VALUES (new.rowid, new.content, new.id);
+        END
+      `);
+      database.runSync(`
+        CREATE TRIGGER IF NOT EXISTS messages_fts_delete AFTER DELETE ON messages
+        BEGIN
+          DELETE FROM messages_fts WHERE rowid = old.rowid AND message_id = old.id;
+        END
+      `);
+      database.runSync(`
+        CREATE TRIGGER IF NOT EXISTS messages_fts_update AFTER UPDATE OF content ON messages
+        WHEN new.role IN ('user', 'assistant')
+        BEGIN
+          DELETE FROM messages_fts WHERE rowid = old.rowid AND message_id = old.id;
+          INSERT OR REPLACE INTO messages_fts (rowid, content, message_id) VALUES (new.rowid, new.content, new.id);
+        END
+      `);
+      database.runSync(`
+        INSERT INTO messages_fts (rowid, content, message_id)
+        SELECT rowid, content, id FROM messages
+        WHERE role IN ('user', 'assistant') AND LENGTH(TRIM(content)) > 0
+      `);
+    });
+    return true;
+  } catch {
+    // SQLite built without FTS5 — chat search falls back to LIKE.
+    return false;
+  }
 }

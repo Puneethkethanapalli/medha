@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Theme, ThinkingMode, RuleItem, ImageGenService } from '@/lib/storage/mmkv';
+import type { Theme, ThinkingMode, RuleItem, ImageGenService, MemoryProfile } from '@/lib/storage/mmkv';
 
 interface SettingsState {
   theme: Theme;
@@ -13,6 +13,8 @@ interface SettingsState {
   globalRules: RuleItem[];
   memoryEnabled: boolean;
   memoryAutoEnabled: boolean;
+  memoryChatHistoryEnabled: boolean;
+  memoryProfile: MemoryProfile | null;
   imageGenEnabled: boolean;
   imageGenService: ImageGenService;
   isInitialized: boolean;
@@ -30,6 +32,8 @@ interface SettingsActions {
   setGlobalRules: (rules: RuleItem[]) => Promise<void>;
   setMemoryEnabled: (enabled: boolean) => Promise<void>;
   setMemoryAutoEnabled: (enabled: boolean) => Promise<void>;
+  setMemoryChatHistoryEnabled: (enabled: boolean) => Promise<void>;
+  setMemoryProfile: (profile: MemoryProfile | null) => Promise<void>;
   setImageGenEnabled: (enabled: boolean) => Promise<void>;
   setImageGenService: (service: ImageGenService) => Promise<void>;
   validateApiKey: (provider: string, key: string) => Promise<boolean>;
@@ -67,6 +71,8 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
   globalRules: [],
   memoryEnabled: false,
   memoryAutoEnabled: true,
+  memoryChatHistoryEnabled: true,
+  memoryProfile: null,
   imageGenEnabled: false,
   imageGenService: 'openai' as ImageGenService,
   isInitialized: false,
@@ -148,6 +154,18 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
     set({ memoryAutoEnabled: enabled });
   },
 
+  setMemoryChatHistoryEnabled: async (enabled) => {
+    await loadModules();
+    await mmkv!.setMemoryChatHistoryEnabled(enabled);
+    set({ memoryChatHistoryEnabled: enabled });
+  },
+
+  setMemoryProfile: async (profile) => {
+    await loadModules();
+    await mmkv!.setMemoryProfile(profile);
+    set({ memoryProfile: profile });
+  },
+
   setImageGenEnabled: async (enabled) => {
     await loadModules();
     await mmkv!.setImageGenEnabled(enabled);
@@ -181,6 +199,8 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
       globalRules: mmkv!.getGlobalRulesSync(),
       memoryEnabled: mmkv!.isMemoryEnabledSync(),
       memoryAutoEnabled: mmkv!.isMemoryAutoEnabledSync(),
+      memoryChatHistoryEnabled: mmkv!.isMemoryChatHistoryEnabledSync(),
+      memoryProfile: mmkv!.getMemoryProfileSync(),
       imageGenEnabled: mmkv!.isImageGenEnabledSync(),
       imageGenService: mmkv!.getImageGenServiceSync(),
       isInitialized: true,
