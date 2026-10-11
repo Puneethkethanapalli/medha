@@ -190,6 +190,11 @@ export async function hasAnyProviderKey(): Promise<boolean> {
   return (await getConfiguredProviders()).length > 0;
 }
 
+/** Synchronously returns the configured providers if they have already been resolved. */
+export function peekConfiguredProviders(): string[] | null {
+  return configuredProvidersCache;
+}
+
 export async function getConfiguredProviders(): Promise<string[]> {
   if (configuredProvidersCache) return configuredProvidersCache;
 
@@ -205,16 +210,16 @@ export async function saveProviderKey(provider: string, key: string): Promise<vo
   const secureModule = await import('@/lib/storage/secure');
   await secureModule.saveApiKey(provider, key);
   configuredProvidersCache = null;
-  const { clearCachedModelList } = await import('@/lib/models/model-list-cache');
-  await clearCachedModelList(provider);
+  const { clearProviderModelList } = await import('@/lib/models/model-list-sync');
+  await clearProviderModelList(provider);
 }
 
 export async function deleteProviderKey(provider: string): Promise<void> {
   const secureModule = await import('@/lib/storage/secure');
   await secureModule.deleteApiKey(provider);
   configuredProvidersCache = null;
-  const { clearCachedModelList } = await import('@/lib/models/model-list-cache');
-  await clearCachedModelList(provider);
+  const { clearProviderModelList } = await import('@/lib/models/model-list-sync');
+  await clearProviderModelList(provider);
 }
 
 export function maskKey(key: string): string {

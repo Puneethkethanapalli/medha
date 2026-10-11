@@ -58,7 +58,7 @@ import { getApp } from '@/lib/db/apps';
 import { getIconByName } from '@/lib/apps/icons';
 import { parseExamplePrompts } from '@/lib/apps/types';
 import { getModelContextWindow } from '@/lib/models/capabilities';
-import { loadLiteLLMRegistry } from '@/lib/models/litellm-registry';
+import { loadModelMetadata, useModelListStore } from '@/lib/models/model-list-sync';
 import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { useRouter } from 'expo-router';
 import type { Message, Attachment } from '@/types';
@@ -86,7 +86,8 @@ export const ChatScreen = React.memo(function ChatScreen({
   const [hasImageGenKey, setHasImageGenKey] = useState(false);
   const [activeSkillName, setActiveSkillName] = useState<string | null>(null);
   const [inputBarHeight, setInputBarHeight] = useState(0);
-  const [metadataVersion, setMetadataVersion] = useState(0);
+  // Bumps when LiteLLM or provider model metadata loads, so context windows re-resolve.
+  const metadataVersion = useModelListStore((s) => s.metadataVersion);
   const abortRef = useRef<{ abort: () => void } | null>(null);
   const usageAccumRef = useRef<UsageData>({ promptTokens: 0, completionTokens: 0 });
 
@@ -160,13 +161,7 @@ export const ChatScreen = React.memo(function ChatScreen({
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    void loadLiteLLMRegistry().then(() => {
-      if (!cancelled) setMetadataVersion((version) => version + 1);
-    });
-    return () => {
-      cancelled = true;
-    };
+    void loadModelMetadata();
   }, []);
 
   // Handle app backgrounding during active stream — abort to prevent stuck state

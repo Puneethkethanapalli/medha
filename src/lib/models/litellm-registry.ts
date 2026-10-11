@@ -51,6 +51,10 @@ type LiteLLMEntry = {
 let registry: Record<string, LiteLLMEntry> | null = null;
 let fetchPromise: Promise<void> | null = null;
 
+export function isLiteLLMRegistryLoaded(): boolean {
+  return registry !== null;
+}
+
 /**
  * Load the LiteLLM registry. Tries cached data first, then fetches from GitHub.
  * Safe to call multiple times — deduplicates concurrent fetches.
