@@ -2,6 +2,8 @@ import { getCachedModels, setCachedModels } from '@/lib/storage/mmkv';
 import type { Model } from '@/types';
 
 const CACHE_VERSION = 1;
+/** Cached lists older than this are refreshed in the background when the picker opens. */
+export const MODEL_LIST_TTL_MS = 6 * 60 * 60 * 1000;
 export const MODEL_LIST_FAILURE_COOLDOWN_MS = 90 * 1000;
 
 interface ProviderModelCacheEntry {
@@ -17,11 +19,10 @@ interface ModelListCachePayload {
 }
 
 export interface CachedModelList {
-  models: Model[];
-  fetchedAt: number;
-  isFresh: boolean;
-  error?: string;
-  failedAt?: number;
+  models: Model[] | null;
+  fetchedAt: number | null;
+  failedAt: number | null;
+  error: string | null;
 }
 
 let memoryCache: Record<string, ProviderModelCacheEntry> | null = null;
@@ -31,31 +32,15 @@ let writePromise: Promise<void> = Promise.resolve();
 export async function getCachedModelList(providerId: string): Promise<CachedModelList | null> {
   const cache = await readModelListCache();
   const entry = cache[providerId];
-  if (!entry?.models?.length || !entry.fetchedAt) return null;
+  if (!entry) return null;
 
+  const models = Array.isArray(entry.models) ? sanitizeModelList(entry.models, providerId) : [];
   return {
-    models: entry.models,
-    fetchedAt: entry.fetchedAt,
-    isFresh: true,
-    error: entry.error,
-    failedAt: entry.failedAt,
+    models: models.length > 0 && entry.fetchedAt ? models : null,
+    fetchedAt: entry.fetchedAt ?? null,
+    failedAt: entry.failedAt ?? null,
+    error: entry.error ?? null,
   };
-}
-
-export async function shouldRefreshModelList(providerId: string): Promise<boolean> {
-  const cache = await readModelListCache();
-  const entry = cache[providerId];
-  const now = Date.now();
-
-  if (entry?.failedAt && now - entry.failedAt < MODEL_LIST_FAILURE_COOLDOWN_MS) {
-    return false;
-  }
-
-  if (entry?.models?.length) {
-    return false;
-  }
-
-  return true;
 }
 
 export async function cacheModelList(providerId: string, models: Model[]): Promise<void> {
@@ -81,6 +66,29 @@ export async function clearCachedModelList(providerId: string): Promise<void> {
   await updateModelListCache((cache) => {
     delete cache[providerId];
   });
+}
+
+/**
+ * Drop malformed entries and duplicate IDs. Duplicate keys make virtualized
+ * lists recycle the wrong rows, so every list is deduped before it is shown.
+ */
+export function sanitizeModelList(models: readonly Model[], providerId: string): Model[] {
+  const seen = new Set<string>();
+  const result: Model[] = [];
+
+  for (const model of models) {
+    if (!model || typeof model.id !== 'string' || !model.id || seen.has(model.id)) continue;
+    seen.add(model.id);
+
+    const name = typeof model.name === 'string' ? model.name.trim() : '';
+    result.push({
+      ...model,
+      name: name || model.id,
+      provider: model.provider || providerId,
+    });
+  }
+
+  return result;
 }
 
 async function readModelListCache(): Promise<Record<string, ProviderModelCacheEntry>> {

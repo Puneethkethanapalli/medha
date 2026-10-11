@@ -1,39 +1,56 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Keyboard,
-  KeyboardAvoidingView,
-  FlatList,
   Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
   View,
-  Pressable,
   type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   useWindowDimensions,
 } from 'react-native';
-import { Text } from '@/components/ui/text';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FlashList, type FlashListRef } from '@shopify/flash-list';
+import * as Haptics from 'expo-haptics';
 import { Search, X, Check, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
 import { useUIStore } from '@/stores/ui-store';
-import { useSettingsStore, getConfiguredProviders } from '@/stores/settings-store';
-import { registerBuiltInProviders, listProviders } from '@/lib/providers/registry';
+import {
+  useSettingsStore,
+  getConfiguredProviders,
+  peekConfiguredProviders,
+} from '@/stores/settings-store';
 import { MINIMAX_MODELS } from '@/lib/providers/minimax';
 import { CLOUDFLARE_FALLBACK_MODELS } from '@/lib/providers/cloudflare-ai';
 import { keepSelectedModelVisible } from '@/lib/models';
-import { getModelCapabilities, registerModelsMetadata } from '@/lib/models/capabilities';
-import { loadLiteLLMRegistry } from '@/lib/models/litellm-registry';
-import { getCachedModelList } from '@/lib/models/model-list-cache';
-import { refreshProviderModelList } from '@/lib/models/model-list-sync';
-import { CapabilityBadges } from '@/components/chat/CapabilityBadges';
+import { getModelCapabilities } from '@/lib/models/capabilities';
+import { CAPABILITY_ORDER } from '@/lib/models/capability-metadata';
+import {
+  ensureProviderModelList,
+  loadModelMetadata,
+  refreshProviderModelList,
+  useModelListStore,
+  useProviderModelList,
+} from '@/lib/models/model-list-sync';
+import { CAPABILITY_ICON_MAP } from '@/components/chat/CapabilityBadges';
+import type { Theme } from '@/lib/storage/mmkv';
 import type { Model, ModelCapability } from '@/types';
 
 // Filter pills shown in the picker
 const FILTER_OPTIONS: ModelCapability[] = ['vision', 'thinking', 'tools', 'pdf', 'long-context'];
 const MODEL_ROW_HEIGHT = 56;
+const SEARCH_DEBOUNCE_MS = 120;
+const OPEN_DURATION_MS = 260;
+const CLOSE_DURATION_MS = 200;
 
-// Fallback models per provider (shown before API/cache fetch completes)
+// Shown only when a provider has no cached list and the live fetch failed.
 const FALLBACK_MODELS: Record<string, Model[]> = {
   openrouter: [
     { id: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash', provider: 'openrouter' },
@@ -101,212 +118,255 @@ const FILTER_LABELS: Record<ModelCapability, string> = {
   'long-context': 'Long Context',
 };
 
-type ModelLoadState = {
-  status: 'idle' | 'loading' | 'ready' | 'error';
-  stale?: boolean;
-  error?: string;
-};
+type PickerColors = ReturnType<typeof getPickerColors>;
 
 type PickerModel = Model & {
   capabilities: ModelCapability[];
   searchText: string;
+  compactSearchText: string;
 };
 
+function getPickerColors(theme: Theme) {
+  const isLight = theme === 'light';
+  return {
+    bg: isLight ? '#FFFFFF' : theme === 'oled' ? '#000000' : '#0D0D0F',
+    handle: isLight ? '#D4D4D8' : '#27272A',
+    icon: isLight ? 'hsl(240, 4%, 46%)' : 'hsl(0, 0%, 63%)',
+    text: isLight ? '#09090B' : '#FAFAFA',
+    mutedText: isLight ? '#71717A' : '#A1A1AA',
+    placeholder: isLight ? 'hsl(240, 4%, 60%)' : 'hsl(0, 0%, 44%)',
+    surface: isLight ? '#F4F4F5' : '#18181B',
+    surfaceHigh: isLight ? '#E4E4E7' : '#27272A',
+    border: isLight ? '#E4E4E7' : '#27272A',
+    rowBorder: isLight ? 'rgba(212, 212, 216, 0.55)' : 'rgba(63, 63, 70, 0.35)',
+    capability: 'hsl(0, 0%, 55%)',
+    backdrop: 'rgba(0, 0, 0, 0.5)',
+  };
+}
+
+function pickInitialTab(providerIds: string[] | null, lastProvider: string | null): string | null {
+  if (!providerIds || providerIds.length === 0) return null;
+  if (lastProvider && providerIds.includes(lastProvider)) return lastProvider;
+  return providerIds[0];
+}
+
+function compact(value: string): string {
+  return value.replace(/[^a-z0-9]/g, '');
+}
+
+function formatUpdatedAt(timestamp: number | null): string | null {
+  if (!timestamp) return null;
+  const minutes = Math.floor((Date.now() - timestamp) / 60000);
+  if (minutes < 1) return 'Updated just now';
+  if (minutes < 60) return `Updated ${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `Updated ${hours}h ago`;
+  return `Updated ${Math.floor(hours / 24)}d ago`;
+}
+
 export function ModelPicker() {
-  const providerScrollRef = useRef<React.ElementRef<typeof ScrollView>>(null);
-  const modelListRef = useRef<FlatList<PickerModel>>(null);
-  const requestRef = useRef<{ providerId: string; controller: AbortController } | null>(null);
-  const pendingRefreshRef = useRef<string | null>(null);
   const isOpen = useUIStore((s) => s.modelPickerOpen);
   const closeModelPicker = useUIStore((s) => s.closeModelPicker);
+  const requestCloseRef = useRef<(() => void) | null>(null);
+
+  const handleRequestClose = useCallback(() => {
+    if (requestCloseRef.current) requestCloseRef.current();
+    else closeModelPicker();
+  }, [closeModelPicker]);
+
+  // Mount the sheet only while open so every open starts fresh (iOS keeps Modal
+  // children rendered until its native dismiss completes).
+  return (
+    <Modal
+      visible={isOpen}
+      transparent
+      animationType="none"
+      statusBarTranslucent
+      navigationBarTranslucent
+      onRequestClose={handleRequestClose}
+    >
+      {isOpen && <ModelPickerSheet onClosed={closeModelPicker} requestCloseRef={requestCloseRef} />}
+    </Modal>
+  );
+}
+
+function ModelPickerSheet({
+  onClosed,
+  requestCloseRef,
+}: {
+  onClosed: () => void;
+  requestCloseRef: React.RefObject<(() => void) | null>;
+}) {
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const theme = useSettingsStore((s) => s.theme);
   const lastModel = useSettingsStore((s) => s.lastModel);
   const lastModelName = useSettingsStore((s) => s.lastModelName);
   const lastProvider = useSettingsStore((s) => s.lastProvider);
-  const currentTheme = useSettingsStore((s) => s.theme);
   const setLastModelSelection = useSettingsStore((s) => s.setLastModelSelection);
-  const { height: windowHeight } = useWindowDimensions();
+  const colors = useMemo(() => getPickerColors(theme), [theme]);
 
-  const isLight = currentTheme === 'light';
-  const colors = useMemo(
-    () => ({
-      bg: isLight ? '#FFFFFF' : currentTheme === 'oled' ? '#000000' : '#0D0D0F',
-      handle: isLight ? '#D4D4D8' : '#27272A',
-      icon: isLight ? 'hsl(240, 4%, 46%)' : 'hsl(0, 0%, 63%)',
-      text: isLight ? '#09090B' : '#FAFAFA',
-      mutedText: isLight ? '#71717A' : '#A1A1AA',
-      placeholder: isLight ? 'hsl(240, 4%, 60%)' : 'hsl(0, 0%, 44%)',
-      surface: isLight ? '#F4F4F5' : '#18181B',
-      surfaceHigh: isLight ? '#E4E4E7' : '#27272A',
-      border: isLight ? '#E4E4E7' : '#27272A',
-      rowBorder: isLight ? 'rgba(212, 212, 216, 0.55)' : 'rgba(63, 63, 70, 0.35)',
-      backdrop: 'rgba(0, 0, 0, 0.5)',
-    }),
-    [currentTheme, isLight]
+  const [providerIds, setProviderIds] = useState<string[] | null>(peekConfiguredProviders);
+  const [activeTab, setActiveTab] = useState<string | null>(() =>
+    pickInitialTab(peekConfiguredProviders(), useSettingsStore.getState().lastProvider)
   );
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<string | null>(null);
-  const [configuredProviderIds, setConfiguredProviderIds] = useState<string[]>([]);
-  const [models, setModels] = useState<Record<string, Model[]>>({});
-  const [loadStateByProvider, setLoadStateByProvider] = useState<Record<string, ModelLoadState>>({});
+  const [query, setQuery] = useState('');
   const [activeFilters, setActiveFilters] = useState<ModelCapability[]>([]);
-  const [metadataVersion, setMetadataVersion] = useState(0);
-  const [refreshToken, setRefreshToken] = useState(0);
-  const [providerScrollX, setProviderScrollX] = useState(0);
-  const [providerScrollWidth, setProviderScrollWidth] = useState(0);
-  const [providerViewportWidth, setProviderViewportWidth] = useState(0);
+
+  const listRef = useRef<FlashListRef<PickerModel>>(null);
+  const closingRef = useRef(false);
+  const closedRef = useRef(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const sheetHeight = Math.round(windowHeight * 0.75);
-  const providerMaxScrollX = Math.max(0, providerScrollWidth - providerViewportWidth);
-  const providerTabsScrollable = providerMaxScrollX > 8;
-  const providerTabsAtEnd =
-    providerTabsScrollable && providerScrollX >= providerMaxScrollX - 8;
+  const progress = useSharedValue(0);
 
-  const closeAndReset = useCallback(() => {
+  // ── Open / close animation ──────────────────────────────────────────────
+  useEffect(() => {
+    progress.set(
+      withTiming(1, { duration: OPEN_DURATION_MS, easing: Easing.out(Easing.cubic) })
+    );
+  }, [progress]);
+
+  useEffect(() => () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+  }, []);
+
+  const finishClose = useCallback(() => {
+    if (closedRef.current) return;
+    closedRef.current = true;
+    onClosed();
+  }, [onClosed]);
+
+  const requestClose = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
     Keyboard.dismiss();
-    closeModelPicker();
-    setSearchQuery('');
-    setDebouncedSearchQuery('');
-    setActiveFilters([]);
-  }, [closeModelPicker]);
+    progress.set(
+      withTiming(0, { duration: CLOSE_DURATION_MS, easing: Easing.in(Easing.cubic) }, () => {
+        scheduleOnRN(finishClose);
+      })
+    );
+    // Never leave the picker stuck open if the animation callback is dropped.
+    closeTimerRef.current = setTimeout(finishClose, CLOSE_DURATION_MS + 150);
+  }, [finishClose, progress]);
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery.trim().toLowerCase());
-    }, 120);
+    requestCloseRef.current = requestClose;
+    return () => {
+      requestCloseRef.current = null;
+    };
+  }, [requestClose, requestCloseRef]);
 
-    return () => clearTimeout(timeout);
-  }, [searchQuery]);
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: progress.get() }));
+  const sheetStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: (1 - progress.get()) * (sheetHeight + insets.bottom) }],
+  }));
 
-  // Ensure providers are registered + load LiteLLM model registry once.
+  // ── Data ────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (listProviders().length === 0) {
-      registerBuiltInProviders();
-    }
+    void loadModelMetadata();
+  }, []);
+
+  useEffect(() => {
+    if (providerIds) return;
     let cancelled = false;
-    void loadLiteLLMRegistry().then(() => {
-      if (!cancelled) setMetadataVersion((version) => version + 1);
+    void getConfiguredProviders().then((configured) => {
+      if (cancelled) return;
+      setProviderIds(configured);
+      setActiveTab(
+        (current) => current ?? pickInitialTab(configured, useSettingsStore.getState().lastProvider)
+      );
     });
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  // On open: detect configured providers. This is cached by settings-store.
-  useEffect(() => {
-    if (!isOpen) return;
-
-    let cancelled = false;
-    void (async () => {
-      const configured = await getConfiguredProviders();
-      if (cancelled) return;
-
-      setConfiguredProviderIds(configured);
-      if (configured.length === 0) {
-        setActiveTab(null);
-        return;
-      }
-
-      setActiveTab((current) => {
-        if (lastProvider && configured.includes(lastProvider)) return lastProvider;
-        if (current && configured.includes(current)) return current;
-        return configured[0];
-      });
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen, lastProvider]);
+  }, [providerIds]);
 
   useEffect(() => {
-    if (!isOpen || !activeTab) return;
+    if (activeTab) void ensureProviderModelList(activeTab);
+  }, [activeTab]);
 
-    let cancelled = false;
-    const providerId = activeTab;
-    const controller = new AbortController();
-    const forceRefresh = pendingRefreshRef.current === providerId;
-    if (forceRefresh) {
-      pendingRefreshRef.current = null;
-    }
+  const providerList = useProviderModelList(activeTab);
+  const metadataVersion = useModelListStore((s) => s.metadataVersion);
 
-    requestRef.current?.controller.abort();
-    requestRef.current = { providerId, controller };
+  const hasLiveModels = Boolean(providerList.models?.length);
+  const isInitialLoading =
+    providerIds === null ||
+    (!!activeTab && !hasLiveModels && (!providerList.hydrated || providerList.status === 'loading'));
+  const isRefreshing = providerList.status === 'loading';
 
-    const setProviderLoadState = (state: ModelLoadState) => {
-      setLoadStateByProvider((prev) => ({ ...prev, [providerId]: state }));
-    };
+  const currentModels = useMemo(() => {
+    if (!activeTab || isInitialLoading) return [];
+    const providerModels = providerList.models?.length
+      ? providerList.models
+      : FALLBACK_MODELS[activeTab] ?? [];
 
-    void (async () => {
-      const cached = await getCachedModelList(providerId);
-      if (cancelled || controller.signal.aborted) return;
+    if ((lastProvider || activeTab) !== activeTab) return providerModels;
+    return keepSelectedModelVisible(providerModels, lastModel, activeTab, lastModelName);
+  }, [activeTab, isInitialLoading, lastModel, lastModelName, lastProvider, providerList.models]);
 
-      if (cached) {
-        registerModelsMetadata(cached.models);
-        setModels((prev) => ({ ...prev, [providerId]: cached.models }));
-        setProviderLoadState({
-          status: 'ready',
-          error: cached.error,
-        });
-      } else {
-        setModels((prev) => {
-          if (!(providerId in prev)) return prev;
-          const next = { ...prev };
-          delete next[providerId];
-          return next;
-        });
-        setProviderLoadState({ status: 'idle' });
-      }
+  const preparedModels = useMemo<PickerModel[]>(() => {
+    // Re-read capabilities once LiteLLM or provider list metadata loads.
+    void metadataVersion;
+    return currentModels.map((model) => {
+      const searchText = `${model.name} ${model.id}`.toLowerCase();
+      return {
+        ...model,
+        capabilities: getModelCapabilities(model.id, model.provider),
+        searchText,
+        compactSearchText: compact(searchText),
+      };
+    });
+  }, [currentModels, metadataVersion]);
 
-      if (!forceRefresh) return;
+  const filteredModels = useMemo(() => {
+    // Every whitespace-separated term must match, ignoring punctuation, so
+    // "claude sonnet" finds "Anthropic: Claude 3.5 Sonnet" and "gpt4o" finds "gpt-4o".
+    const terms = query
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((term) => ({ raw: term, compact: compact(term) }));
 
-      setProviderLoadState({ status: 'loading', stale: Boolean(cached) });
+    if (terms.length === 0 && activeFilters.length === 0) return preparedModels;
 
-      try {
-        const fetched = await refreshProviderModelList(providerId, { signal: controller.signal });
-        if (cancelled || controller.signal.aborted) return;
-
-        setModels((prev) => ({ ...prev, [providerId]: fetched }));
-        setProviderLoadState({ status: 'ready' });
-      } catch {
-        if (cancelled || controller.signal.aborted) return;
-        setProviderLoadState({
-          status: 'error',
-          stale: Boolean(cached),
-          error: cached
-            ? 'Could not refresh models. Showing cached list.'
-            : 'Could not refresh models. Showing fallback list.',
-        });
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [activeTab, isOpen, refreshToken]);
+    return preparedModels.filter(
+      (model) =>
+        terms.every(
+          (term) =>
+            model.searchText.includes(term.raw) ||
+            (term.compact.length > 0 && model.compactSearchText.includes(term.compact))
+        ) && activeFilters.every((filter) => model.capabilities.includes(filter))
+    );
+  }, [activeFilters, preparedModels, query]);
 
   useEffect(() => {
-    if (!isOpen) {
-      requestRef.current?.controller.abort();
-      requestRef.current = null;
-    }
-  }, [isOpen]);
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+  }, [activeTab, activeFilters, query]);
 
+  // ── Actions ─────────────────────────────────────────────────────────────
   const handleSelect = useCallback(
     (model: Model) => {
-      closeAndReset();
+      if (closingRef.current) return;
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+
+      const current = useSettingsStore.getState();
       if (
-        model.id !== lastModel ||
-        model.provider !== lastProvider ||
-        model.name !== lastModelName
+        model.id !== current.lastModel ||
+        model.provider !== current.lastProvider ||
+        model.name !== current.lastModelName
       ) {
         void setLastModelSelection(model.id, model.provider, model.name).catch(() => {});
       }
+      requestClose();
     },
-    [closeAndReset, lastModel, lastModelName, lastProvider, setLastModelSelection]
+    [requestClose, setLastModelSelection]
   );
+
+  const handleRefresh = useCallback(() => {
+    if (!activeTab) return;
+    void refreshProviderModelList(activeTab).catch(() => {});
+  }, [activeTab]);
 
   const toggleFilter = useCallback((cap: ModelCapability) => {
     setActiveFilters((prev) =>
@@ -314,510 +374,695 @@ export function ModelPicker() {
     );
   }, []);
 
-  const activeLoadState = activeTab ? loadStateByProvider[activeTab] : undefined;
-  const isLoadingModels = activeLoadState?.status === 'loading';
-  const loadMessage = activeLoadState?.status === 'error' ? activeLoadState.error : null;
+  const clearFilters = useCallback(() => setActiveFilters([]), []);
 
-  const handleRefreshProvider = useCallback(() => {
-    if (!activeTab || isLoadingModels) return;
-    pendingRefreshRef.current = activeTab;
-    setRefreshToken((token) => token + 1);
-  }, [activeTab, isLoadingModels]);
-
-  const handleProviderTabsLayout = useCallback((event: LayoutChangeEvent) => {
-    setProviderViewportWidth(event.nativeEvent.layout.width);
-  }, []);
-
-  const handleProviderTabsContentSizeChange = useCallback((width: number) => {
-    setProviderScrollWidth(width);
-  }, []);
-
-  const handleProviderTabsScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      setProviderScrollX(event.nativeEvent.contentOffset.x);
-    },
-    []
-  );
-
-  const handleProviderArrowPress = useCallback(() => {
-    if (!providerTabsScrollable) return;
-
-    const nextX = providerTabsAtEnd
-      ? 0
-      : Math.min(
-          providerMaxScrollX,
-          providerScrollX + Math.max(providerViewportWidth * 0.65, 112)
-        );
-
-    providerScrollRef.current?.scrollTo({ x: nextX, animated: true });
-    setProviderScrollX(nextX);
-  }, [
-    providerMaxScrollX,
-    providerScrollX,
-    providerTabsAtEnd,
-    providerTabsScrollable,
-    providerViewportWidth,
-  ]);
-
-  const currentModels = useMemo(() => {
-    if (!activeTab) return [];
-    const providerModels = models[activeTab] || FALLBACK_MODELS[activeTab] || [];
-    const selectedProvider = lastProvider || activeTab;
-
-    if (selectedProvider !== activeTab) return providerModels;
-
-    return keepSelectedModelVisible(providerModels, lastModel, activeTab, lastModelName);
-  }, [activeTab, models, lastModel, lastModelName, lastProvider]);
-
-  const preparedModels = useMemo<PickerModel[]>(() => {
-    // Re-read capability fallback data after async LiteLLM metadata loads.
-    void metadataVersion;
-    return currentModels.map((model) => ({
-      ...model,
-      capabilities: getModelCapabilities(model.id, model.provider),
-      searchText: `${model.name} ${model.id}`.toLowerCase(),
-    }));
-  }, [currentModels, metadataVersion]);
-
-  const filteredModels = useMemo(() => {
-    let result = preparedModels;
-
-    if (debouncedSearchQuery) {
-      result = result.filter((model) => model.searchText.includes(debouncedSearchQuery));
-    }
-
-    if (activeFilters.length > 0) {
-      result = result.filter((model) =>
-        activeFilters.every((filter) => model.capabilities.includes(filter))
-      );
-    }
-
-    return result;
-  }, [activeFilters, debouncedSearchQuery, preparedModels]);
-
-  useEffect(() => {
-    modelListRef.current?.scrollToOffset({ offset: 0, animated: false });
-  }, [activeTab, activeFilters, debouncedSearchQuery]);
+  // ── List rendering ──────────────────────────────────────────────────────
+  const selectedKey = lastModel ? `${lastProvider || activeTab}:${lastModel}` : null;
 
   const renderItem = useCallback(
-    ({ item, index }: { item: PickerModel; index: number }) => {
-      const isSelected = item.id === lastModel && item.provider === (lastProvider || activeTab);
-      return (
-        <Pressable
-          onPress={() => handleSelect(item)}
-          style={{
-            height: MODEL_ROW_HEIGHT,
-            marginHorizontal: 16,
-            paddingHorizontal: 16,
-            justifyContent: 'center',
-            borderRadius: 8,
-            backgroundColor: isSelected ? colors.surfaceHigh : 'transparent',
-            borderBottomWidth:
-              index < filteredModels.length - 1 ? StyleSheet.hairlineWidth : 0,
-            borderBottomColor: colors.rowBorder,
-          }}
-        >
-          {isSelected && (
-            <View
-              style={{
-                position: 'absolute',
-                left: 0,
-                top: 8,
-                bottom: 8,
-                width: 2,
-                borderTopRightRadius: 999,
-                borderBottomRightRadius: 999,
-                backgroundColor: colors.text,
-              }}
-            />
-          )}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Text
-              style={{
-                color: colors.text,
-                fontSize: 14,
-                fontWeight: isSelected ? '500' : '400',
-                flex: 1,
-                minWidth: 0,
-              }}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              {item.name}
-            </Text>
-            {isSelected && <Check size={18} color={colors.text} />}
-          </View>
-          <View style={{ minHeight: 14, marginTop: 2 }}>
-            <CapabilityBadges
-              capabilities={item.capabilities}
-              size={12}
-              color="hsl(0, 0%, 55%)"
-              gap={6}
-              showTooltip={false}
-            />
-          </View>
+    ({ item }: { item: PickerModel }) => (
+      <ModelRow
+        item={item}
+        selected={selectedKey === `${item.provider}:${item.id}`}
+        colors={colors}
+        onSelect={handleSelect}
+      />
+    ),
+    [colors, handleSelect, selectedKey]
+  );
+
+  const keyExtractor = useCallback((item: PickerModel) => `${item.provider}:${item.id}`, []);
+
+  const ItemSeparator = useCallback(
+    () => <View style={[styles.separator, { backgroundColor: colors.rowBorder }]} />,
+    [colors.rowBorder]
+  );
+
+  const totalCount = preparedModels.length;
+  const shownCount = filteredModels.length;
+  const updatedLabel = hasLiveModels ? formatUpdatedAt(providerList.fetchedAt) : null;
+
+  let notice: string | null = null;
+  if (!isInitialLoading && !isRefreshing) {
+    if (providerList.status === 'error') {
+      notice = hasLiveModels
+        ? "Couldn't refresh models. Showing saved list."
+        : "Couldn't load models. Showing defaults.";
+    } else if (!hasLiveModels && providerList.hydrated) {
+      notice = 'Showing default models.';
+    }
+  }
+
+  const listEmpty = isInitialLoading ? (
+    <View style={styles.emptyState}>
+      <ActivityIndicator color={colors.mutedText} />
+      <Text style={{ color: colors.mutedText, fontSize: 13, marginTop: 10 }}>
+        Loading models...
+      </Text>
+    </View>
+  ) : (
+    <View style={styles.emptyState}>
+      <Text style={{ color: colors.mutedText, fontSize: 13, textAlign: 'center' }}>
+        {query ? `No models match "${query}"` : 'No models match the selected filters.'}
+      </Text>
+      {activeFilters.length > 0 && (
+        <Pressable onPress={clearFilters} hitSlop={8} style={{ marginTop: 10 }}>
+          <Text style={{ color: colors.text, fontSize: 13, fontWeight: '500' }}>Clear filters</Text>
         </Pressable>
-      );
-    },
-    [
-      activeTab,
-      colors.rowBorder,
-      colors.surfaceHigh,
-      colors.text,
-      filteredModels.length,
-      handleSelect,
-      lastModel,
-      lastProvider,
-    ]
+      )}
+    </View>
   );
 
-  const keyExtractor = useCallback((item: PickerModel) => `${item.provider}-${item.id}`, []);
-  const getItemLayout = useCallback(
-    (_: ArrayLike<PickerModel> | null | undefined, index: number) => ({
-      length: MODEL_ROW_HEIGHT,
-      offset: MODEL_ROW_HEIGHT * index,
-      index,
-    }),
-    []
-  );
-  const listExtraData = useMemo(
-    () => ({
-      selectedModel: lastModel,
-      selectedProvider: lastProvider || activeTab,
-      itemCount: filteredModels.length,
-      checkColor: colors.text,
-    }),
-    [activeTab, colors.text, filteredModels.length, lastModel, lastProvider]
-  );
+  return (
+    <View style={StyleSheet.absoluteFill}>
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: colors.backdrop }, backdropStyle]}
+      />
+      <KeyboardAvoidingView behavior="padding" style={styles.keyboardContainer}>
+        <Pressable
+          onPress={requestClose}
+          style={{ flex: 1, minHeight: insets.top + 24 }}
+          accessibilityRole="button"
+          accessibilityLabel="Close model picker"
+        />
 
-  const Header = useMemo(
-    () => (
-      <>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 }}>
-          <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600' }}>
-            Select Model
-          </Text>
-          <Pressable
-            onPress={closeAndReset}
-            style={{ padding: 4, borderRadius: 999 }}
-          >
-            <X size={20} color={colors.icon} />
-          </Pressable>
-        </View>
+        <Animated.View
+          style={[
+            styles.sheet,
+            {
+              height: sheetHeight,
+              backgroundColor: colors.bg,
+              borderTopColor: colors.border,
+            },
+            sheetStyle,
+          ]}
+        >
+          <View style={styles.handleContainer}>
+            <View style={[styles.handle, { backgroundColor: colors.handle }]} />
+          </View>
 
-        {activeTab && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, gap: 8 }}>
-            {configuredProviderIds.length > 1 ? (
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <ScrollView
-                  ref={providerScrollRef}
-                  horizontal
-                  nestedScrollEnabled
-                  directionalLockEnabled
-                  keyboardShouldPersistTaps="handled"
-                  showsHorizontalScrollIndicator={false}
-                  onLayout={handleProviderTabsLayout}
-                  onContentSizeChange={handleProviderTabsContentSizeChange}
-                  onScroll={handleProviderTabsScroll}
-                  scrollEventThrottle={64}
-                  style={{ flexGrow: 0, minWidth: 0 }}
-                  contentContainerStyle={{
-                    gap: 8,
-                    paddingRight: providerTabsScrollable ? 36 : 0,
-                  }}
-                >
-                  {configuredProviderIds.map((pid) => {
-                    const isActive = pid === activeTab;
-                    return (
-                      <Pressable
-                        key={pid}
-                        onPress={() => {
-                          setActiveTab(pid);
-                          setSearchQuery('');
-                          setDebouncedSearchQuery('');
-                        }}
-                        style={{
-                          height: 31,
-                          justifyContent: 'center',
-                          borderRadius: 999,
-                          paddingHorizontal: 16,
-                          backgroundColor: isActive ? colors.text : colors.surface,
-                          borderWidth: isActive ? 0 : StyleSheet.hairlineWidth,
-                          borderColor: colors.border,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            color: isActive ? colors.bg : colors.mutedText,
-                            fontSize: 12,
-                            fontWeight: '500',
-                          }}
-                          numberOfLines={1}
-                        >
-                          {PROVIDER_DISPLAY[pid] || pid}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-
-                {providerTabsScrollable && (
-                  <Pressable
-                    onPress={handleProviderArrowPress}
-                    style={{
-                      position: 'absolute',
-                      right: 0,
-                      top: 0,
-                      width: 32,
-                      height: 32,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderRadius: 999,
-                      backgroundColor: colors.surface,
-                      borderWidth: StyleSheet.hairlineWidth,
-                      borderColor: colors.border,
-                    }}
-                    accessibilityRole="button"
-                    accessibilityLabel={
-                      providerTabsAtEnd ? 'Show previous providers' : 'Show more providers'
-                    }
-                  >
-                    {providerTabsAtEnd ? (
-                      <ChevronLeft size={15} color={colors.icon} />
-                    ) : (
-                      <ChevronRight size={15} color={colors.icon} />
-                    )}
-                  </Pressable>
-                )}
-              </View>
-            ) : (
-              <View
-                style={{
-                  flex: 1,
-                  height: 31,
-                  justifyContent: 'center',
-                  borderRadius: 999,
-                  paddingHorizontal: 16,
-                  backgroundColor: colors.surface,
-                  borderWidth: StyleSheet.hairlineWidth,
-                  borderColor: colors.border,
-                }}
-              >
-                <Text
-                  style={{ color: colors.mutedText, fontSize: 12, fontWeight: '500' }}
-                  numberOfLines={1}
-                >
-                  {PROVIDER_DISPLAY[activeTab] || activeTab}
-                </Text>
-              </View>
-            )}
+          <View style={styles.titleRow}>
+            <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600' }}>
+              Select Model
+            </Text>
             <Pressable
-              onPress={handleRefreshProvider}
-              disabled={isLoadingModels}
-              style={{
-                width: 32,
-                height: 32,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: 999,
-                opacity: isLoadingModels ? 0.5 : 1,
-                backgroundColor: colors.surface,
-                borderWidth: StyleSheet.hairlineWidth,
-                borderColor: colors.border,
-              }}
+              onPress={requestClose}
+              hitSlop={8}
+              style={{ padding: 4, borderRadius: 999 }}
               accessibilityRole="button"
-              accessibilityLabel={`Refresh ${PROVIDER_DISPLAY[activeTab] || activeTab} models`}
+              accessibilityLabel="Close"
             >
-              <RefreshCw size={15} color={colors.icon} />
+              <X size={20} color={colors.icon} />
             </Pressable>
           </View>
-        )}
 
-        <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
-          <View
-            style={{
-              height: 40,
-              flexDirection: 'row',
-              alignItems: 'center',
-              borderRadius: 8,
-              paddingHorizontal: 12,
-              backgroundColor: colors.surface,
-            }}
-          >
-            <Search size={16} color={colors.icon} />
-            <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Search models..."
-              placeholderTextColor={colors.placeholder}
-              selectionColor={colors.text}
-              style={{
-                flex: 1,
-                color: colors.text,
-                fontSize: 13,
-                marginLeft: 8,
-                padding: 0,
-                minWidth: 0,
-              }}
-            />
-          </View>
-        </View>
+          {providerIds && providerIds.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={{ color: colors.mutedText, fontSize: 13, textAlign: 'center' }}>
+                No API keys configured. Add a key in Settings / API Keys.
+              </Text>
+            </View>
+          ) : (
+            <>
+              {activeTab && providerIds && (
+                <View style={styles.providerRow}>
+                  <ProviderTabs
+                    providerIds={providerIds}
+                    activeTab={activeTab}
+                    colors={colors}
+                    onSelect={setActiveTab}
+                  />
+                  <Pressable
+                    onPress={handleRefresh}
+                    disabled={isRefreshing}
+                    style={[
+                      styles.iconButton,
+                      { backgroundColor: colors.surface, borderColor: colors.border },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Refresh ${PROVIDER_DISPLAY[activeTab] || activeTab} models`}
+                  >
+                    {isRefreshing ? (
+                      <ActivityIndicator size="small" color={colors.icon} />
+                    ) : (
+                      <RefreshCw size={15} color={colors.icon} />
+                    )}
+                  </Pressable>
+                </View>
+              )}
 
-        <ScrollView
-          horizontal
-          nestedScrollEnabled
-          directionalLockEnabled
-          showsHorizontalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ gap: 6, paddingHorizontal: 16, paddingBottom: 8 }}
-        >
-          {FILTER_OPTIONS.map((cap) => {
-            const isActive = activeFilters.includes(cap);
-            return (
-              <Pressable
-                key={cap}
-                onPress={() => toggleFilter(cap)}
-                style={{
-                  height: 26,
-                  justifyContent: 'center',
-                  borderRadius: 999,
-                  paddingHorizontal: 12,
-                  backgroundColor: isActive ? colors.text : colors.surface,
-                  borderWidth: isActive ? 0 : StyleSheet.hairlineWidth,
-                  borderColor: colors.border,
-                }}
-              >
-                <Text
-                  style={{
-                    color: isActive ? colors.bg : colors.mutedText,
-                    fontSize: 11,
-                    fontWeight: '500',
-                  }}
-                >
-                  {FILTER_LABELS[cap]}
+              <SearchField colors={colors} onQueryChange={setQuery} />
+
+              <FilterChips
+                activeFilters={activeFilters}
+                colors={colors}
+                onToggle={toggleFilter}
+              />
+
+              <View style={styles.statusRow}>
+                <Text style={{ color: colors.mutedText, fontSize: 11 }} numberOfLines={1}>
+                  {isInitialLoading
+                    ? ' '
+                    : shownCount === totalCount
+                      ? `${totalCount} ${totalCount === 1 ? 'model' : 'models'}`
+                      : `${shownCount} of ${totalCount} models`}
                 </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+                <Text
+                  style={{ color: colors.mutedText, fontSize: 11, flexShrink: 1, marginLeft: 12 }}
+                  numberOfLines={1}
+                >
+                  {isRefreshing && hasLiveModels ? 'Refreshing...' : updatedLabel ?? ''}
+                </Text>
+              </View>
 
-        {isLoadingModels && (
-          <View style={{ alignItems: 'center', paddingVertical: 8 }}>
-            <Text style={{ color: colors.mutedText, fontSize: 12 }}>Loading models...</Text>
+              {!!notice && (
+                <Pressable
+                  onPress={handleRefresh}
+                  style={[styles.notice, { backgroundColor: colors.surface }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${notice} Retry`}
+                >
+                  <Text
+                    style={{ color: colors.mutedText, fontSize: 12, flex: 1 }}
+                    numberOfLines={2}
+                  >
+                    {notice}
+                  </Text>
+                  <Text style={{ color: colors.text, fontSize: 12, fontWeight: '500' }}>Retry</Text>
+                </Pressable>
+              )}
+
+              <View style={{ flex: 1 }}>
+                <FlashList
+                  ref={listRef}
+                  data={filteredModels}
+                  renderItem={renderItem}
+                  keyExtractor={keyExtractor}
+                  extraData={selectedKey}
+                  ItemSeparatorComponent={ItemSeparator}
+                  ListEmptyComponent={listEmpty}
+                  contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode="on-drag"
+                  showsVerticalScrollIndicator={false}
+                  maintainVisibleContentPosition={{ disabled: true }}
+                  drawDistance={MODEL_ROW_HEIGHT * 8}
+                />
+              </View>
+            </>
+          )}
+        </Animated.View>
+      </KeyboardAvoidingView>
+    </View>
+  );
+}
+
+// ── Row ─────────────────────────────────────────────────────────────────────
+
+const ModelRow = memo(function ModelRow({
+  item,
+  selected,
+  colors,
+  onSelect,
+}: {
+  item: PickerModel;
+  selected: boolean;
+  colors: PickerColors;
+  onSelect: (model: Model) => void;
+}) {
+  const handlePress = useCallback(() => onSelect(item), [item, onSelect]);
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      style={({ pressed }) => [
+        styles.row,
+        {
+          backgroundColor: selected
+            ? colors.surfaceHigh
+            : pressed
+              ? colors.surface
+              : 'transparent',
+        },
+      ]}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      accessibilityLabel={item.name}
+    >
+      {selected && <View style={[styles.selectedBar, { backgroundColor: colors.text }]} />}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Text
+          style={{
+            color: colors.text,
+            fontSize: 14,
+            fontWeight: selected ? '500' : '400',
+            flex: 1,
+            minWidth: 0,
+          }}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {item.name}
+        </Text>
+        {selected && <Check size={18} color={colors.text} />}
+      </View>
+      <RowCapabilities capabilities={item.capabilities} color={colors.capability} />
+    </Pressable>
+  );
+});
+
+/**
+ * Every icon is always mounted and absent ones are hidden, so when the list
+ * recycles a row for a different model only styles change — no SVG remounts.
+ */
+const RowCapabilities = memo(function RowCapabilities({
+  capabilities,
+  color,
+}: {
+  capabilities: ModelCapability[];
+  color: string;
+}) {
+  return (
+    <View style={styles.capabilities}>
+      {CAPABILITY_ORDER.map((cap) => {
+        const Icon = CAPABILITY_ICON_MAP[cap];
+        return (
+          <View key={cap} style={capabilities.includes(cap) ? undefined : styles.hidden}>
+            <Icon size={12} color={color} />
           </View>
-        )}
+        );
+      })}
+    </View>
+  );
+});
 
-        {!!loadMessage && !isLoadingModels && (
-          <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
-            <Text style={{ color: colors.mutedText, fontSize: 12, textAlign: 'center' }}>
-              {loadMessage}
+// ── Header pieces (isolated so typing / scrolling doesn't re-render the list) ──
+
+const SearchField = memo(function SearchField({
+  colors,
+  onQueryChange,
+}: {
+  colors: PickerColors;
+  onQueryChange: (query: string) => void;
+}) {
+  const [text, setText] = useState('');
+
+  useEffect(() => {
+    const normalized = text.trim().toLowerCase();
+    if (!normalized) {
+      onQueryChange('');
+      return;
+    }
+    const timeout = setTimeout(() => onQueryChange(normalized), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timeout);
+  }, [onQueryChange, text]);
+
+  return (
+    <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+      <View style={[styles.searchBox, { backgroundColor: colors.surface }]}>
+        <Search size={16} color={colors.icon} />
+        <TextInput
+          value={text}
+          onChangeText={setText}
+          placeholder="Search models..."
+          placeholderTextColor={colors.placeholder}
+          selectionColor={colors.text}
+          autoCorrect={false}
+          autoCapitalize="none"
+          returnKeyType="search"
+          style={[styles.searchInput, { color: colors.text }]}
+        />
+        {text.length > 0 && (
+          <Pressable
+            onPress={() => setText('')}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Clear search"
+          >
+            <X size={15} color={colors.icon} />
+          </Pressable>
+        )}
+      </View>
+    </View>
+  );
+});
+
+const FilterChips = memo(function FilterChips({
+  activeFilters,
+  colors,
+  onToggle,
+}: {
+  activeFilters: ModelCapability[];
+  colors: PickerColors;
+  onToggle: (cap: ModelCapability) => void;
+}) {
+  return (
+    <ScrollView
+      horizontal
+      nestedScrollEnabled
+      directionalLockEnabled
+      showsHorizontalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      style={{ flexGrow: 0 }}
+      contentContainerStyle={{ gap: 6, paddingHorizontal: 16, paddingBottom: 6 }}
+    >
+      {FILTER_OPTIONS.map((cap) => {
+        const isActive = activeFilters.includes(cap);
+        return (
+          <Pressable
+            key={cap}
+            onPress={() => onToggle(cap)}
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor: isActive ? colors.text : colors.surface,
+                borderWidth: isActive ? 0 : StyleSheet.hairlineWidth,
+                borderColor: colors.border,
+              },
+            ]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isActive }}
+          >
+            <Text
+              style={{
+                color: isActive ? colors.bg : colors.mutedText,
+                fontSize: 11,
+                fontWeight: '500',
+              }}
+            >
+              {FILTER_LABELS[cap]}
             </Text>
-          </View>
-        )}
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+});
 
-        {configuredProviderIds.length === 0 && (
-          <View style={{ alignItems: 'center', paddingHorizontal: 24, paddingVertical: 32 }}>
-            <Text style={{ color: colors.mutedText, fontSize: 13, textAlign: 'center' }}>
-              No API keys configured. Add a key in Settings / API Keys.
-            </Text>
-          </View>
-        )}
-      </>
-    ),
-    [
-      activeFilters,
-      activeTab,
-      closeAndReset,
-      colors,
-      configuredProviderIds,
-      handleProviderArrowPress,
-      handleRefreshProvider,
-      handleProviderTabsContentSizeChange,
-      handleProviderTabsLayout,
-      handleProviderTabsScroll,
-      isLoadingModels,
-      loadMessage,
-      providerTabsAtEnd,
-      providerTabsScrollable,
-      searchQuery,
-      toggleFilter,
-    ]
+const ProviderTabs = memo(function ProviderTabs({
+  providerIds,
+  activeTab,
+  colors,
+  onSelect,
+}: {
+  providerIds: string[];
+  activeTab: string;
+  colors: PickerColors;
+  onSelect: (providerId: string) => void;
+}) {
+  const scrollRef = useRef<ScrollView>(null);
+  const metricsRef = useRef({ x: 0, content: 0, viewport: 0 });
+  const activeChipRef = useRef<{ x: number; width: number } | null>(null);
+  const didRevealActiveRef = useRef(false);
+  const [scrollState, setScrollState] = useState({ scrollable: false, atEnd: false });
+
+  // Only re-render when the arrow's state actually flips, not on every scroll frame.
+  const syncScrollState = useCallback(() => {
+    const { x, content, viewport } = metricsRef.current;
+    const maxX = Math.max(0, content - viewport);
+    const scrollable = maxX > 8;
+    const atEnd = scrollable && x >= maxX - 8;
+    setScrollState((prev) =>
+      prev.scrollable === scrollable && prev.atEnd === atEnd ? prev : { scrollable, atEnd }
+    );
+  }, []);
+
+  // Bring the initially selected provider into view when it starts off-screen.
+  // Chip and viewport layouts can arrive in either order, so try after both.
+  const revealActiveChip = useCallback(() => {
+    const chip = activeChipRef.current;
+    const { viewport } = metricsRef.current;
+    if (didRevealActiveRef.current || !chip || viewport <= 0) return;
+    didRevealActiveRef.current = true;
+    if (chip.x + chip.width > viewport - 36) {
+      scrollRef.current?.scrollTo({ x: Math.max(0, chip.x - 16), animated: false });
+    }
+  }, []);
+
+  const handleLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      metricsRef.current.viewport = event.nativeEvent.layout.width;
+      syncScrollState();
+      revealActiveChip();
+    },
+    [revealActiveChip, syncScrollState]
   );
 
-  const ListEmpty = useMemo(() => {
-    if (configuredProviderIds.length === 0) return null;
+  const handleContentSizeChange = useCallback(
+    (width: number) => {
+      metricsRef.current.content = width;
+      syncScrollState();
+    },
+    [syncScrollState]
+  );
 
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      metricsRef.current.x = event.nativeEvent.contentOffset.x;
+      syncScrollState();
+    },
+    [syncScrollState]
+  );
+
+  const handleArrowPress = useCallback(() => {
+    const { x, content, viewport } = metricsRef.current;
+    const maxX = Math.max(0, content - viewport);
+    const nextX = scrollState.atEnd ? 0 : Math.min(maxX, x + Math.max(viewport * 0.65, 112));
+    scrollRef.current?.scrollTo({ x: nextX, animated: true });
+  }, [scrollState.atEnd]);
+
+  const handleChipLayout = useCallback(
+    (providerId: string, event: LayoutChangeEvent) => {
+      if (didRevealActiveRef.current || providerId !== activeTab) return;
+      const { x, width } = event.nativeEvent.layout;
+      activeChipRef.current = { x, width };
+      revealActiveChip();
+    },
+    [activeTab, revealActiveChip]
+  );
+
+  if (providerIds.length <= 1) {
     return (
-      <View style={{ alignItems: 'center', paddingHorizontal: 24, paddingVertical: 40 }}>
-        <Text style={{ color: colors.mutedText, fontSize: 13, textAlign: 'center' }}>
-          No models match the current search and filters.
+      <View
+        style={[
+          styles.providerChip,
+          {
+            flex: 1,
+            backgroundColor: colors.surface,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <Text style={{ color: colors.mutedText, fontSize: 12, fontWeight: '500' }} numberOfLines={1}>
+          {PROVIDER_DISPLAY[activeTab] || activeTab}
         </Text>
       </View>
     );
-  }, [colors.mutedText, configuredProviderIds.length]);
+  }
 
   return (
-    <Modal
-      visible={isOpen}
-      transparent
-      animationType="slide"
-      statusBarTranslucent
-      onRequestClose={closeAndReset}
-    >
-      <KeyboardAvoidingView
-        behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'}
-        style={{
-          flex: 1,
-          justifyContent: 'flex-end',
-          backgroundColor: colors.backdrop,
+    <View style={{ flex: 1, minWidth: 0 }}>
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        nestedScrollEnabled
+        directionalLockEnabled
+        keyboardShouldPersistTaps="handled"
+        showsHorizontalScrollIndicator={false}
+        onLayout={handleLayout}
+        onContentSizeChange={handleContentSizeChange}
+        onScroll={handleScroll}
+        scrollEventThrottle={32}
+        style={{ flexGrow: 0, minWidth: 0 }}
+        contentContainerStyle={{
+          gap: 8,
+          paddingRight: scrollState.scrollable ? 36 : 0,
         }}
       >
-        <Pressable onPress={closeAndReset} style={{ flex: 1 }} />
+        {providerIds.map((pid) => {
+          const isActive = pid === activeTab;
+          return (
+            <Pressable
+              key={pid}
+              onPress={() => onSelect(pid)}
+              onLayout={(event) => handleChipLayout(pid, event)}
+              style={[
+                styles.providerChip,
+                {
+                  backgroundColor: isActive ? colors.text : colors.surface,
+                  borderWidth: isActive ? 0 : StyleSheet.hairlineWidth,
+                  borderColor: colors.border,
+                },
+              ]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isActive }}
+            >
+              <Text
+                style={{
+                  color: isActive ? colors.bg : colors.mutedText,
+                  fontSize: 12,
+                  fontWeight: '500',
+                }}
+                numberOfLines={1}
+              >
+                {PROVIDER_DISPLAY[pid] || pid}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
 
-        <View
-          style={{
-            height: sheetHeight,
-            backgroundColor: colors.bg,
-            borderTopLeftRadius: 16,
-            borderTopRightRadius: 16,
-            borderTopWidth: StyleSheet.hairlineWidth,
-            borderTopColor: colors.border,
-            overflow: 'hidden',
-          }}
+      {scrollState.scrollable && (
+        <Pressable
+          onPress={handleArrowPress}
+          style={[
+            styles.iconButton,
+            {
+              position: 'absolute',
+              right: 0,
+              top: 0,
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={scrollState.atEnd ? 'Show previous providers' : 'Show more providers'}
         >
-          <View style={{ alignItems: 'center', paddingTop: 8, paddingBottom: 8 }}>
-            <View
-              style={{
-                width: 40,
-                height: 4,
-                borderRadius: 999,
-                backgroundColor: colors.handle,
-              }}
-            />
-          </View>
-
-          {Header}
-
-          <FlatList
-            ref={modelListRef}
-            data={filteredModels}
-            keyExtractor={keyExtractor}
-            renderItem={renderItem}
-            extraData={listExtraData}
-            getItemLayout={getItemLayout}
-            ListEmptyComponent={ListEmpty}
-            contentContainerStyle={{ paddingBottom: 32 }}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            initialNumToRender={16}
-            maxToRenderPerBatch={16}
-            removeClippedSubviews={process.env.EXPO_OS === 'android'}
-            updateCellsBatchingPeriod={32}
-            windowSize={7}
-            style={{ flex: 1 }}
-          />
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+          {scrollState.atEnd ? (
+            <ChevronLeft size={15} color={colors.icon} />
+          ) : (
+            <ChevronRight size={15} color={colors.icon} />
+          )}
+        </Pressable>
+      )}
+    </View>
   );
-}
+});
+
+const styles = StyleSheet.create({
+  keyboardContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    flexShrink: 1,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+  },
+  handleContainer: {
+    alignItems: 'center',
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 999,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  providerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    gap: 8,
+  },
+  providerChip: {
+    height: 31,
+    justifyContent: 'center',
+    borderRadius: 999,
+    paddingHorizontal: 16,
+  },
+  iconButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  searchBox: {
+    height: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    marginLeft: 8,
+    marginRight: 8,
+    padding: 0,
+    minWidth: 0,
+  },
+  filterChip: {
+    height: 26,
+    justifyContent: 'center',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 2,
+    paddingBottom: 6,
+  },
+  notice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 40,
+  },
+  row: {
+    height: MODEL_ROW_HEIGHT,
+    marginHorizontal: 16,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    borderRadius: 8,
+  },
+  selectedBar: {
+    position: 'absolute',
+    left: 0,
+    top: 8,
+    bottom: 8,
+    width: 2,
+    borderTopRightRadius: 999,
+    borderBottomRightRadius: 999,
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: 32,
+  },
+  capabilities: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 14,
+    marginTop: 2,
+  },
+  hidden: {
+    display: 'none',
+  },
+});

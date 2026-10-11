@@ -5,7 +5,7 @@ import { Text } from '@/components/ui/text';
 import type { ModelCapability } from '@/types';
 import { getCapabilityLabel } from '@/lib/models/capabilities';
 
-const ICON_MAP: Record<ModelCapability, React.ComponentType<{ size: number; color: string }>> = {
+export const CAPABILITY_ICON_MAP: Record<ModelCapability, React.ComponentType<{ size: number; color: string }>> = {
   vision: Eye,
   'image-gen': ImagePlus,
   pdf: FileText,
@@ -47,7 +47,7 @@ export function CapabilityBadges({
   const badges = (
     <View className="flex-row items-center" style={{ gap }}>
       {visibleCaps.map((cap) => {
-        const Icon = ICON_MAP[cap];
+        const Icon = CAPABILITY_ICON_MAP[cap];
         return <Icon key={cap} size={size} color={color} />;
       })}
       {hasMore && (

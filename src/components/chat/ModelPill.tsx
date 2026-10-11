@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Pressable, Text as RNText, View, useWindowDimensions } from 'react-native';
 import { ChevronDown } from 'lucide-react-native';
 import { useUIStore } from '@/stores/ui-store';
 import { useSettingsStore } from '@/stores/settings-store';
 import { getModelDisplayName } from '@/lib/models';
 import { getModelCapabilities, getPremiumCapabilities } from '@/lib/models/capabilities';
-import { loadLiteLLMRegistry } from '@/lib/models/litellm-registry';
+import { loadModelMetadata, useModelListStore } from '@/lib/models/model-list-sync';
 import { CapabilityBadges } from '@/components/chat/CapabilityBadges';
 
 const PROVIDER_SHORT: Record<string, string> = {
@@ -24,24 +24,18 @@ export function ModelPill() {
   const lastModel = useSettingsStore((s) => s.lastModel);
   const lastModelName = useSettingsStore((s) => s.lastModelName);
   const lastProvider = useSettingsStore((s) => s.lastProvider);
-  const [metadataVersion, setMetadataVersion] = useState(0);
+  const metadataVersion = useModelListStore((s) => s.metadataVersion);
   const displayName = lastModelName || getModelDisplayName(lastModel);
   const providerBadge = lastProvider ? PROVIDER_SHORT[lastProvider] : null;
   const maxPillWidth = Math.max(104, Math.min(176, width * 0.42));
 
   useEffect(() => {
-    let cancelled = false;
-    void loadLiteLLMRegistry().then(() => {
-      if (!cancelled) setMetadataVersion((version) => version + 1);
-    });
-    return () => {
-      cancelled = true;
-    };
+    void loadModelMetadata();
   }, []);
 
   const caps = useMemo(
     () => {
-      // Re-read capability fallback data after async LiteLLM metadata loads.
+      // Re-read capabilities once LiteLLM or provider list metadata loads.
       void metadataVersion;
       return lastModel && lastProvider
         ? getModelCapabilities(lastModel, lastProvider)

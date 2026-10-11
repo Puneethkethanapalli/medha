@@ -19,7 +19,7 @@ export type CapabilityMetadata = {
   outputCostPerImageToken?: number;
 };
 
-const CAPABILITY_ORDER: ModelCapability[] = [
+export const CAPABILITY_ORDER: readonly ModelCapability[] = [
   'vision',
   'image-gen',
   'pdf',
