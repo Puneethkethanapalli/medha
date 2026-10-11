@@ -3,6 +3,10 @@ import { Pressable, TextInput, View, type GestureResponderEvent } from 'react-na
 import * as Haptics from 'expo-haptics';
 import { Check, CornerDownLeft, Info } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { PressableScale } from '@/components/ui/pressable-scale';
+import { usePalette } from '@/lib/palette';
+import { Motion } from '@/lib/motion';
 import {
   parseAskUserChoiceToolCall,
   type AskUserChoiceQuestion,
@@ -35,6 +39,7 @@ export function ChoiceCard({ message, onSubmit, onDismiss }: ChoiceCardProps) {
     buildInitialSelections(questions)
   );
   const [expandedDescription, setExpandedDescription] = useState<string | null>(null);
+  const palette = usePalette();
 
   useEffect(() => {
     setSelections(buildInitialSelections(questions));
@@ -120,7 +125,18 @@ export function ChoiceCard({ message, onSubmit, onDismiss }: ChoiceCardProps) {
   if (!pendingChoice || questions.length === 0) return null;
 
   return (
-    <View className="mt-3 w-full rounded-2xl border border-outline-variant/30 bg-[#1A1A1C] p-3">
+    <Animated.View
+      entering={FadeInDown.duration(Motion.duration.enter).easing(Motion.easing.enter)}
+      style={{
+        marginTop: 12,
+        width: '100%',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: palette.border,
+        backgroundColor: palette.surface,
+        padding: 12,
+      }}
+    >
       {questions.map((question, questionIndex) => {
         const questionKey = getQuestionKey(question, questionIndex);
         const selection = selections[questionKey] ?? createEmptySelection();
@@ -148,11 +164,11 @@ export function ChoiceCard({ message, onSubmit, onDismiss }: ChoiceCardProps) {
 
                 return (
                   <View key={optionKey}>
-                    <Pressable
+                    <PressableScale
                       onPress={() => toggleOption(question, questionIndex, option.label)}
-                      className={`min-h-11 flex-row items-center rounded-xl px-3 py-2 ${
-                        selected ? 'bg-[#252527]' : 'bg-transparent'
-                      }`}
+                      scaleTo={0.98}
+                      className="min-h-11 flex-row items-center rounded-xl px-3 py-2"
+                      style={selected ? { backgroundColor: palette.surfaceHigh } : undefined}
                     >
                       <Text className="w-7 text-[14px] text-muted-foreground">
                         {optionIndex + 1}.
@@ -173,17 +189,20 @@ export function ChoiceCard({ message, onSubmit, onDismiss }: ChoiceCardProps) {
                           onPress={(event) => toggleDescription(optionKey, event)}
                           className="h-7 w-7 items-center justify-center rounded-full"
                         >
-                          <Info size={14} color="hsl(0, 0%, 63%)" />
+                          <Info size={14} color={palette.icon} />
                         </Pressable>
                       ) : null}
                       {selected && (
-                        <View className="ml-1 h-6 w-6 items-center justify-center rounded-full bg-[#343438]">
-                          <Check size={14} color="hsl(0, 0%, 88%)" strokeWidth={2.4} />
-                        </View>
+                        <Animated.View
+                          entering={FadeIn.duration(Motion.duration.fast)}
+                          style={[checkBadgeStyle, { backgroundColor: palette.accent }]}
+                        >
+                          <Check size={13} color={palette.onAccent} strokeWidth={2.75} />
+                        </Animated.View>
                       )}
-                    </Pressable>
+                    </PressableScale>
                     {descriptionExpanded && option.description ? (
-                      <View className="mx-3 mb-1 rounded-lg bg-[#111113] px-3 py-2">
+                      <View className="mx-3 mb-1 rounded-lg px-3 py-2" style={{ backgroundColor: palette.surfaceRaised }}>
                         <Text className="text-[12px] leading-5 text-muted-foreground">
                           {option.description}
                         </Text>
@@ -194,11 +213,11 @@ export function ChoiceCard({ message, onSubmit, onDismiss }: ChoiceCardProps) {
               })}
 
               <View>
-                <Pressable
+                <PressableScale
                   onPress={() => toggleOther(question, questionIndex)}
-                  className={`min-h-11 flex-row items-center rounded-xl px-3 py-2 ${
-                    selection.otherSelected ? 'bg-[#252527]' : 'bg-transparent'
-                  }`}
+                  scaleTo={0.98}
+                  className="min-h-11 flex-row items-center rounded-xl px-3 py-2"
+                  style={selection.otherSelected ? { backgroundColor: palette.surfaceHigh } : undefined}
                 >
                   <Text className="w-7 text-[14px] text-muted-foreground">
                     {question.options.length + 1}.
@@ -212,18 +231,24 @@ export function ChoiceCard({ message, onSubmit, onDismiss }: ChoiceCardProps) {
                     Other...
                   </Text>
                   {selection.otherSelected && (
-                    <View className="ml-1 h-6 w-6 items-center justify-center rounded-full bg-[#343438]">
-                      <Check size={14} color="hsl(0, 0%, 88%)" strokeWidth={2.4} />
-                    </View>
+                    <Animated.View
+                      entering={FadeIn.duration(Motion.duration.fast)}
+                      style={[checkBadgeStyle, { backgroundColor: palette.accent }]}
+                    >
+                      <Check size={13} color={palette.onAccent} strokeWidth={2.75} />
+                    </Animated.View>
                   )}
-                </Pressable>
+                </PressableScale>
                 {selection.otherSelected && (
-                  <View className="mx-3 mb-1 rounded-lg border border-outline-variant/20 bg-[#111113] px-3 py-2">
+                  <View
+                    className="mx-3 mb-1 rounded-lg px-3 py-2"
+                    style={{ backgroundColor: palette.surfaceRaised, borderWidth: 1, borderColor: palette.border }}
+                  >
                     <TextInput
                       value={selection.otherText}
                       onChangeText={(text) => setOtherText(question, questionIndex, text)}
                       placeholder="Type your answer"
-                      placeholderTextColor="hsl(0, 0%, 44%)"
+                      placeholderTextColor={palette.iconMuted}
                       className="text-[14px] text-foreground"
                       multiline
                       style={{ minHeight: 28, padding: 0 }}
@@ -237,30 +262,41 @@ export function ChoiceCard({ message, onSubmit, onDismiss }: ChoiceCardProps) {
       })}
 
       <View className="mt-4 flex-row items-center justify-end gap-2">
-        <Pressable
+        <PressableScale
           onPress={handleDismiss}
-          className="h-9 items-center justify-center rounded-full px-3 active:opacity-70"
+          scaleTo={0.95}
+          className="h-9 items-center justify-center rounded-full px-3"
         >
           <Text className="text-[14px] font-medium text-muted-foreground">Dismiss</Text>
-        </Pressable>
-        <Pressable
+        </PressableScale>
+        <PressableScale
           onPress={handleSubmit}
           disabled={!canSubmit}
-          className={`h-9 flex-row items-center justify-center gap-2 rounded-full px-4 ${
-            canSubmit ? 'bg-[#56B7E8]' : 'bg-[#2A2A2D]'
-          }`}
+          scaleTo={0.95}
+          className="h-9 flex-row items-center justify-center gap-2 rounded-full px-4"
+          style={{ backgroundColor: canSubmit ? palette.accent : palette.surfaceHigh }}
         >
-          <Text className={`text-[14px] font-semibold ${canSubmit ? 'text-[#071014]' : 'text-muted-foreground'}`}>
+          <Text
+            className="text-[14px] font-semibold"
+            style={{ color: canSubmit ? palette.onAccent : palette.textMuted }}
+          >
             Submit
           </Text>
-          <View className={`h-6 w-6 items-center justify-center rounded-full ${canSubmit ? 'bg-black/10' : 'bg-transparent'}`}>
-            <CornerDownLeft size={14} color={canSubmit ? '#071014' : 'hsl(0, 0%, 44%)'} strokeWidth={2.4} />
-          </View>
-        </Pressable>
+          <CornerDownLeft size={14} color={canSubmit ? palette.onAccent : palette.iconMuted} strokeWidth={2.4} />
+        </PressableScale>
       </View>
-    </View>
+    </Animated.View>
   );
 }
+
+const checkBadgeStyle = {
+  marginLeft: 4,
+  width: 22,
+  height: 22,
+  borderRadius: 11,
+  alignItems: 'center',
+  justifyContent: 'center',
+} as const;
 
 function buildInitialSelections(questions: AskUserChoiceQuestion[]): SelectionState {
   const initial: SelectionState = {};

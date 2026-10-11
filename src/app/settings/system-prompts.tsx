@@ -1,16 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Modal,
-  Pressable,
   ScrollView,
   TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Download, Info, Plus, Upload } from 'lucide-react-native';
+import { Download, Info, Plus, Upload } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { PressableScale } from '@/components/ui/pressable-scale';
+import { Sheet } from '@/components/ui/sheet';
+import { usePalette } from '@/lib/palette';
 import { Button } from '@/components/ui/button';
 import {
   BUILT_IN_PROMPT_PRESETS,
@@ -30,6 +32,7 @@ import type { PromptPreset } from '@/types';
 export default function SystemPromptsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const palette = usePalette();
   const params = useLocalSearchParams<{ conversationId?: string }>();
   const activeConversationId = useUIStore((state) => state.activeConversationId);
   const setActiveConversation = useUIStore((state) => state.setActiveConversation);
@@ -195,44 +198,38 @@ export default function SystemPromptsScreen() {
   if (isLoading) {
     return (
       <View className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator color="#FAFAFA" />
+        <ActivityIndicator color={palette.text} />
       </View>
     );
   }
 
   return (
     <View className="flex-1 bg-background">
-      <View
-        className="h-14 px-4 border-b border-outline-variant/20 flex-row items-center"
-        style={{ marginTop: insets.top }}
-      >
-        <Pressable
-          onPress={() => router.back()}
-          className="w-10 h-10 items-center justify-center -ml-2"
-        >
-          <ArrowLeft size={22} color="hsl(0, 0%, 63%)" />
-        </Pressable>
-
-        <Text className="flex-1 text-center text-foreground text-[15px] font-semibold tracking-[1px] uppercase">
-          System Prompt
-        </Text>
-
-        <Pressable
-          onPress={handleSave}
-          disabled={isSaving}
-          className="h-10 px-2 items-center justify-center -mr-2"
-        >
-          <Text className="text-foreground text-[14px] font-medium">
-            {isSaving ? 'Saving...' : 'Save'}
-          </Text>
-        </Pressable>
-      </View>
+      <ScreenHeader
+        title="System Prompt"
+        right={
+          <PressableScale
+            onPress={handleSave}
+            disabled={isSaving}
+            haptic
+            scaleTo={0.93}
+            className="h-9 px-4 rounded-full bg-foreground items-center justify-center"
+            style={isSaving ? { opacity: 0.6 } : undefined}
+            accessibilityRole="button"
+            accessibilityLabel="Save system prompt"
+          >
+            <Text className="text-background text-[13px] font-semibold">
+              {isSaving ? 'Saving...' : 'Save'}
+            </Text>
+          </PressableScale>
+        }
+      />
 
       <ScrollView
         className="flex-1"
         contentContainerStyle={{
           paddingHorizontal: 16,
-          paddingTop: 24,
+          paddingTop: 12,
           paddingBottom: Math.max(insets.bottom, 20) + 20,
         }}
         keyboardShouldPersistTaps="handled"
@@ -247,8 +244,9 @@ export default function SystemPromptsScreen() {
             const selected = preset.id === selectedPresetId;
 
             return (
-              <Pressable
+              <PressableScale
                 key={preset.id}
+                scaleTo={0.94}
                 onPress={() => setPrompt(preset.prompt)}
                 onLongPress={
                   preset.builtin
@@ -258,7 +256,7 @@ export default function SystemPromptsScreen() {
                 className={`rounded-full px-4 py-2 border ${
                   selected
                     ? 'bg-foreground border-foreground'
-                    : 'bg-muted border-outline-variant/20'
+                    : 'bg-surface-container-low border-outline-variant/20'
                 }`}
               >
                 <Text
@@ -268,38 +266,39 @@ export default function SystemPromptsScreen() {
                 >
                   {preset.name}
                 </Text>
-              </Pressable>
+              </PressableScale>
             );
           })}
 
-          <Pressable
+          <PressableScale
+            scaleTo={0.94}
             onPress={() => {
               setPresetName(`Custom ${customPresets.length + 1}`);
               setPresetModalOpen(true);
             }}
-            className="rounded-full px-4 py-2 border border-outline-variant/20 bg-muted flex-row items-center gap-1.5"
+            className="rounded-full px-4 py-2 border border-dashed border-outline-variant/40 bg-surface-container-low flex-row items-center gap-1.5"
           >
-            <Plus size={14} color="hsl(0, 0%, 63%)" />
+            <Plus size={14} color={palette.icon} />
             <Text className="text-[13px] font-medium text-on-surface-variant">
               Custom
             </Text>
-          </Pressable>
+          </PressableScale>
         </ScrollView>
 
-        <View className="bg-muted border border-outline-variant/20 rounded-xl overflow-hidden">
+        <View className="bg-surface-container-low border border-outline-variant/20 rounded-2xl overflow-hidden">
           <TextInput
             multiline
             value={prompt}
             onChangeText={setPrompt}
             placeholder="Enter system prompt here..."
-            placeholderTextColor="hsl(0, 0%, 44%)"
+            placeholderTextColor={palette.iconMuted}
             className="min-h-[280px] text-foreground text-[15px] leading-7 p-5"
             textAlignVertical="top"
           />
         </View>
 
         <View className="flex-row items-center gap-2 mt-4 px-1">
-          <Info size={16} color="hsl(0, 0%, 63%)" />
+          <Info size={16} color={palette.icon} />
           <Text className="text-on-surface-variant text-[13px]">
             {infoText}
           </Text>
@@ -327,75 +326,69 @@ export default function SystemPromptsScreen() {
         </View>
 
         <View className="mt-5 flex-row gap-3">
-          <Pressable
+          <PressableScale
             onPress={handleImport}
-            className="flex-1 flex-row items-center justify-center gap-2 rounded-lg border border-outline-variant/20 bg-muted h-11 active:opacity-80"
+            scaleTo={0.96}
+            className="flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-outline-variant/20 bg-surface-container-low h-11"
           >
-            <Upload size={16} color="hsl(0, 0%, 63%)" />
+            <Upload size={16} color={palette.icon} />
             <Text className="text-on-surface-variant text-[13px] font-medium">
               Import JSON
             </Text>
-          </Pressable>
+          </PressableScale>
 
-          <Pressable
+          <PressableScale
             onPress={handleExport}
-            className="flex-1 flex-row items-center justify-center gap-2 rounded-lg border border-outline-variant/20 bg-muted h-11 active:opacity-80"
+            scaleTo={0.96}
+            className="flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-outline-variant/20 bg-surface-container-low h-11"
           >
-            <Download size={16} color="hsl(0, 0%, 63%)" />
+            <Download size={16} color={palette.icon} />
             <Text className="text-on-surface-variant text-[13px] font-medium">
               Export JSON
             </Text>
-          </Pressable>
+          </PressableScale>
         </View>
       </ScrollView>
 
-      <Modal
-        transparent
-        animationType="fade"
-        visible={presetModalOpen}
-        onRequestClose={() => setPresetModalOpen(false)}
+      <Sheet
+        open={presetModalOpen}
+        onClose={() => setPresetModalOpen(false)}
+        title="Save Custom Preset"
+        subtitle="Give this prompt a short name so it is easy to reuse later."
+        avoidKeyboard
       >
-        <View className="flex-1 bg-black/60 items-center justify-center px-6">
-          <View className="w-full max-w-[360px] rounded-2xl bg-[#111113] border border-outline-variant/20 p-5">
-            <Text className="text-foreground text-[18px] font-semibold">
-              Save Custom Preset
-            </Text>
-            <Text className="text-on-surface-variant text-[14px] mt-2 leading-6">
-              Give this prompt a short name so it is easy to reuse later.
-            </Text>
+        <View className="px-5">
+          <TextInput
+            value={presetName}
+            onChangeText={setPresetName}
+            placeholder="Preset name"
+            placeholderTextColor={palette.iconMuted}
+            className="h-12 rounded-xl border border-outline-variant/20 bg-surface-container-low px-4 text-foreground"
+            autoFocus
+          />
 
-            <TextInput
-              value={presetName}
-              onChangeText={setPresetName}
-              placeholder="Preset name"
-              placeholderTextColor="hsl(0, 0%, 44%)"
-              className="mt-4 h-12 rounded-xl border border-outline-variant/20 bg-muted px-4 text-foreground"
-              autoFocus
-            />
+          <View className="mt-5 flex-row gap-3">
+            <Button
+              variant="ghost"
+              className="flex-1 h-11 rounded-xl"
+              onPress={() => {
+                setPresetModalOpen(false);
+                setPresetName('');
+              }}
+            >
+              <Text className="text-on-surface-variant">Cancel</Text>
+            </Button>
 
-            <View className="mt-5 flex-row gap-3">
-              <Button
-                variant="ghost"
-                className="flex-1 h-11 rounded-lg"
-                onPress={() => {
-                  setPresetModalOpen(false);
-                  setPresetName('');
-                }}
-              >
-                <Text className="text-on-surface-variant">Cancel</Text>
-              </Button>
-
-              <Button
-                className="flex-1 h-11 rounded-lg"
-                onPress={handleSavePreset}
-                disabled={!presetName.trim() || !normalizeSystemPrompt(prompt)}
-              >
-                <Text>Save Preset</Text>
-              </Button>
-            </View>
+            <Button
+              className="flex-1 h-11 rounded-xl"
+              onPress={handleSavePreset}
+              disabled={!presetName.trim() || !normalizeSystemPrompt(prompt)}
+            >
+              <Text>Save Preset</Text>
+            </Button>
           </View>
         </View>
-      </Modal>
+      </Sheet>
     </View>
   );
 }

@@ -1,9 +1,9 @@
 import React, { useCallback } from 'react';
-import { Pressable } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { useSettingsStore } from '@/stores/settings-store';
+import { PressableScale } from '@/components/ui/pressable-scale';
 import { useUIStore } from '@/stores/ui-store';
+import { usePalette } from '@/lib/palette';
 import type { Attachment } from '@/types';
 
 interface AttachmentButtonProps {
@@ -12,11 +12,8 @@ interface AttachmentButtonProps {
 }
 
 export function AttachmentButton({ onAttach, disabled }: AttachmentButtonProps) {
-  const currentTheme = useSettingsStore((s) => s.theme);
+  const palette = usePalette();
   const openAttachmentSheet = useUIStore((s) => s.openAttachmentSheet);
-
-  const isLight = currentTheme === 'light';
-  const iconColor = isLight ? '#71717A' : '#A1A1AA';
 
   const handleOpen = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -24,12 +21,24 @@ export function AttachmentButton({ onAttach, disabled }: AttachmentButtonProps) 
   }, [onAttach, openAttachmentSheet]);
 
   return (
-    <Pressable
+    <PressableScale
       onPress={handleOpen}
       disabled={disabled}
-      className="w-8 h-8 rounded-full bg-muted items-center justify-center mb-1 active:scale-95"
+      scaleTo={0.88}
+      hitSlop={6}
+      style={{
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: palette.surfaceRaised,
+        opacity: disabled ? 0.5 : 1,
+      }}
+      accessibilityRole="button"
+      accessibilityLabel="Add attachment"
     >
-      <Plus size={18} color={iconColor} />
-    </Pressable>
+      <Plus size={19} color={palette.icon} strokeWidth={2.25} />
+    </PressableScale>
   );
 }

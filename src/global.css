@@ -25,12 +25,12 @@
     --radius: 0.625rem;
     /* Nova surface hierarchy - light */
     --surface: 0 0% 100%;
-    --surface-dim: 0 0% 98%;
+    --surface-dim: 240 5% 98%;
     --surface-container-lowest: 0 0% 100%;
-    --surface-container-low: 0 0% 98%;
-    --surface-container: 0 0% 96%;
-    --surface-container-high: 0 0% 94%;
-    --surface-container-highest: 0 0% 92%;
+    --surface-container-low: 240 5% 96.5%;
+    --surface-container: 240 5% 94%;
+    --surface-container-high: 240 5% 90%;
+    --surface-container-highest: 240 5% 87%;
     --surface-bright: 0 0% 100%;
     --surface-variant: 0 0% 92%;
     /* Nova semantic colors - light */

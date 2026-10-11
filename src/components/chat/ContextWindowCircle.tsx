@@ -1,7 +1,11 @@
-import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedProps, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Circle, Svg } from 'react-native-svg';
 import { Text } from '@/components/ui/text';
+import { PressableScale } from '@/components/ui/pressable-scale';
+import { usePalette, type Palette } from '@/lib/palette';
+import { Motion } from '@/lib/motion';
 import { useUIStore } from '@/stores/ui-store';
 import { formatCompactTokenCount } from '@/lib/tokens/metrics';
 
@@ -16,21 +20,31 @@ const CENTER = SIZE / 2;
 const RADIUS = (SIZE - STROKE_WIDTH) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
 export function ContextWindowCircle({
   usedTokens,
   contextWindow,
 }: ContextWindowCircleProps) {
   const showToast = useUIStore((s) => s.showToast);
+  const palette = usePalette();
   const safeUsedTokens = Math.max(0, usedTokens);
   const hasContextWindow = typeof contextWindow === 'number' && contextWindow > 0;
 
   const ratio = hasContextWindow ? Math.max(0, safeUsedTokens / contextWindow) : 0;
   const clampedRatio = Math.min(ratio, 1);
-  const dashOffset = CIRCUMFERENCE * (1 - clampedRatio);
+  // The ring eases to its new fill instead of jumping after each message.
+  const fill = useSharedValue(clampedRatio);
+  useEffect(() => {
+    fill.set(withTiming(clampedRatio, { duration: 600, easing: Motion.easing.standard }));
+  }, [clampedRatio, fill]);
+  const ringProps = useAnimatedProps(() => ({
+    strokeDashoffset: CIRCUMFERENCE * (1 - fill.get()),
+  }));
   const percent = ratio * 100;
   const centerLabel = hasContextWindow ? formatCenterLabel(percent) : '--';
   const percentLabel = hasContextWindow ? formatPercentLabel(percent) : 'unknown';
-  const progressColor = hasContextWindow ? getProgressColor(ratio) : '#71717A';
+  const progressColor = hasContextWindow ? getProgressColor(ratio, palette) : palette.iconMuted;
 
   const handlePress = () => {
     if (hasContextWindow) {
@@ -48,30 +62,31 @@ export function ContextWindowCircle({
   };
 
   return (
-    <Pressable
+    <PressableScale
       onPress={handlePress}
       hitSlop={8}
+      scaleTo={0.88}
       accessibilityRole="button"
       accessibilityLabel={`Context window ${percentLabel} used`}
-      style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+      style={[styles.button, { backgroundColor: palette.surface, borderColor: palette.border }]}
     >
       <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
         <Circle
           cx={CENTER}
           cy={CENTER}
           r={RADIUS}
-          stroke="#3F3F46"
+          stroke={palette.surfaceHigh}
           strokeWidth={STROKE_WIDTH}
           fill="transparent"
         />
-        <Circle
+        <AnimatedCircle
           cx={CENTER}
           cy={CENTER}
           r={RADIUS}
           stroke={progressColor}
           strokeWidth={STROKE_WIDTH}
           strokeDasharray={[CIRCUMFERENCE, CIRCUMFERENCE]}
-          strokeDashoffset={dashOffset}
+          animatedProps={ringProps}
           strokeLinecap="round"
           fill="transparent"
           transform={`rotate(-90 ${CENTER} ${CENTER})`}
@@ -92,7 +107,7 @@ export function ContextWindowCircle({
           {centerLabel}
         </Text>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -108,10 +123,10 @@ function formatPercentLabel(percent: number): string {
   return `${Math.round(percent)}%`;
 }
 
-function getProgressColor(ratio: number): string {
-  if (ratio >= 1) return '#EF4444';
+function getProgressColor(ratio: number, palette: Palette): string {
+  if (ratio >= 1) return palette.destructive;
   if (ratio >= 0.85) return '#F59E0B';
-  return '#A1A1AA';
+  return palette.icon;
 }
 
 const styles = StyleSheet.create({
@@ -119,14 +134,9 @@ const styles = StyleSheet.create({
     width: SIZE,
     height: SIZE,
     borderRadius: SIZE / 2,
-    backgroundColor: '#18181B',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  buttonPressed: {
-    opacity: 0.7,
   },
   labelContainer: {
     position: 'absolute',

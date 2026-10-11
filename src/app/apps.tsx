@@ -1,8 +1,13 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Pressable, ScrollView, Alert } from 'react-native';
+import { View, ScrollView, Alert } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
-import { ArrowLeft, Plus } from 'lucide-react-native';
+import { ScreenHeader, HeaderIconButton } from '@/components/ui/screen-header';
+import { PressableScale } from '@/components/ui/pressable-scale';
+import { usePalette } from '@/lib/palette';
+import { Motion } from '@/lib/motion';
+import { Plus } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
@@ -18,6 +23,7 @@ export default function AppsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const showToast = useUIStore((s) => s.showToast);
+  const palette = usePalette();
 
   const [apps, setApps] = useState<MedhaApp[]>([]);
 
@@ -137,39 +143,27 @@ export default function AppsScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      {/* Header */}
-      <View
-        className="flex-row items-center justify-between px-4 h-14 border-b border-outline-variant/20"
-        style={{ marginTop: insets.top }}
-      >
-        <View className="flex-row items-center">
-          <Pressable
-            onPress={() => router.back()}
-            className="w-10 h-10 items-center justify-center -ml-2"
-          >
-            <ArrowLeft size={24} color="hsl(0, 0%, 98%)" />
-          </Pressable>
-          <Text className="text-foreground text-[18px] font-semibold ml-2">Apps</Text>
-        </View>
-        <Pressable
-          onPress={() => router.push('/apps/create' as any)}
-          className="w-10 h-10 items-center justify-center"
-        >
-          <Plus size={22} color="hsl(0, 0%, 98%)" />
-        </Pressable>
-      </View>
+      <ScreenHeader
+        title="Apps"
+        right={
+          <HeaderIconButton onPress={() => router.push('/apps/create' as any)} accessibilityLabel="Create app">
+            <Plus size={22} color={palette.icon} />
+          </HeaderIconButton>
+        }
+      />
 
-      <ScrollView className="flex-1 px-4 pt-4" showsVerticalScrollIndicator={false}>
+      <ScrollView className="flex-1 px-4 pt-2" showsVerticalScrollIndicator={false}>
         {/* Built-in Apps */}
         {builtinApps.length > 0 && (
           <View className="mb-6">
-            <Text className="text-on-surface-variant text-[10px] font-semibold uppercase tracking-widest mb-3 px-1">
+            <Text className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wider mb-3 px-1">
               Built-in
             </Text>
-            <View className="flex-row flex-wrap gap-3">
-              {builtinApps.map((app) => (
+            <View className="flex-row flex-wrap justify-between gap-y-3">
+              {builtinApps.map((app, index) => (
                 <AppCard
                   key={app.id}
+                  index={index}
                   app={app}
                   onPress={() => handleLaunchApp(app)}
                   onLongPress={() => handleLongPress(app)}
@@ -182,13 +176,14 @@ export default function AppsScreen() {
         {/* Custom Apps */}
         {customApps.length > 0 && (
           <View className="mb-6">
-            <Text className="text-on-surface-variant text-[10px] font-semibold uppercase tracking-widest mb-3 px-1">
+            <Text className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wider mb-3 px-1">
               Custom
             </Text>
-            <View className="flex-row flex-wrap gap-3">
-              {customApps.map((app) => (
+            <View className="flex-row flex-wrap justify-between gap-y-3">
+              {customApps.map((app, index) => (
                 <AppCard
                   key={app.id}
+                  index={builtinApps.length + index}
                   app={app}
                   onPress={() => handleLaunchApp(app)}
                   onLongPress={() => handleLongPress(app)}
@@ -199,16 +194,17 @@ export default function AppsScreen() {
         )}
 
         {/* Create App Card */}
-        <Pressable
+        <PressableScale
           onPress={() => router.push('/apps/create' as any)}
-          className="border-2 border-dashed border-outline-variant/20 rounded-2xl p-5 items-center justify-center gap-2 mb-8 active:opacity-70"
+          scaleTo={0.97}
+          className="border-2 border-dashed border-outline-variant/30 rounded-2xl p-5 items-center justify-center gap-2 mb-8"
           style={{ minHeight: 100 }}
         >
-          <Plus size={24} color="hsl(0, 0%, 44%)" />
+          <Plus size={24} color={palette.iconMuted} />
           <Text className="text-on-surface-variant text-[13px] font-medium">
             Create Custom App
           </Text>
-        </Pressable>
+        </PressableScale>
 
         {/* Bottom padding */}
         <View style={{ height: insets.bottom + 16 }} />
@@ -219,10 +215,12 @@ export default function AppsScreen() {
 
 function AppCard({
   app,
+  index,
   onPress,
   onLongPress,
 }: {
   app: MedhaApp;
+  index: number;
   onPress: () => void;
   onLongPress: () => void;
 }) {
@@ -233,36 +231,43 @@ function AppCard({
   const bgColor = app.color ?? 'hsl(0, 0%, 30%)';
 
   return (
-    <Pressable
-      onPress={onPress}
-      onLongPress={onLongPress}
-      className="bg-surface-container-low border border-outline-variant/10 rounded-2xl p-4 gap-3 active:scale-[0.97]"
-      style={{ width: '48%' }}
+    <Animated.View
+      entering={FadeInDown.duration(Motion.duration.enter).delay(Math.min(index, 8) * 40).easing(Motion.easing.enter)}
+      style={{ width: '48.5%' }}
     >
-      {/* Icon */}
-      <View
-        className="h-11 w-11 rounded-xl items-center justify-center"
-        style={{ backgroundColor: bgColor }}
+      <PressableScale
+        onPress={onPress}
+        onLongPress={onLongPress}
+        delayLongPress={350}
+        scaleTo={0.96}
+        className="bg-surface-container-low border border-outline-variant/20 rounded-2xl p-4 gap-3"
+        style={{ minHeight: 148 }}
       >
-        <Icon size={22} color="hsl(0, 0%, 98%)" />
-      </View>
+        {/* Icon */}
+        <View
+          className="h-11 w-11 rounded-xl items-center justify-center"
+          style={{ backgroundColor: bgColor }}
+        >
+          <Icon size={22} color="hsl(0, 0%, 98%)" />
+        </View>
 
-      {/* Name */}
-      <Text className="text-foreground text-[14px] font-semibold" numberOfLines={1}>
-        {app.name}
-      </Text>
-
-      {/* Description */}
-      <Text className="text-on-surface-variant text-[12px] leading-relaxed" numberOfLines={2}>
-        {app.description}
-      </Text>
-
-      {/* Chat count */}
-      {chatCount > 0 && (
-        <Text className="text-muted-foreground text-[10px]">
-          {chatCount} {chatCount === 1 ? 'chat' : 'chats'}
+        {/* Name */}
+        <Text className="text-foreground text-[14px] font-semibold" numberOfLines={1}>
+          {app.name}
         </Text>
-      )}
-    </Pressable>
+
+        {/* Description */}
+        <Text className="text-on-surface-variant text-[12px] leading-relaxed" numberOfLines={2}>
+          {app.description}
+        </Text>
+
+        {/* Chat count */}
+        {chatCount > 0 && (
+          <Text className="text-muted-foreground text-[10px]">
+            {chatCount} {chatCount === 1 ? 'chat' : 'chats'}
+          </Text>
+        )}
+      </PressableScale>
+    </Animated.View>
   );
 }

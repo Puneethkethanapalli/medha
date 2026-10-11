@@ -1,16 +1,20 @@
 import React, { useCallback } from 'react';
-import { Modal, View, Pressable } from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { X, Check } from 'lucide-react-native';
+import { View, StyleSheet } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { Check } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
+import { Sheet } from '@/components/ui/sheet';
+import { PressableScale } from '@/components/ui/pressable-scale';
 import { useUIStore } from '@/stores/ui-store';
 import { useSettingsStore } from '@/stores/settings-store';
+import { getPalette, usePalette } from '@/lib/palette';
+import { Motion } from '@/lib/motion';
 import type { Theme } from '@/lib/storage/mmkv';
 
-const THEMES: { id: Theme; label: string; bg: string; surface: string }[] = [
-  { id: 'dark', label: 'Dark', bg: '#09090B', surface: '#18181B' },
-  { id: 'light', label: 'Light', bg: '#FFFFFF', surface: '#F4F4F5' },
-  { id: 'oled', label: 'OLED', bg: '#000000', surface: '#0A0A0A' },
+const THEMES: { id: Theme; label: string }[] = [
+  { id: 'dark', label: 'Dark' },
+  { id: 'light', label: 'Light' },
+  { id: 'oled', label: 'OLED' },
 ];
 
 export function ThemePicker() {
@@ -21,95 +25,129 @@ export function ThemePicker() {
 
   const handleSelectTheme = useCallback(
     (theme: Theme) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setTheme(theme);
+      if (theme !== currentTheme) void setTheme(theme);
     },
-    [setTheme]
+    [currentTheme, setTheme]
   );
 
   return (
-    <Modal
-      visible={isOpen}
-      transparent
-      animationType="slide"
-      onRequestClose={close}
-      statusBarTranslucent
-    >
-      {/* Tap-to-dismiss backdrop */}
-      <Pressable onPress={close} className="flex-1 bg-black/50" />
-
-      {/* Bottom sheet card */}
-      <View
-        style={{
-          backgroundColor: currentTheme === 'light' ? '#FFFFFF' : currentTheme === 'oled' ? '#000000' : '#09090B',
-          borderTopLeftRadius: 16,
-          borderTopRightRadius: 16,
-          borderTopWidth: 1,
-          borderTopColor: currentTheme === 'light' ? '#E4E4E7' : '#27272A',
-          paddingBottom: 40,
-        }}
-      >
-        {/* Handle indicator */}
-        <View className="items-center pt-2 pb-1">
-          <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: currentTheme === 'light' ? '#D4D4D8' : '#27272A' }} />
-        </View>
-
-        <View className="px-5">
-          {/* Header */}
-          <View className="flex-row justify-between items-center py-3">
-            <Text className="text-foreground text-[16px] font-semibold tracking-tight">Theme</Text>
-            <Pressable
-              onPress={close}
-              className="w-8 h-8 items-center justify-center rounded-full active:bg-surface-container"
-            >
-              <X size={20} color={currentTheme === 'light' ? 'hsl(240, 4%, 46%)' : 'hsl(0, 0%, 63%)'} />
-            </Pressable>
-          </View>
-
-          {/* Theme grid */}
-          <View className="flex-row gap-3 mt-2">
-            {THEMES.map((theme) => {
-              const isSelected = currentTheme === theme.id;
-              return (
-                <Pressable
-                  key={theme.id}
-                  onPress={() => handleSelectTheme(theme.id)}
-                  className="flex-1 items-center gap-2"
-                >
-                  {/* Preview card */}
-                  <View
-                    style={{
-                      width: '100%',
-                      height: 64,
-                      borderRadius: 8,
-                      padding: 8,
-                      gap: 6,
-                      backgroundColor: theme.bg,
-                      borderWidth: isSelected ? 2 : 1,
-                      borderColor: isSelected ? '#FAFAFA' : '#27272A',
-                    }}
-                  >
-                    <View style={{ backgroundColor: theme.surface, height: 8, borderRadius: 4, width: '100%' }} />
-                    <View style={{ backgroundColor: theme.surface, height: 8, borderRadius: 4, width: '66%' }} />
-                    <View style={{ backgroundColor: theme.surface, height: 8, borderRadius: 4, width: '80%', alignSelf: 'flex-end' }} />
-                  </View>
-                  {/* Label + checkmark */}
-                  <View className="items-center h-8 justify-center">
-                    <Text
-                      className={`text-[12px] ${isSelected ? 'text-foreground font-medium' : 'text-muted-foreground'}`}
-                    >
-                      {theme.label}
-                    </Text>
-                    {isSelected && (
-                      <Check size={12} color="#FAFAFA" style={{ marginTop: 2 }} />
-                    )}
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
+    <Sheet open={isOpen} onClose={close} title="Theme" subtitle="Choose how Medha looks">
+      <View className="flex-row gap-3 px-5 pt-1 pb-3">
+        {THEMES.map((theme) => (
+          <ThemeOption
+            key={theme.id}
+            theme={theme.id}
+            label={theme.label}
+            selected={currentTheme === theme.id}
+            onSelect={handleSelectTheme}
+          />
+        ))}
       </View>
-    </Modal>
+    </Sheet>
   );
 }
+
+function ThemeOption({
+  theme,
+  label,
+  selected,
+  onSelect,
+}: {
+  theme: Theme;
+  label: string;
+  selected: boolean;
+  onSelect: (theme: Theme) => void;
+}) {
+  const palette = usePalette();
+  // Preview the option in its own colors, not the active theme's.
+  const preview = getPalette(theme);
+  const check = useSharedValue(selected ? 1 : 0);
+
+  React.useEffect(() => {
+    check.set(selected ? withSpring(1, Motion.spring.pop) : withTiming(0, { duration: Motion.duration.fast }));
+  }, [check, selected]);
+
+  const checkStyle = useAnimatedStyle(() => ({
+    opacity: check.get(),
+    transform: [{ scale: 0.5 + check.get() * 0.5 }],
+  }));
+
+  return (
+    <PressableScale
+      onPress={() => onSelect(theme)}
+      haptic
+      scaleTo={0.95}
+      style={styles.option}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      accessibilityLabel={`${label} theme`}
+    >
+      <View
+        style={[
+          styles.preview,
+          {
+            backgroundColor: preview.background,
+            borderColor: selected ? palette.text : palette.border,
+            borderWidth: selected ? 2 : 1,
+          },
+        ]}
+      >
+        <View style={[styles.previewLine, { backgroundColor: preview.surfaceHigh, width: '70%' }]} />
+        <View style={[styles.previewLine, { backgroundColor: preview.surfaceHigh, width: '45%' }]} />
+        <View
+          style={[
+            styles.previewBubble,
+            { backgroundColor: preview.surfaceRaised, borderColor: preview.border },
+          ]}
+        />
+        <Animated.View style={[styles.checkBadge, { backgroundColor: palette.accent }, checkStyle]}>
+          <Check size={11} color={palette.onAccent} strokeWidth={3} />
+        </Animated.View>
+      </View>
+      <Text
+        className="text-[13px] mt-2"
+        style={{ color: selected ? palette.text : palette.textMuted, fontWeight: selected ? '600' : '400' }}
+      >
+        {label}
+      </Text>
+    </PressableScale>
+  );
+}
+
+const styles = StyleSheet.create({
+  option: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  preview: {
+    width: '100%',
+    height: 92,
+    borderRadius: 16,
+    padding: 10,
+    gap: 6,
+  },
+  previewLine: {
+    height: 7,
+    borderRadius: 4,
+  },
+  previewBubble: {
+    position: 'absolute',
+    right: 10,
+    bottom: 10,
+    width: '50%',
+    height: 18,
+    borderRadius: 9,
+    borderBottomRightRadius: 3,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  checkBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

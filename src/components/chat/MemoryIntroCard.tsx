@@ -1,9 +1,11 @@
 import React, { useCallback } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Brain } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
+import { PressableScale } from '@/components/ui/pressable-scale';
+import { usePalette } from '@/lib/palette';
 import { useSettingsStore } from '@/stores/settings-store';
 import { useUIStore } from '@/stores/ui-store';
 
@@ -19,6 +21,7 @@ export function MemoryIntroCard() {
   const setMemoryIntroSeen = useSettingsStore((s) => s.setMemoryIntroSeen);
   const setMemoryEnabled = useSettingsStore((s) => s.setMemoryEnabled);
   const showToast = useUIStore((s) => s.showToast);
+  const palette = usePalette();
 
   const dismiss = useCallback(() => {
     Haptics.selectionAsync().catch(() => undefined);
@@ -40,9 +43,12 @@ export function MemoryIntroCard() {
   if (!isInitialized || !memoryEnabled || memoryIntroSeen) return null;
 
   return (
-    <View className="w-full rounded-xl border border-outline-variant/20 bg-surface-container-low p-4">
+    <View
+      className="w-full rounded-2xl p-4"
+      style={{ backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border }}
+    >
       <View className="flex-row items-center gap-2">
-        <Brain size={16} color="hsl(0, 0%, 63%)" />
+        <Brain size={16} color={palette.icon} />
         <Text className="text-foreground text-[14px] font-medium">Memory is on</Text>
       </View>
       <Text className="text-on-surface-variant text-[12px] leading-[18px] mt-1.5">
@@ -51,19 +57,20 @@ export function MemoryIntroCard() {
         this after replies. Temporary chats are never remembered.
       </Text>
       <View className="flex-row items-center justify-end gap-4 mt-3">
-        <Pressable onPress={turnOff} hitSlop={8} className="active:opacity-60" accessibilityRole="button">
+        <PressableScale onPress={turnOff} hitSlop={8} scaleTo={0.94} accessibilityRole="button">
           <Text className="text-muted-foreground text-[13px] font-medium">Turn off</Text>
-        </Pressable>
-        <Pressable onPress={manage} hitSlop={8} className="active:opacity-60" accessibilityRole="button">
+        </PressableScale>
+        <PressableScale onPress={manage} hitSlop={8} scaleTo={0.94} accessibilityRole="button">
           <Text className="text-muted-foreground text-[13px] font-medium">Manage</Text>
-        </Pressable>
-        <Pressable
+        </PressableScale>
+        <PressableScale
           onPress={dismiss}
-          className="rounded-full bg-foreground px-3.5 py-1.5 active:opacity-80"
+          scaleTo={0.94}
+          className="rounded-full bg-foreground px-3.5 py-1.5"
           accessibilityRole="button"
         >
-          <Text className="text-background text-[13px] font-medium">Got it</Text>
-        </Pressable>
+          <Text className="text-background text-[13px] font-semibold">Got it</Text>
+        </PressableScale>
       </View>
     </View>
   );

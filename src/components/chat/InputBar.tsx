@@ -1,9 +1,23 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { View, TextInput, Pressable, Animated, Easing } from 'react-native';
+import { View, TextInput } from 'react-native';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  LayoutAnimationConfig,
+  ZoomIn,
+  ZoomOut,
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { ArrowUp, Square, Mic } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
+import { PressableScale } from '@/components/ui/pressable-scale';
+import { usePalette } from '@/lib/palette';
+import { Motion } from '@/lib/motion';
 import { useChatStore } from '@/stores/chat-store';
 import { VoiceInput, isVoiceInputAvailable } from '@/components/chat/VoiceInput';
 import { AttachmentTray } from '@/components/chat/AttachmentTray';
@@ -36,7 +50,8 @@ export function InputBar({
   const [isExtracting, setIsExtracting] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const isStreaming = useChatStore((s) => s.isStreaming);
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const palette = usePalette();
+  const focus = useSharedValue(0);
 
   const canSend = !disabled && (text.trim().length > 0 || attachments.length > 0) && !isExtracting;
 
@@ -57,22 +72,18 @@ export function InputBar({
   );
   const showPicker = !disabled && slashState !== null && matchedCommands.length > 0 && !slashState.arg;
 
-  const animateSendButton = useCallback(() => {
-    Animated.sequence([
-      Animated.timing(scaleAnim, {
-        toValue: 0.9,
-        duration: 80,
-        easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: 1,
-        duration: 80,
-        easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [scaleAnim]);
+  // The composer border brightens while focused.
+  const borderIdle = palette.border;
+  const borderFocused = palette.isDark ? 'hsla(0, 0%, 100%, 0.2)' : 'hsla(240, 6%, 10%, 0.22)';
+  const composerStyle = useAnimatedStyle(() => ({
+    borderColor: interpolateColor(focus.get(), [0, 1], [borderIdle, borderFocused]),
+  }));
+  const handleFocus = useCallback(() => {
+    focus.set(withTiming(1, { duration: Motion.duration.base }));
+  }, [focus]);
+  const handleBlur = useCallback(() => {
+    focus.set(withTiming(0, { duration: Motion.duration.base }));
+  }, [focus]);
 
   const handleSend = useCallback(async () => {
     const trimmed = text.trim();
@@ -124,7 +135,6 @@ export function InputBar({
       const exactMatch = matchedCommands.find((c) => c.name === slashState.commandQuery);
       if (exactMatch) {
         const resolved = resolveCommandText(exactMatch, slashState.arg);
-        animateSendButton();
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onSend(resolved, enrichedAttachments.length > 0 ? enrichedAttachments : undefined);
         setText('');
@@ -132,13 +142,11 @@ export function InputBar({
         return;
       }
     }
-
-    animateSendButton();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onSend(trimmed, enrichedAttachments.length > 0 ? enrichedAttachments : undefined);
     setText('');
     setAttachments([]);
-  }, [text, attachments, isStreaming, isExtracting, disabled, slashState, matchedCommands, onSend, animateSendButton]);
+  }, [text, attachments, isStreaming, isExtracting, disabled, slashState, matchedCommands, onSend]);
 
   const handleSlashCommandSelect = useCallback(
     (command: SlashCommand) => {
@@ -204,7 +212,17 @@ export function InputBar({
             />
           )}
 
-          <View className="bg-surface-container-low border border-outline-variant/20 rounded-2xl p-2">
+          <Animated.View
+            style={[
+              {
+                backgroundColor: palette.surface,
+                borderWidth: 1,
+                borderRadius: 26,
+                padding: 6,
+              },
+              composerStyle,
+            ]}
+          >
             {/* Attachment preview tray */}
             <AttachmentTray
               attachments={attachments}
@@ -212,7 +230,7 @@ export function InputBar({
             />
 
             {/* Input row */}
-            <View className="flex-row items-end gap-2">
+            <View className="flex-row items-end gap-1.5">
               {/* Attachment button */}
               <AttachmentButton
                 onAttach={handleAttach}
@@ -224,60 +242,58 @@ export function InputBar({
                 ref={inputRef}
                 value={text}
                 onChangeText={setText}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
                 placeholder={disabled ? disabledPlaceholder ?? 'Choose an option above...' : 'Message Medha...'}
-                placeholderTextColor="hsl(0, 0%, 44%)"
+                placeholderTextColor={palette.iconMuted}
+                cursorColor={palette.text}
+                selectionColor={palette.isDark ? 'hsla(0, 0%, 100%, 0.3)' : 'hsla(240, 6%, 10%, 0.2)'}
                 multiline
                 maxLength={10000}
-                className="flex-1 text-foreground text-[14px] px-2 py-2 max-h-32"
-                style={{ minHeight: 36 }}
+                className="flex-1 text-foreground text-[15px] px-1.5 max-h-32"
+                style={{ minHeight: 36, paddingTop: 8, paddingBottom: 8 }}
                 onSubmitEditing={handleSend}
                 blurOnSubmit={false}
                 editable={!isStreaming && !disabled}
               />
 
-              {/* Mic button — only when no text, no attachments, not streaming */}
-              {!disabled && !canSend && !isStreaming && voiceInputAvailable && (
-                <Pressable
-                  onPress={handleMicPress}
-                  className="w-8 h-8 rounded-full bg-muted items-center justify-center mb-1 active:scale-95"
-                >
-                  <Mic size={16} color="hsl(0, 0%, 63%)" />
-                </Pressable>
-              )}
-
-              {/* Send / Stop button */}
-              {isStreaming ? (
-                <Pressable
-                  onPress={onStop}
-                  className="w-8 h-8 rounded-full bg-foreground items-center justify-center mb-1 active:scale-95"
-                >
-                  <Square size={14} color="hsl(240, 3.7%, 7.5%)" fill="hsl(240, 3.7%, 7.5%)" />
-                </Pressable>
-              ) : canSend ? (
-                <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-                  <Pressable
-                    onPress={handleSend}
-                    className="w-8 h-8 rounded-full bg-foreground items-center justify-center mb-1"
-                  >
-                    <ArrowUp
-                      size={18}
-                      color="hsl(240, 3.7%, 7.5%)"
-                      strokeWidth={2.5}
-                    />
-                  </Pressable>
-                </Animated.View>
-              ) : null}
+              {/* Trailing action: mic when empty, send with content, stop while streaming */}
+              {/* skipEntering: no pop on first render, only when the action changes */}
+              <View style={{ width: 36, height: 36 }}>
+                <LayoutAnimationConfig skipEntering>
+                  {isStreaming ? (
+                    <ActionButton key="stop" onPress={onStop} label="Stop response" filled>
+                      <Square size={13} color={palette.onAccent} fill={palette.onAccent} />
+                    </ActionButton>
+                  ) : canSend ? (
+                    <ActionButton key="send" onPress={handleSend} label="Send message" filled>
+                      <ArrowUp size={19} color={palette.onAccent} strokeWidth={2.5} />
+                    </ActionButton>
+                  ) : !disabled && voiceInputAvailable ? (
+                    <ActionButton key="mic" onPress={handleMicPress} label="Voice input">
+                      <Mic size={17} color={palette.icon} />
+                    </ActionButton>
+                  ) : null}
+                </LayoutAnimationConfig>
+              </View>
             </View>
 
             {/* Token counter */}
             {debouncedTokens > 0 && (
-              <View className="flex-row justify-end px-1 pt-1">
-                <Text className="text-muted-foreground text-[11px] opacity-60">
+              <Animated.View
+                entering={FadeIn.duration(Motion.duration.base)}
+                exiting={FadeOut.duration(Motion.duration.fast)}
+                style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 8, paddingBottom: 2 }}
+              >
+                <Text
+                  className="text-muted-foreground text-[11px] opacity-60"
+                  style={{ fontVariant: ['tabular-nums'] }}
+                >
                   ~{debouncedTokens.toLocaleString()} tokens
                 </Text>
-              </View>
+              </Animated.View>
             )}
-          </View>
+          </Animated.View>
         </>
       )}
     </View>
@@ -286,3 +302,43 @@ export function InputBar({
 
 // Allow parent to set text programmatically (for suggestion chips)
 InputBar.displayName = 'InputBar';
+
+/** Round trailing button that pops in when it replaces another (mic → send → stop). */
+function ActionButton({
+  onPress,
+  label,
+  filled = false,
+  children,
+}: {
+  onPress: () => void;
+  label: string;
+  filled?: boolean;
+  children: React.ReactNode;
+}) {
+  const palette = usePalette();
+  return (
+    <Animated.View
+      entering={ZoomIn.springify().damping(Motion.spring.pop.damping).stiffness(Motion.spring.pop.stiffness)}
+      exiting={ZoomOut.duration(Motion.duration.fast)}
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+    >
+      <PressableScale
+        onPress={onPress}
+        scaleTo={0.88}
+        hitSlop={6}
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: filled ? palette.accent : palette.surfaceRaised,
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+      >
+        {children}
+      </PressableScale>
+    </Animated.View>
+  );
+}

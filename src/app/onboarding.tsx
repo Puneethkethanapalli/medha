@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import Animated, { FadeIn, FadeInDown, LinearTransition, ZoomIn } from 'react-native-reanimated';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useRouter } from 'expo-router';
 import { ClipboardPaste, Check, TriangleAlert, ArrowRight } from 'lucide-react-native';
@@ -14,7 +15,10 @@ import {
   requestCodexDeviceAuthorization,
   serializeCodexCredential,
 } from '@/lib/auth/openai-codex';
-import { MedhaLogo } from '@/components/branding/MedhaLogo';
+import { BrandTile } from '@/components/branding/BrandTile';
+import { PressableScale } from '@/components/ui/pressable-scale';
+import { usePalette } from '@/lib/palette';
+import { Motion } from '@/lib/motion';
 import * as Clipboard from 'expo-clipboard';
 
 type ProviderId = 'openrouter' | 'openai' | 'openai-codex' | 'google-ai' | 'anthropic' | 'minimax' | 'cloudflare-ai';
@@ -53,6 +57,8 @@ export default function OnboardingScreen() {
   const codexAbortRef = useRef<AbortController | null>(null);
 
   const currentProvider = PROVIDERS.find((p) => p.id === selectedProvider)!;
+  const palette = usePalette();
+  const [keyFocused, setKeyFocused] = useState(false);
 
   useEffect(() => {
     const checkExistingKey = async () => {
@@ -175,7 +181,7 @@ export default function OnboardingScreen() {
   if (isCheckingExisting) {
     return (
       <View className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator size="large" className="text-primary" />
+        <ActivityIndicator size="large" color={palette.textMuted} />
       </View>
     );
   }
@@ -185,28 +191,33 @@ export default function OnboardingScreen() {
       <View className="flex-1 bg-surface-dim items-center justify-center p-4">
         <View className="w-full max-w-md flex flex-col gap-8 items-center">
           <View className="flex flex-col items-center justify-center gap-4 text-center">
-            <View className="w-16 h-16 rounded-2xl bg-[#09090B] items-center justify-center border border-outline-variant/20">
-              <MedhaLogo size={30} />
-            </View>
+            <Animated.View entering={ZoomIn.springify().damping(14).stiffness(160)}>
+              <BrandTile size={64} glow />
+            </Animated.View>
             <View className="space-y-2">
-              <Text className="font-headline font-bold text-3xl tracking-tight text-primary">Medha AI</Text>
-              <Text className="font-body text-base text-on-surface-variant leading-relaxed">
+              <Text className="font-bold text-3xl tracking-tight text-primary">Medha AI</Text>
+              <Text className="text-base text-on-surface-variant leading-relaxed">
                 Intelligence unlocked.
               </Text>
             </View>
           </View>
 
-          <View className="w-full bg-surface-container-low rounded-xl p-8 border border-outline-variant/20 flex flex-col gap-6">
-            <Pressable
-              className="w-full bg-primary text-on-primary font-label font-bold text-sm tracking-wide rounded-lg py-3.5 flex flex-row items-center justify-center gap-2 active:scale-[0.98]"
+          <Animated.View
+            entering={FadeInDown.duration(Motion.duration.enter).delay(180).easing(Motion.easing.enter)}
+            style={{ width: '100%' }}
+          >
+            <PressableScale
+              className="w-full bg-primary rounded-full flex flex-row items-center justify-center gap-2"
+              style={{ height: 50 }}
+              haptic
               onPress={() => router.replace('/')}
             >
-              <Check size={18} color="#1a1c1c" />
-              <Text className="text-on-primary font-bold">
+              <Check size={18} color={palette.onAccent} strokeWidth={2.5} />
+              <Text className="text-on-primary font-semibold text-[15px]">
                 {successProvider ? `Connected via ${successProvider}` : 'Connected'}
               </Text>
-            </Pressable>
-          </View>
+            </PressableScale>
+          </Animated.View>
         </View>
       </View>
     );
@@ -223,18 +234,35 @@ export default function OnboardingScreen() {
       <View className="flex flex-col py-12 px-6">
         {/* Top Section */}
         <View className="flex flex-col items-center justify-end w-full h-[240px] pb-8 text-center">
-          <View className="w-20 h-20 items-center justify-center rounded-[28px] border border-outline-variant/20 bg-[#09090B] mb-4">
-            <MedhaLogo size={38} />
-          </View>
-          <Text className="font-headline font-bold text-[28px] text-primary leading-tight tracking-tight">Medha</Text>
-          <Text className="font-body text-[14px] text-on-surface-variant mt-2">Your private AI assistant</Text>
+          <Animated.View entering={FadeIn.duration(700)} style={{ marginBottom: 20 }}>
+            <BrandTile size={76} glow />
+          </Animated.View>
+          <Animated.View
+            entering={FadeInDown.duration(Motion.duration.enter + 100).delay(120).easing(Motion.easing.enter)}
+            style={{ alignItems: 'center' }}
+          >
+            <Text className="font-bold text-[30px] text-primary leading-tight tracking-tight">Medha</Text>
+            <Text className="text-[15px] text-on-surface-variant mt-1.5">Your private AI assistant</Text>
+          </Animated.View>
         </View>
 
         {/* API Key Card */}
-        <View className="w-full max-w-sm flex-1 flex flex-col justify-center">
-          <View className="bg-surface-container-low rounded-xl border border-outline-variant/40 p-5">
-            <Text className="font-headline font-semibold text-[16px] text-primary">Connect your AI provider</Text>
-            <Text className="font-body text-[12px] text-on-surface-variant mt-1">Add at least one API key to get started. Your key stays on-device.</Text>
+        <Animated.View
+          entering={FadeInDown.duration(Motion.duration.enter + 100).delay(220).easing(Motion.easing.enter)}
+          style={{ width: '100%', maxWidth: 384, flex: 1, justifyContent: 'center' }}
+        >
+          <Animated.View
+            layout={LinearTransition.duration(Motion.duration.base)}
+            style={{
+              backgroundColor: palette.surface,
+              borderRadius: 24,
+              borderWidth: 1,
+              borderColor: palette.border,
+              padding: 20,
+            }}
+          >
+            <Text className="font-semibold text-[17px] text-primary tracking-tight">Connect your AI provider</Text>
+            <Text className="text-[13px] text-on-surface-variant mt-1 leading-[18px]">Add at least one API key to get started. Your key stays on-device.</Text>
 
             {/* Provider Pill Tabs */}
             <ScrollView
@@ -244,14 +272,17 @@ export default function OnboardingScreen() {
               contentContainerStyle={{ gap: 8 }}
             >
               {PROVIDERS.map((provider) => (
-                <Pressable
+                <PressableScale
                   key={provider.id}
+                  haptic
+                  scaleTo={0.93}
                   className={cn(
-                    'rounded-full px-4 py-1.5 shrink-0',
+                    'rounded-full px-4 shrink-0 justify-center',
                     selectedProvider === provider.id
                       ? 'bg-primary'
-                      : 'bg-surface-container-high border border-outline-variant/20'
+                      : 'bg-surface-container-high'
                   )}
+                  style={{ height: 34 }}
                   onPress={() => {
                     setSelectedProvider(provider.id);
                     setApiKey('');
@@ -268,7 +299,7 @@ export default function OnboardingScreen() {
                   >
                     {provider.name}
                   </Text>
-                </Pressable>
+                </PressableScale>
               ))}
             </ScrollView>
 
@@ -276,7 +307,9 @@ export default function OnboardingScreen() {
             {selectedProvider === 'cloudflare-ai' && (
               <View className="mt-4">
                 <TextInput
-                  className="w-full bg-surface-container-high rounded-lg py-3 pl-3 pr-3 text-primary font-body text-sm placeholder-on-surface-variant/50 border border-outline-variant/40"
+                  className="w-full bg-surface-container-high rounded-xl py-3 pl-3.5 pr-3 text-primary text-[14px]"
+                  style={{ borderWidth: 1, borderColor: palette.border }}
+                  placeholderTextColor={palette.iconMuted}
                   placeholder="Cloudflare Account ID"
                   value={cloudflareAccountId}
                   onChangeText={(text) => {
@@ -286,26 +319,26 @@ export default function OnboardingScreen() {
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
-                <Text className="font-body text-[11px] text-on-surface-variant/60 mt-1 ml-1">
+                <Text className="text-[11px] text-on-surface-variant/60 mt-1 ml-1">
                   Found in your Cloudflare dashboard URL
                 </Text>
               </View>
             )}
 
             {currentProvider.authMode === 'codex-oauth' ? (
-              <View className="mt-4 bg-surface-container-high rounded-lg border border-outline-variant/40 p-3">
-                <Text className="font-body text-[12px] text-on-surface-variant">
+              <View className="mt-4 bg-surface-container-high rounded-xl p-3.5">
+                <Text className="text-[12px] text-on-surface-variant">
                   Sign in with ChatGPT to use Codex models from your ChatGPT plan.
                 </Text>
                 {codexUserCode && (
                   <Pressable
-                    className="mt-3 rounded-lg bg-surface-container-low border border-outline-variant/20 px-3 py-2"
+                    className="mt-3 rounded-xl bg-surface-container-low px-3 py-2.5"
                     onPress={() => Clipboard.setStringAsync(codexUserCode)}
                   >
                     <Text className="font-mono text-primary text-lg tracking-widest text-center">
                       {codexUserCode}
                     </Text>
-                    <Text className="font-body text-[11px] text-on-surface-variant/70 text-center mt-1">
+                    <Text className="text-[11px] text-on-surface-variant/70 text-center mt-1">
                       Code copied. Enter it at auth.openai.com/codex/device
                     </Text>
                   </Pressable>
@@ -314,10 +347,14 @@ export default function OnboardingScreen() {
             ) : (
               <View className="mt-4 relative">
                 <TextInput
-                  className={cn(
-                    'w-full bg-surface-container-high rounded-lg py-3 pl-3 pr-10 text-primary font-body text-sm placeholder-on-surface-variant/50',
-                    error ? 'border border-[#EF4444]' : 'border border-outline-variant/40'
-                  )}
+                  className="w-full bg-surface-container-high rounded-xl py-3 pl-3.5 pr-11 text-primary text-[14px]"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: error ? palette.destructive : keyFocused ? palette.textMuted : palette.border,
+                  }}
+                  onFocus={() => setKeyFocused(true)}
+                  onBlur={() => setKeyFocused(false)}
+                  placeholderTextColor={palette.iconMuted}
                   placeholder={currentProvider.placeholder}
                   value={apiKey}
                   onChangeText={(text) => {
@@ -328,54 +365,59 @@ export default function OnboardingScreen() {
                   autoCorrect={false}
                   secureTextEntry
                 />
-                <Pressable
-                  className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-row items-center justify-center"
+                <PressableScale
+                  className="absolute right-1.5 top-0 bottom-0 w-10 items-center justify-center"
+                  scaleTo={0.85}
                   onPress={handlePaste}
+                  accessibilityRole="button"
+                  accessibilityLabel="Paste API key"
                 >
-                  <ClipboardPaste size={20} className="text-on-surface-variant" color="#c6c6c6" />
-                </Pressable>
+                  <ClipboardPaste size={19} color={palette.icon} />
+                </PressableScale>
               </View>
             )}
 
             {/* Error Message */}
             {error && (
-              <View className="flex flex-row items-center gap-1 mt-2">
-                <TriangleAlert size={12} color="#EF4444" />
-                <Text className="font-body text-[12px] text-[#EF4444]">{error}</Text>
-              </View>
+              <Animated.View
+                entering={FadeIn.duration(Motion.duration.base)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}
+              >
+                <TriangleAlert size={13} color={palette.destructive} />
+                <Text className="text-[12px] flex-1" style={{ color: palette.destructive }}>{error}</Text>
+              </Animated.View>
             )}
 
             {/* Hint */}
-            <Text className="font-body text-[11px] text-on-surface-variant/60 mt-2">
+            <Text className="text-[11px] text-muted-foreground mt-2">
               {currentProvider.authMode === 'codex-oauth' ? currentProvider.hint : `Get your key at ${currentProvider.hint}`}
             </Text>
 
             {/* Button */}
-            <Pressable
-              className={cn(
-                'w-full mt-5 bg-primary text-on-primary font-label font-medium text-sm h-[44px] rounded-lg justify-center items-center flex flex-row gap-2 active:scale-95',
-                isLoading && 'opacity-70'
-              )}
+            <PressableScale
+              className="w-full mt-5 bg-primary rounded-full justify-center items-center flex flex-row gap-2"
+              style={{ height: 50, opacity: isLoading ? 0.7 : 1 }}
+              haptic
               onPress={handleVerifyAndContinue}
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator size="small" color="#1a1c1c" />
+                <ActivityIndicator size="small" color={palette.onAccent} />
               ) : (
                 <>
-                  <Text className="text-on-primary font-medium text-sm">
+                  <Text className="text-on-primary font-semibold text-[15px]">
                     {currentProvider.authMode === 'codex-oauth' ? 'Sign in & Continue' : 'Verify & Continue'}
                   </Text>
-                  <ArrowRight size={16} color="#1a1c1c" />
+                  <ArrowRight size={17} color={palette.onAccent} strokeWidth={2.25} />
                 </>
               )}
-            </Pressable>
-          </View>
-        </View>
+            </PressableScale>
+          </Animated.View>
+        </Animated.View>
 
         {/* Bottom Section */}
         <View className="w-full flex justify-center pb-8 pt-4 h-[60px]">
-          <Text className="font-body text-[11px] text-on-surface-variant/50 text-center">
+          <Text className="text-[12px] text-muted-foreground text-center">
             You can add more providers later in Settings
           </Text>
         </View>

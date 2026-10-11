@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { Pressable, Text as RNText, View, useWindowDimensions } from 'react-native';
+import { Text as RNText, View, useWindowDimensions } from 'react-native';
 import { ChevronDown } from 'lucide-react-native';
 import { useUIStore } from '@/stores/ui-store';
 import { useSettingsStore } from '@/stores/settings-store';
@@ -7,6 +7,8 @@ import { getModelDisplayName } from '@/lib/models';
 import { getModelCapabilities, getPremiumCapabilities } from '@/lib/models/capabilities';
 import { loadModelMetadata, useModelListStore } from '@/lib/models/model-list-sync';
 import { CapabilityBadges } from '@/components/chat/CapabilityBadges';
+import { PressableScale } from '@/components/ui/pressable-scale';
+import { usePalette } from '@/lib/palette';
 
 const PROVIDER_SHORT: Record<string, string> = {
   openrouter: 'OR',
@@ -28,6 +30,7 @@ export function ModelPill() {
   const displayName = lastModelName || getModelDisplayName(lastModel);
   const providerBadge = lastProvider ? PROVIDER_SHORT[lastProvider] : null;
   const maxPillWidth = Math.max(104, Math.min(176, width * 0.42));
+  const palette = usePalette();
 
   useEffect(() => {
     void loadModelMetadata();
@@ -46,24 +49,34 @@ export function ModelPill() {
   const premiumCaps = getPremiumCapabilities(caps);
 
   return (
-    <Pressable
+    <PressableScale
       onPress={openModelPicker}
-      className="flex-row items-center bg-surface-container-low border border-outline-variant/20 rounded-full px-3 py-1.5 gap-1.5 active:opacity-70"
-      style={{ maxWidth: maxPillWidth, minWidth: 0, flexShrink: 1 }}
+      haptic
+      scaleTo={0.95}
+      className="flex-row items-center rounded-full px-3 gap-1.5"
+      style={{
+        height: 32,
+        maxWidth: maxPillWidth,
+        minWidth: 0,
+        flexShrink: 1,
+        backgroundColor: palette.surface,
+        borderWidth: 1,
+        borderColor: palette.border,
+      }}
       accessibilityRole="button"
       accessibilityLabel="Select model"
     >
       {providerBadge && (
         <RNText
-          style={{ color: 'hsl(0, 0%, 55%)', fontSize: 10, fontWeight: '700', flexShrink: 0 }}
+          style={{ color: palette.textMuted, fontSize: 10, fontWeight: '700', flexShrink: 0 }}
         >
           {providerBadge}
         </RNText>
       )}
       <RNText
         style={{
-          color: 'hsl(0, 0%, 63%)',
-          fontSize: 12,
+          color: palette.text,
+          fontSize: 13,
           fontWeight: '500',
           flexShrink: 1,
           minWidth: 0,
@@ -78,14 +91,14 @@ export function ModelPill() {
           <CapabilityBadges
             capabilities={premiumCaps}
             size={11}
-            color="hsl(0, 0%, 55%)"
+            color={palette.textMuted}
             gap={4}
             showTooltip={false}
             maxVisible={2}
           />
         </View>
       )}
-      <ChevronDown size={14} color="hsl(0, 0%, 63%)" />
-    </Pressable>
+      <ChevronDown size={14} color={palette.icon} />
+    </PressableScale>
   );
 }

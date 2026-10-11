@@ -6,10 +6,13 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { View, TextInput, Pressable, ScrollView } from 'react-native';
+import { View, TextInput, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Eye, EyeOff, Save } from 'lucide-react-native';
+import { Eye, EyeOff, Save } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
+import { ScreenHeader, HeaderIconButton } from '@/components/ui/screen-header';
+import { PressableScale } from '@/components/ui/pressable-scale';
+import { usePalette } from '@/lib/palette';
 import { generateSkillMd } from '@/lib/skills/parser';
 import { saveSkill } from '@/lib/skills/storage';
 import { addSkillRecord, getSkillByName } from '@/lib/db/skills';
@@ -48,6 +51,7 @@ export function SkillEditor({ onClose, onSaved, initial }: SkillEditorProps) {
   const [error, setError] = useState<string | null>(null);
   const showToast = useUIStore((s) => s.showToast);
   const insets = useSafeAreaInsets();
+  const palette = usePalette();
 
   const kebabName = toKebab(name);
 
@@ -120,37 +124,41 @@ export function SkillEditor({ onClose, onSaved, initial }: SkillEditorProps) {
 
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
-      {/* Header */}
-      <View className="flex-row items-center px-4 h-14 border-b border-outline-variant/20">
-        <Pressable onPress={onClose} className="w-10 h-10 items-center justify-center -ml-2">
-          <ArrowLeft size={24} color="hsl(0, 0%, 98%)" />
-        </Pressable>
-        <Text className="flex-1 text-foreground text-[18px] font-semibold ml-2">
-          {initial ? 'Edit Skill' : 'Create Skill'}
-        </Text>
-        <Pressable
-          onPress={() => setPreview((p) => !p)}
-          className="w-10 h-10 items-center justify-center"
-        >
-          {preview ? (
-            <EyeOff size={20} color="hsl(0, 0%, 63%)" />
-          ) : (
-            <Eye size={20} color="hsl(0, 0%, 63%)" />
-          )}
-        </Pressable>
-        <Pressable
-          onPress={handleSave}
-          className="flex-row items-center gap-1.5 bg-foreground rounded-lg px-3 py-1.5 ml-2"
-        >
-          <Save size={14} color="hsl(240, 3.7%, 7.5%)" />
-          <Text className="text-background text-[13px] font-semibold">Save</Text>
-        </Pressable>
-      </View>
+      <ScreenHeader
+        title={initial ? 'Edit Skill' : 'Create Skill'}
+        noInset
+        onBack={onClose}
+        right={
+          <>
+            <HeaderIconButton
+              onPress={() => setPreview((p) => !p)}
+              accessibilityLabel={preview ? 'Hide preview' : 'Show preview'}
+            >
+              {preview ? (
+                <EyeOff size={20} color={palette.icon} />
+              ) : (
+                <Eye size={20} color={palette.icon} />
+              )}
+            </HeaderIconButton>
+            <PressableScale
+              onPress={handleSave}
+              haptic
+              scaleTo={0.93}
+              className="flex-row items-center gap-1.5 bg-foreground rounded-full px-3.5 py-2 ml-1"
+              accessibilityRole="button"
+              accessibilityLabel="Save skill"
+            >
+              <Save size={14} color={palette.onAccent} />
+              <Text className="text-background text-[13px] font-semibold">Save</Text>
+            </PressableScale>
+          </>
+        }
+      />
 
       {preview ? (
         /* Preview mode — show raw SKILL.md */
         <ScrollView className="flex-1 px-4 py-4">
-          <View className="bg-surface-container-low rounded-xl p-4 border border-outline-variant/10">
+          <View className="bg-surface-container-low rounded-2xl p-4 border border-outline-variant/20">
             <Text className="text-foreground text-[13px] font-mono leading-5">
               {previewContent}
             </Text>
@@ -160,8 +168,8 @@ export function SkillEditor({ onClose, onSaved, initial }: SkillEditorProps) {
         /* Edit mode */
         <ScrollView className="flex-1 px-4 py-4" keyboardShouldPersistTaps="handled">
           {error && (
-            <View className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 mb-4">
-              <Text className="text-destructive text-[13px]">{error}</Text>
+            <View className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 mb-4">
+              <Text className="text-[13px]" style={{ color: palette.destructive }}>{error}</Text>
             </View>
           )}
 
@@ -171,8 +179,8 @@ export function SkillEditor({ onClose, onSaved, initial }: SkillEditorProps) {
             value={name}
             onChangeText={setName}
             placeholder="e.g. Code Review"
-            placeholderTextColor="hsl(0, 0%, 44%)"
-            className="bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2.5 text-foreground text-[14px] mb-1"
+            placeholderTextColor={palette.iconMuted}
+            className="bg-surface-container-low border border-outline-variant/20 rounded-xl px-3 py-2.5 text-foreground text-[14px] mb-1"
           />
           {kebabName ? (
             <Text className="text-muted-foreground text-[11px] mb-4">
@@ -191,10 +199,10 @@ export function SkillEditor({ onClose, onSaved, initial }: SkillEditorProps) {
             value={description}
             onChangeText={setDescription}
             placeholder="Review code for bugs, security issues..."
-            placeholderTextColor="hsl(0, 0%, 44%)"
+            placeholderTextColor={palette.iconMuted}
             multiline
             numberOfLines={3}
-            className="bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2.5 text-foreground text-[14px] mb-4"
+            className="bg-surface-container-low border border-outline-variant/20 rounded-xl px-3 py-2.5 text-foreground text-[14px] mb-4"
             style={{ minHeight: 72, textAlignVertical: 'top' }}
           />
 
@@ -207,10 +215,10 @@ export function SkillEditor({ onClose, onSaved, initial }: SkillEditorProps) {
             value={body}
             onChangeText={setBody}
             placeholder="## When to Use&#10;Use this skill when...&#10;&#10;## Instructions&#10;1. First step..."
-            placeholderTextColor="hsl(0, 0%, 44%)"
+            placeholderTextColor={palette.iconMuted}
             multiline
             numberOfLines={8}
-            className="bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2.5 text-foreground text-[14px] font-mono mb-4"
+            className="bg-surface-container-low border border-outline-variant/20 rounded-xl px-3 py-2.5 text-foreground text-[14px] font-mono mb-4"
             style={{ minHeight: 200, textAlignVertical: 'top' }}
           />
 
@@ -220,8 +228,8 @@ export function SkillEditor({ onClose, onSaved, initial }: SkillEditorProps) {
             value={license}
             onChangeText={setLicense}
             placeholder="MIT"
-            placeholderTextColor="hsl(0, 0%, 44%)"
-            className="bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2.5 text-foreground text-[14px] mb-8"
+            placeholderTextColor={palette.iconMuted}
+            className="bg-surface-container-low border border-outline-variant/20 rounded-xl px-3 py-2.5 text-foreground text-[14px] mb-8"
           />
         </ScrollView>
       )}

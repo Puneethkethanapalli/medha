@@ -1,6 +1,14 @@
 import 'react-native-get-random-values';
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, ActivityIndicator, Dimensions, BackHandler, StyleSheet } from 'react-native';
+import { View, Dimensions, BackHandler, StyleSheet } from 'react-native';
+import Animated, {
+  Easing,
+  FadeOut,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import { ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -12,6 +20,7 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { Drawer as DrawerLayout } from 'react-native-drawer-layout';
 
 import { NAV_THEME } from '@/lib/theme';
+import { getPalette } from '@/lib/palette';
 import { useSettingsStore } from '@/stores/settings-store';
 import { useUIStore } from '@/stores/ui-store';
 import { ConversationDrawer } from '@/components/navigation/ConversationDrawer';
@@ -41,6 +50,13 @@ function AppContent() {
 
   // CSS class: '' for light (:root), 'dark' for dark, 'dark oled' for OLED
   const themeClass = currentTheme === 'light' ? '' : currentTheme === 'oled' ? 'dark oled' : 'dark';
+  const palette = getPalette(currentTheme);
+  // Screen transitions reveal the navigator background, so match the app's.
+  const baseNavTheme = NAV_THEME[resolvedScheme];
+  const navTheme = {
+    ...baseNavTheme,
+    colors: { ...baseNavTheme.colors, background: palette.background, card: palette.background, border: palette.border },
+  };
   const router = useRouter();
 
   const drawerOpen = useUIStore((s) => s.drawerOpen);
@@ -191,7 +207,7 @@ function AppContent() {
 
   return (
     <View className={`${themeClass} flex-1`}>
-      <ThemeProvider value={NAV_THEME[resolvedScheme]}>
+      <ThemeProvider value={navTheme}>
         <StatusBar style={resolvedScheme === 'dark' ? 'light' : 'dark'} />
         <DrawerLayout
           open={drawerOpen}
@@ -200,12 +216,20 @@ function AppContent() {
           drawerPosition="left"
           drawerType="front"
           renderDrawerContent={renderDrawerContent}
-          drawerStyle={{ width: DRAWER_WIDTH, backgroundColor: currentTheme === 'light' ? '#FFFFFF' : '#09090B' }}
+          drawerStyle={{
+            width: DRAWER_WIDTH,
+            backgroundColor: palette.background,
+            borderRightWidth: StyleSheet.hairlineWidth,
+            borderRightColor: palette.border,
+          }}
+          overlayStyle={{ backgroundColor: palette.backdrop }}
         >
           <Stack
             screenOptions={{
               headerShown: false,
               animation: 'fade',
+              animationDuration: 220,
+              contentStyle: { backgroundColor: palette.background },
             }}
           >
             <Stack.Screen name="index" />
@@ -294,9 +318,10 @@ function AuthGate() {
   return (
     <>
       <AppContent />
-      {/* Loading overlay — covers everything until init finishes */}
+      {/* Loading overlay — covers everything until init finishes, then fades away */}
       {!ready && (
-        <View
+        <Animated.View
+          exiting={FadeOut.duration(280)}
           style={{
             ...StyleSheet.absoluteFillObject,
             backgroundColor: '#09090B',
@@ -305,17 +330,31 @@ function AuthGate() {
             zIndex: 999,
           }}
         >
-          <View style={{ alignItems: 'center', gap: 16 }}>
-            <View style={{
-              height: 64, width: 64, alignItems: 'center', justifyContent: 'center',
-              borderRadius: 16, borderWidth: 1, borderColor: '#27272A', backgroundColor: '#09090B',
-            }}>
-              <MedhaLogo size={28} />
-            </View>
-            <ActivityIndicator size="large" color="#FAFAFA" />
-          </View>
-        </View>
+          <SplashMark />
+        </Animated.View>
       )}
     </>
+  );
+}
+
+/** Same mark, size and spot as the native splash so the handoff is invisible; breathes while loading. */
+function SplashMark() {
+  const breath = useSharedValue(0);
+
+  useEffect(() => {
+    breath.set(
+      withRepeat(withTiming(1, { duration: 1100, easing: Easing.inOut(Easing.sin) }), -1, true)
+    );
+  }, [breath]);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: 1 - breath.get() * 0.35,
+    transform: [{ scale: 1 - breath.get() * 0.04 }],
+  }));
+
+  return (
+    <Animated.View style={style}>
+      <MedhaLogo size={104} />
+    </Animated.View>
   );
 }

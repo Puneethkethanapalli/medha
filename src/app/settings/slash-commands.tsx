@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, Pressable, Alert, ScrollView } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { ArrowLeft, Plus, Trash2, Zap, X, Check } from 'lucide-react-native';
+import { View, Text, TextInput, Alert, ScrollView } from 'react-native';
+import { Plus, Trash2, Zap, X, Check } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Switch } from '@/components/ui/switch';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { PressableScale } from '@/components/ui/pressable-scale';
+import { SegmentedControl } from '@/components/ui/segmented-control';
+import { usePalette } from '@/lib/palette';
 import {
   getCustomCommands,
   setCustomCommands,
@@ -12,8 +14,7 @@ import {
 } from '@/lib/storage/mmkv';
 
 export default function SlashCommandsScreen() {
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const palette = usePalette();
   const [commands, setCommands] = useState<StoredCustomCommand[]>([]);
   const [isAdding, setIsAdding] = useState(false);
 
@@ -34,7 +35,7 @@ export default function SlashCommandsScreen() {
 
   const handleToggle = useCallback(
     (id: string) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      // The switch gives its own haptic tick.
       const updated = commands.map((c) =>
         c.id === id ? { ...c, enabled: !c.enabled } : c
       );
@@ -111,22 +112,7 @@ export default function SlashCommandsScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      {/* Header */}
-      <View
-        className="flex-row items-center justify-between px-6 h-16 w-full"
-        style={{ marginTop: insets.top }}
-      >
-        <Pressable
-          className="p-2 -ml-2 rounded-full active:bg-surface-container"
-          onPress={() => router.back()}
-        >
-          <ArrowLeft size={24} color="#c6c6c6" />
-        </Pressable>
-        <Text className="font-semibold text-base text-primary absolute left-1/2 -translate-x-1/2">
-          Slash Commands
-        </Text>
-        <View className="w-10" />
-      </View>
+      <ScreenHeader title="Slash Commands" />
 
       <ScrollView
         className="flex-1"
@@ -145,12 +131,12 @@ export default function SlashCommandsScreen() {
             {commands.map((cmd) => (
               <View
                 key={cmd.id}
-                className="bg-surface-container-lowest rounded-xl p-4 mb-3 border border-outline-variant/15"
+                className="bg-surface-container-low rounded-2xl p-4 mb-3 border border-outline-variant/20"
               >
                 <View className="flex-row items-center justify-between">
                   <View className="flex-row items-center flex-1 mr-3">
-                    <View className="w-8 h-8 rounded-lg bg-muted items-center justify-center mr-3">
-                      <Zap size={16} color="hsl(0, 0%, 63%)" />
+                    <View className="w-9 h-9 rounded-xl bg-surface-container items-center justify-center mr-3">
+                      <Zap size={16} color={palette.icon} />
                     </View>
                     <View className="flex-1">
                       <Text className="text-foreground text-[14px] font-semibold">
@@ -169,7 +155,7 @@ export default function SlashCommandsScreen() {
                 </View>
 
                 {/* Template preview */}
-                <View className="mt-2 bg-surface-container-low rounded-lg px-3 py-2">
+                <View className="mt-3 bg-surface-container rounded-xl px-3 py-2">
                   <Text className="text-muted-foreground text-[12px] font-mono" numberOfLines={2}>
                     {cmd.template}
                   </Text>
@@ -177,17 +163,21 @@ export default function SlashCommandsScreen() {
 
                 {/* Action type + delete */}
                 <View className="flex-row items-center justify-between mt-2">
-                  <View className="bg-muted rounded-full px-2.5 py-1">
+                  <View className="bg-surface-container rounded-full px-2.5 py-1">
                     <Text className="text-muted-foreground text-[11px] font-medium">
                       {cmd.action === 'standalone' ? 'Sends immediately' : cmd.action === 'prepend' ? 'Prefills input' : 'Wraps input'}
                     </Text>
                   </View>
-                  <Pressable
+                  <PressableScale
                     onPress={() => handleDelete(cmd)}
-                    className="p-2 rounded-full active:bg-surface-container-high"
+                    scaleTo={0.85}
+                    hitSlop={6}
+                    className="p-2 rounded-full"
+                    accessibilityRole="button"
+                    accessibilityLabel={`Delete /${cmd.name}`}
                   >
-                    <Trash2 size={16} color="#EF4444" />
-                  </Pressable>
+                    <Trash2 size={16} color={palette.destructive} />
+                  </PressableScale>
                 </View>
               </View>
             ))}
@@ -197,7 +187,7 @@ export default function SlashCommandsScreen() {
         {/* Empty state */}
         {commands.length === 0 && !isAdding && (
           <View className="items-center py-12">
-            <Zap size={40} color="hsl(0, 0%, 30%)" />
+            <Zap size={40} color={palette.iconMuted} />
             <Text className="text-muted-foreground text-[14px] mt-3 text-center">
               No custom commands yet
             </Text>
@@ -209,7 +199,7 @@ export default function SlashCommandsScreen() {
 
         {/* Add new command form */}
         {isAdding ? (
-          <View className="bg-surface-container-lowest rounded-xl p-4 border border-outline-variant/15">
+          <View className="bg-surface-container-low rounded-2xl p-4 border border-outline-variant/20">
             <Text className="text-foreground text-[15px] font-semibold mb-3">
               New Command
             </Text>
@@ -218,13 +208,13 @@ export default function SlashCommandsScreen() {
             <Text className="text-on-surface-variant text-[12px] font-medium mb-1 ml-1">
               Command name
             </Text>
-            <View className="flex-row items-center bg-surface-container-high border border-outline-variant/20 rounded-lg px-3 py-2.5 mb-3">
+            <View className="flex-row items-center bg-surface-container border border-outline-variant/20 rounded-xl px-3 py-2.5 mb-3">
               <Text className="text-muted-foreground text-[14px] mr-0.5">/</Text>
               <TextInput
                 value={newName}
                 onChangeText={setNewName}
                 placeholder="mycommand"
-                placeholderTextColor="hsl(0, 0%, 35%)"
+                placeholderTextColor={palette.iconMuted}
                 autoCapitalize="none"
                 autoCorrect={false}
                 className="flex-1 text-foreground text-[14px]"
@@ -239,8 +229,8 @@ export default function SlashCommandsScreen() {
               value={newDescription}
               onChangeText={setNewDescription}
               placeholder="What this command does"
-              placeholderTextColor="hsl(0, 0%, 35%)"
-              className="bg-surface-container-high border border-outline-variant/20 rounded-lg px-3 py-2.5 mb-3 text-foreground text-[14px]"
+              placeholderTextColor={palette.iconMuted}
+              className="bg-surface-container border border-outline-variant/20 rounded-xl px-3 py-2.5 mb-3 text-foreground text-[14px]"
             />
 
             {/* Template */}
@@ -251,10 +241,10 @@ export default function SlashCommandsScreen() {
               value={newTemplate}
               onChangeText={setNewTemplate}
               placeholder="The text to send or prefill..."
-              placeholderTextColor="hsl(0, 0%, 35%)"
+              placeholderTextColor={palette.iconMuted}
               multiline
               numberOfLines={3}
-              className="bg-surface-container-high border border-outline-variant/20 rounded-lg px-3 py-2.5 mb-3 text-foreground text-[14px]"
+              className="bg-surface-container border border-outline-variant/20 rounded-xl px-3 py-2.5 mb-3 text-foreground text-[14px]"
               style={{ minHeight: 72, textAlignVertical: 'top' }}
             />
 
@@ -262,69 +252,49 @@ export default function SlashCommandsScreen() {
             <Text className="text-on-surface-variant text-[12px] font-medium mb-2 ml-1">
               Behavior
             </Text>
-            <View className="flex-row gap-2 mb-4">
-              <Pressable
-                onPress={() => setNewAction('standalone')}
-                className={`flex-1 py-2.5 rounded-lg items-center border ${
-                  newAction === 'standalone'
-                    ? 'bg-foreground border-foreground'
-                    : 'bg-muted border-outline-variant/20'
-                }`}
-              >
-                <Text
-                  className={`text-[13px] font-medium ${
-                    newAction === 'standalone' ? 'text-background' : 'text-muted-foreground'
-                  }`}
-                >
-                  Send immediately
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setNewAction('prepend')}
-                className={`flex-1 py-2.5 rounded-lg items-center border ${
-                  newAction === 'prepend'
-                    ? 'bg-foreground border-foreground'
-                    : 'bg-muted border-outline-variant/20'
-                }`}
-              >
-                <Text
-                  className={`text-[13px] font-medium ${
-                    newAction === 'prepend' ? 'text-background' : 'text-muted-foreground'
-                  }`}
-                >
-                  Prefill input
-                </Text>
-              </Pressable>
+            <View className="mb-4">
+              <SegmentedControl
+                options={[
+                  { value: 'standalone', label: 'Send immediately' },
+                  { value: 'prepend', label: 'Prefill input' },
+                ]}
+                value={newAction}
+                onChange={setNewAction}
+                accessibilityLabel="Behavior"
+              />
             </View>
 
             {/* Save / Cancel */}
             <View className="flex-row gap-2">
-              <Pressable
+              <PressableScale
                 onPress={handleCancelAdd}
-                className="flex-1 bg-surface-container px-3 py-2.5 rounded-lg flex-row items-center justify-center gap-1.5 active:bg-surface-container-high"
+                scaleTo={0.95}
+                className="flex-1 bg-surface-container px-3 py-2.5 rounded-xl flex-row items-center justify-center gap-1.5"
               >
-                <X size={14} color="#c6c6c6" />
+                <X size={14} color={palette.icon} />
                 <Text className="text-[13px] font-medium text-on-surface-variant">Cancel</Text>
-              </Pressable>
-              <Pressable
+              </PressableScale>
+              <PressableScale
                 onPress={handleAdd}
-                className="flex-1 bg-primary px-3 py-2.5 rounded-lg flex-row items-center justify-center gap-1.5 active:bg-primary/90"
+                scaleTo={0.95}
+                className="flex-1 bg-primary px-3 py-2.5 rounded-xl flex-row items-center justify-center gap-1.5"
               >
-                <Check size={14} color="#1a1c1c" />
+                <Check size={14} color={palette.onAccent} strokeWidth={2.5} />
                 <Text className="text-[13px] font-medium text-primary-foreground">Save</Text>
-              </Pressable>
+              </PressableScale>
             </View>
           </View>
         ) : (
-          <Pressable
+          <PressableScale
             onPress={() => setIsAdding(true)}
-            className="w-full h-12 bg-surface-container rounded-xl border border-dashed border-outline-variant/30 flex-row items-center justify-center gap-2 active:bg-surface-container-high"
+            scaleTo={0.98}
+            className="w-full h-12 bg-surface-container rounded-xl border border-dashed border-outline-variant/40 flex-row items-center justify-center gap-2"
           >
-            <Plus size={18} color="#c6c6c6" />
+            <Plus size={18} color={palette.icon} />
             <Text className="text-[14px] font-medium text-on-surface-variant">
               Add Custom Command
             </Text>
-          </Pressable>
+          </PressableScale>
         )}
       </ScrollView>
     </View>

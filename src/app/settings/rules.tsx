@@ -1,40 +1,25 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   ActivityIndicator,
-  Modal,
-  Pressable,
   ScrollView,
   TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Plus, Trash2, X, RotateCcw, Globe, MessageSquare } from 'lucide-react-native';
+import { Plus, Trash2, RotateCcw, Globe, MessageSquare } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { PressableScale } from '@/components/ui/pressable-scale';
+import { Sheet } from '@/components/ui/sheet';
+import { Switch } from '@/components/ui/switch';
+import { usePalette } from '@/lib/palette';
 import { useUIStore } from '@/stores/ui-store';
 import { useSettingsStore } from '@/stores/settings-store';
 import { getConversation, updateConversation } from '@/lib/db/conversations';
 import { DEFAULT_RULES } from '@/lib/storage/mmkv';
 import type { RuleItem } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
-
-/** Simple toggle switch component */
-function Toggle({ value, onValueChange }: { value: boolean; onValueChange: (v: boolean) => void }) {
-  return (
-    <Pressable
-      onPress={() => onValueChange(!value)}
-      className={`w-12 h-7 rounded-full justify-center px-1 ${
-        value ? 'bg-foreground' : 'bg-muted'
-      }`}
-    >
-      <View
-        className={`w-5 h-5 rounded-full bg-background shadow-sm ${
-          value ? 'translate-x-5' : 'translate-x-0'
-        }`}
-      />
-    </Pressable>
-  );
-}
 
 /** A single rule card with toggle */
 function RuleCard({
@@ -48,9 +33,10 @@ function RuleCard({
   onDelete?: () => void;
   readOnly?: boolean;
 }) {
+  const palette = usePalette();
   return (
     <View
-      className={`flex-row items-center gap-3 p-4 rounded-xl border ${
+      className={`flex-row items-center gap-3 p-4 rounded-2xl border ${
         rule.enabled
           ? 'bg-surface-container-low border-outline-variant/30'
           : 'bg-transparent border-outline-variant/10'
@@ -74,11 +60,18 @@ function RuleCard({
       </View>
       <View className="flex-row items-center gap-3">
         {!readOnly && onDelete && rule.isCustom && (
-          <Pressable onPress={onDelete} className="p-2">
-            <Trash2 size={16} color="hsl(0, 0%, 44%)" />
-          </Pressable>
+          <PressableScale
+            onPress={onDelete}
+            scaleTo={0.85}
+            hitSlop={6}
+            className="p-2 rounded-full"
+            accessibilityRole="button"
+            accessibilityLabel={`Delete ${rule.label}`}
+          >
+            <Trash2 size={16} color={palette.iconMuted} />
+          </PressableScale>
         )}
-        <Toggle value={rule.enabled} onValueChange={onToggle} />
+        <Switch checked={rule.enabled} onCheckedChange={onToggle} accessibilityLabel={rule.label} />
       </View>
     </View>
   );
@@ -92,6 +85,7 @@ function countEnabled(rules: RuleItem[]): number {
 export default function RulesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const palette = usePalette();
   const params = useLocalSearchParams<{ conversationId?: string }>();
   const activeConversationId = useUIStore((state) => state.activeConversationId);
   const showToast = useUIStore((state) => state.showToast);
@@ -207,60 +201,54 @@ export default function RulesScreen() {
   if (isLoading) {
     return (
       <View className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator color="#FAFAFA" />
+        <ActivityIndicator color={palette.text} />
       </View>
     );
   }
 
   return (
     <View className="flex-1 bg-background">
-      {/* Header */}
-      <View
-        className="h-14 px-4 border-b border-outline-variant/20 flex-row items-center"
-        style={{ marginTop: insets.top }}
-      >
-        <Pressable
-          onPress={() => router.back()}
-          className="w-10 h-10 items-center justify-center -ml-2"
-        >
-          <ArrowLeft size={22} color="hsl(0, 0%, 63%)" />
-        </Pressable>
-
-        <View className="flex-1 items-center">
-          <Text className="text-foreground text-[15px] font-semibold">
-            Custom Instructions
-          </Text>
-          <Text className="text-on-surface-variant text-[11px]">
-            {isPerConversation ? 'For this conversation' : 'For all conversations'}
-          </Text>
-        </View>
-
-        <Pressable
-          onPress={handleSave}
-          disabled={!hasChanges}
-          className="h-10 px-2 items-center justify-center -mr-2"
-        >
-          <Text className={`text-foreground text-[14px] font-medium ${!hasChanges ? 'opacity-40' : ''}`}>
-            Save
-          </Text>
-        </Pressable>
-      </View>
+      <ScreenHeader
+        title="Custom Instructions"
+        subtitle={isPerConversation ? 'For this conversation' : 'For all conversations'}
+        right={
+          <PressableScale
+            onPress={handleSave}
+            disabled={!hasChanges}
+            haptic
+            scaleTo={0.93}
+            className={`h-9 px-4 rounded-full items-center justify-center ${
+              hasChanges ? 'bg-foreground' : 'bg-surface-container'
+            }`}
+            accessibilityRole="button"
+            accessibilityLabel="Save rules"
+          >
+            <Text
+              className={`text-[13px] font-semibold ${
+                hasChanges ? 'text-background' : 'text-muted-foreground'
+              }`}
+            >
+              Save
+            </Text>
+          </PressableScale>
+        }
+      />
 
       <ScrollView
         className="flex-1"
         contentContainerStyle={{
           paddingHorizontal: 16,
-          paddingTop: 20,
+          paddingTop: 12,
           paddingBottom: Math.max(insets.bottom, 20) + 100,
         }}
       >
         {/* Scope explanation banner */}
-        <View className="bg-surface-container-low border border-outline-variant/20 rounded-xl p-4 mb-5">
+        <View className="bg-surface-container-low border border-outline-variant/20 rounded-2xl p-4 mb-5">
           <View className="flex-row items-start gap-3">
             {isPerConversation ? (
-              <MessageSquare size={18} color="hsl(0, 0%, 63%)" className="mt-0.5" />
+              <MessageSquare size={18} color={palette.icon} style={{ marginTop: 2 }} />
             ) : (
-              <Globe size={18} color="hsl(0, 0%, 63%)" className="mt-0.5" />
+              <Globe size={18} color={palette.icon} style={{ marginTop: 2 }} />
             )}
             <View className="flex-1">
               <Text className="text-foreground text-[14px] font-medium">
@@ -293,11 +281,12 @@ export default function RulesScreen() {
         {/* Per-conversation: global toggle */}
         {isPerConversation && (
           <View className="mb-5">
-            <Pressable
+            <PressableScale
               onPress={() => setUseGlobal((v) => !v)}
-              className="flex-row items-center gap-3 bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3.5"
+              scaleTo={0.98}
+              className="flex-row items-center gap-3 bg-surface-container-low border border-outline-variant/20 rounded-2xl px-4 py-3.5"
             >
-              <Toggle value={useGlobal} onValueChange={setUseGlobal} />
+              <Switch checked={useGlobal} onCheckedChange={setUseGlobal} accessibilityLabel="Use my global rules" />
               <View className="flex-1">
                 <Text className="text-foreground text-[14px] font-medium">
                   Use my global rules
@@ -306,18 +295,19 @@ export default function RulesScreen() {
                   {globalEnabledCount} global rule{globalEnabledCount !== 1 ? 's' : ''} enabled
                 </Text>
               </View>
-            </Pressable>
+            </PressableScale>
 
             {!useGlobal && (
-              <Pressable
+              <PressableScale
                 onPress={handleResetToGlobal}
-                className="flex-row items-center justify-center gap-2 mt-3 bg-muted border border-outline-variant/20 rounded-lg py-2.5 mx-1"
+                scaleTo={0.97}
+                className="flex-row items-center justify-center gap-2 mt-3 bg-surface-container border border-outline-variant/20 rounded-xl py-2.5 mx-1"
               >
-                <RotateCcw size={14} color="hsl(0, 0%, 63%)" />
+                <RotateCcw size={14} color={palette.icon} />
                 <Text className="text-muted-foreground text-[13px] font-medium">
                   Reset to global rules
                 </Text>
-              </Pressable>
+              </PressableScale>
             )}
           </View>
         )}
@@ -329,8 +319,8 @@ export default function RulesScreen() {
               Your Global Rules
             </Text>
             {globalRules.length === 0 || globalEnabledCount === 0 ? (
-              <View className="bg-muted border border-outline-variant/20 rounded-xl p-5 items-center">
-                <Globe size={24} color="hsl(0, 0%, 44%)" className="mb-2" />
+              <View className="bg-surface-container-low border border-outline-variant/20 rounded-2xl p-5 items-center">
+                <Globe size={24} color={palette.iconMuted} style={{ marginBottom: 8 }} />
                 <Text className="text-muted-foreground text-[14px]">
                   No global rules enabled
                 </Text>
@@ -405,86 +395,78 @@ export default function RulesScreen() {
             )}
 
             {/* Add custom rule button */}
-            <Pressable
+            <PressableScale
               onPress={() => setAddModalOpen(true)}
-              className="mt-6 flex-row items-center justify-center gap-2 bg-surface-container-low border border-dashed border-outline-variant/30 rounded-xl py-3.5 active:opacity-80"
+              scaleTo={0.98}
+              className="mt-6 flex-row items-center justify-center gap-2 bg-surface-container-low border border-dashed border-outline-variant/40 rounded-xl py-3.5"
             >
-              <Plus size={18} color="hsl(0, 0%, 63%)" />
+              <Plus size={18} color={palette.icon} />
               <Text className="text-on-surface-variant text-[14px] font-medium">
                 {isPerConversation && !useGlobal
                   ? 'Add Rule for This Chat'
                   : 'Add Custom Rule'}
               </Text>
-            </Pressable>
+            </PressableScale>
           </>
         )}
       </ScrollView>
 
-      {/* Add Custom Rule Modal */}
-      <Modal
-        transparent
-        animationType="fade"
-        visible={addModalOpen}
-        onRequestClose={() => setAddModalOpen(false)}
+      {/* Add Custom Rule Sheet */}
+      <Sheet
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        title="Add Custom Rule"
+        avoidKeyboard
       >
-        <View className="flex-1 bg-black/60 items-center justify-center px-6">
-          <View className="w-full max-w-[360px] rounded-2xl bg-card border border-outline-variant/20 p-5">
-            <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-foreground text-[18px] font-semibold">
-                Add Custom Rule
-              </Text>
-              <Pressable onPress={() => setAddModalOpen(false)} className="p-1">
-                <X size={20} color="hsl(0, 0%, 63%)" />
-              </Pressable>
-            </View>
+        <View className="px-5">
+          <Text className="text-on-surface-variant text-[13px] mb-1.5">
+            Short name
+          </Text>
+          <TextInput
+            value={newLabel}
+            onChangeText={setNewLabel}
+            placeholder="e.g. Be funny"
+            placeholderTextColor={palette.iconMuted}
+            className="h-12 rounded-xl border border-outline-variant/20 bg-surface-container-low px-4 text-foreground text-[15px]"
+            autoFocus
+          />
 
-            <Text className="text-on-surface-variant text-[13px] mb-1">
-              Short name
-            </Text>
-            <TextInput
-              value={newLabel}
-              onChangeText={setNewLabel}
-              placeholder="e.g. Be funny"
-              placeholderTextColor="hsl(0, 0%, 44%)"
-              className="h-12 rounded-xl border border-outline-variant/20 bg-muted px-4 text-foreground text-[15px]"
-              autoFocus
-            />
+          <Text className="text-on-surface-variant text-[13px] mb-1.5 mt-4">
+            What should the AI do?
+          </Text>
+          <TextInput
+            value={newDescription}
+            onChangeText={setNewDescription}
+            placeholder="e.g. Always make a joke at the end of every response"
+            placeholderTextColor={palette.iconMuted}
+            multiline
+            className="min-h-[80px] rounded-xl border border-outline-variant/20 bg-surface-container-low px-4 py-3 text-foreground text-[15px] leading-5"
+            textAlignVertical="top"
+          />
 
-            <Text className="text-on-surface-variant text-[13px] mb-1 mt-4">
-              What should the AI do?
-            </Text>
-            <TextInput
-              value={newDescription}
-              onChangeText={setNewDescription}
-              placeholder="e.g. Always make a joke at the end of every response"
-              placeholderTextColor="hsl(0, 0%, 44%)"
-              multiline
-              className="min-h-[80px] rounded-xl border border-outline-variant/20 bg-muted px-4 py-3 text-foreground text-[15px] leading-5"
-              textAlignVertical="top"
-            />
-
-            <Pressable
-              onPress={handleAddRule}
-              disabled={!newLabel.trim() || !newDescription.trim()}
-              className={`mt-5 h-12 rounded-xl items-center justify-center ${
+          <PressableScale
+            onPress={handleAddRule}
+            disabled={!newLabel.trim() || !newDescription.trim()}
+            haptic
+            scaleTo={0.97}
+            className={`mt-5 h-12 rounded-xl items-center justify-center ${
+              newLabel.trim() && newDescription.trim()
+                ? 'bg-foreground'
+                : 'bg-surface-container'
+            }`}
+          >
+            <Text
+              className={`text-[15px] font-medium ${
                 newLabel.trim() && newDescription.trim()
-                  ? 'bg-foreground'
-                  : 'bg-muted'
+                  ? 'text-background'
+                  : 'text-muted-foreground'
               }`}
             >
-              <Text
-                className={`text-[15px] font-medium ${
-                  newLabel.trim() && newDescription.trim()
-                    ? 'text-background'
-                    : 'text-muted-foreground'
-                }`}
-              >
-                Add Rule
-              </Text>
-            </Pressable>
-          </View>
+              Add Rule
+            </Text>
+          </PressableScale>
         </View>
-      </Modal>
+      </Sheet>
     </View>
   );
 }

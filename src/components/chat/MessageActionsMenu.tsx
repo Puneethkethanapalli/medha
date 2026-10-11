@@ -1,17 +1,21 @@
 import React, { useCallback } from 'react';
-import { Modal, View, Pressable } from 'react-native';
+import { View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { Copy, Pencil, RefreshCw, Trash2 } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
+import { Sheet, SheetRow } from '@/components/ui/sheet';
 import { useUIStore } from '@/stores/ui-store';
-import { useSettingsStore } from '@/stores/settings-store';
+import { usePalette } from '@/lib/palette';
 
 interface MessageActionsMenuProps {
   onEditAndResend: (messageId: string) => void;
   onRegenerate: (messageId: string) => void;
   onDelete: (messageId: string) => void;
 }
+
+/** Delay before running an action so the menu is mostly gone first. */
+const ACTION_DELAY_MS = 160;
 
 export function MessageActionsMenu({
   onEditAndResend,
@@ -21,17 +25,12 @@ export function MessageActionsMenu({
   const message = useUIStore((s) => s.actionsMenuMessage);
   const hideMenu = useUIStore((s) => s.hideActionsMenu);
   const showToast = useUIStore((s) => s.showToast);
-  const currentTheme = useSettingsStore((s) => s.theme);
+  const palette = usePalette();
 
-  const isVisible = message !== null;
-  const isUser = message?.role === 'user';
-
-  // Theme-aware colors
-  const isLight = currentTheme === 'light';
-  const cardBg = isLight ? '#FFFFFF' : currentTheme === 'oled' ? '#0A0A0A' : '#0A0A0C';
-  const border = isLight ? '#E4E4E7' : '#27272A';
-  const activeBg = isLight ? '#F4F4F5' : '#18181B';
-  const iconColor = isLight ? 'hsl(240, 4%, 46%)' : 'hsl(0, 0%, 63%)';
+  // Keep showing the last message while the menu animates out.
+  const [shown, setShown] = React.useState(message);
+  if (message && message !== shown) setShown(message);
+  const isUser = shown?.role === 'user';
 
   const handleCopy = useCallback(async () => {
     if (!message) return;
@@ -44,87 +43,51 @@ export function MessageActionsMenu({
   const handleEditAndResend = useCallback(() => {
     if (!message) return;
     hideMenu();
-    setTimeout(() => onEditAndResend(message.id), 150);
+    setTimeout(() => onEditAndResend(message.id), ACTION_DELAY_MS);
   }, [message, hideMenu, onEditAndResend]);
 
   const handleRegenerate = useCallback(() => {
     if (!message) return;
     hideMenu();
-    setTimeout(() => onRegenerate(message.id), 150);
+    setTimeout(() => onRegenerate(message.id), ACTION_DELAY_MS);
   }, [message, hideMenu, onRegenerate]);
 
   const handleDelete = useCallback(() => {
     if (!message) return;
     hideMenu();
-    setTimeout(() => onDelete(message.id), 150);
+    setTimeout(() => onDelete(message.id), ACTION_DELAY_MS);
   }, [message, hideMenu, onDelete]);
 
   return (
-    <Modal
-      visible={isVisible}
-      transparent
-      animationType="fade"
-      onRequestClose={hideMenu}
-      statusBarTranslucent
-    >
-      {/* Dimmed overlay */}
-      <Pressable
-        onPress={hideMenu}
-        className="flex-1 bg-black/40"
-        style={{ justifyContent: 'flex-end' }}
-      >
-        {/* Menu card */}
-        <Pressable
-          onPress={() => {}}
-          style={{ backgroundColor: cardBg, borderColor: border, borderWidth: 1, borderRadius: 12, marginHorizontal: 16, marginBottom: 32, padding: 8 }}
-        >
-          {/* Copy */}
-          <Pressable
-            onPress={handleCopy}
-            style={{ flexDirection: 'row', alignItems: 'center', height: 44, paddingHorizontal: 12, borderRadius: 8 }}
-            android_ripple={{ color: activeBg }}
-          >
-            <Copy size={18} color={iconColor} strokeWidth={2} />
-            <Text className="text-foreground text-[14px] font-medium ml-3">Copy</Text>
-          </Pressable>
-
-          {/* Divider */}
-          <View style={{ height: 1, backgroundColor: border, marginHorizontal: 4, marginVertical: 2, opacity: 0.5 }} />
-
-          {isUser ? (
-            <Pressable
-              onPress={handleEditAndResend}
-              style={{ flexDirection: 'row', alignItems: 'center', height: 44, paddingHorizontal: 12, borderRadius: 8 }}
-              android_ripple={{ color: activeBg }}
-            >
-              <Pencil size={18} color={iconColor} strokeWidth={2} />
-              <Text className="text-foreground text-[14px] font-medium ml-3">Edit & Resend</Text>
-            </Pressable>
-          ) : (
-            <Pressable
-              onPress={handleRegenerate}
-              style={{ flexDirection: 'row', alignItems: 'center', height: 44, paddingHorizontal: 12, borderRadius: 8 }}
-              android_ripple={{ color: activeBg }}
-            >
-              <RefreshCw size={18} color={iconColor} strokeWidth={2} />
-              <Text className="text-foreground text-[14px] font-medium ml-3">Regenerate</Text>
-            </Pressable>
-          )}
-
-          {/* Divider */}
-          <View style={{ height: 1, backgroundColor: border, marginHorizontal: 4, marginVertical: 2, opacity: 0.5 }} />
-
-          {/* Delete */}
-          <Pressable
-            onPress={handleDelete}
-            style={{ flexDirection: 'row', alignItems: 'center', height: 44, paddingHorizontal: 12, borderRadius: 8 }}
-            android_ripple={{ color: activeBg }}
-          >
-            <Trash2 size={18} color="hsl(0, 84.2%, 60.2%)" strokeWidth={2} />
-            <Text className="text-[14px] font-medium ml-3" style={{ color: 'hsl(0, 84.2%, 60.2%)' }}>Delete</Text>
-          </Pressable>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    <Sheet open={message !== null} onClose={hideMenu} floating>
+      {!!shown?.content && (
+        <View className="px-5 pb-3">
+          <Text className="text-muted-foreground text-[13px] leading-[19px]" numberOfLines={2}>
+            {shown.content}
+          </Text>
+        </View>
+      )}
+      <View className="mx-5 mb-1" style={{ height: 1, backgroundColor: palette.border }} />
+      <SheetRow icon={<Copy size={18} color={palette.icon} />} label="Copy" onPress={handleCopy} />
+      {isUser ? (
+        <SheetRow
+          icon={<Pencil size={18} color={palette.icon} />}
+          label="Edit & Resend"
+          onPress={handleEditAndResend}
+        />
+      ) : (
+        <SheetRow
+          icon={<RefreshCw size={18} color={palette.icon} />}
+          label="Regenerate"
+          onPress={handleRegenerate}
+        />
+      )}
+      <SheetRow
+        icon={<Trash2 size={18} color={palette.destructive} />}
+        label="Delete"
+        destructive
+        onPress={handleDelete}
+      />
+    </Sheet>
   );
 }

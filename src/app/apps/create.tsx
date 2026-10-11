@@ -1,8 +1,13 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, Pressable, ScrollView, TextInput } from 'react-native';
+import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
-import { ArrowLeft, Check } from 'lucide-react-native';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { PressableScale } from '@/components/ui/pressable-scale';
+import { usePalette } from '@/lib/palette';
+import { Motion } from '@/lib/motion';
+import { Check } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
@@ -27,6 +32,7 @@ export default function CreateAppScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const showToast = useUIStore((s) => s.showToast);
+  const palette = usePalette();
   const { editId } = useLocalSearchParams<{ editId?: string }>();
 
   const [name, setName] = useState('');
@@ -122,45 +128,30 @@ export default function CreateAppScreen() {
   return (
     <View className="flex-1 bg-background">
       {/* Header */}
-      <View
-        className="flex-row items-center justify-between px-4 h-14 border-b border-outline-variant/20"
-        style={{ marginTop: insets.top }}
-      >
-        <View className="flex-row items-center">
-          <Pressable
-            onPress={() => {
-              if (step > 0) {
-                setStep(step - 1);
-              } else {
-                router.back();
-              }
-            }}
-            className="w-10 h-10 items-center justify-center -ml-2"
-          >
-            <ArrowLeft size={24} color="hsl(0, 0%, 98%)" />
-          </Pressable>
-          <Text className="text-foreground text-[18px] font-semibold ml-2">
-            {isEdit ? 'Edit App' : 'Create App'}
-          </Text>
-        </View>
+      <ScreenHeader
+        title={isEdit ? 'Edit App' : 'Create App'}
+        onBack={() => {
+          if (step > 0) {
+            setStep(step - 1);
+          } else {
+            router.back();
+          }
+        }}
+        right={
+          /* Step indicators */
+          <View className="flex-row items-center gap-1.5">
+            {[0, 1, 2].map((s) => (
+              <Pressable key={s} onPress={() => setStep(s)} hitSlop={6}>
+                <StepDot active={s === step} />
+              </Pressable>
+            ))}
+          </View>
+        }
+      />
 
-        {/* Step indicators */}
-        <View className="flex-row items-center gap-1.5">
-          {[0, 1, 2].map((s) => (
-            <Pressable key={s} onPress={() => setStep(s)}>
-              <View
-                className={`h-2 rounded-full ${
-                  s === step ? 'w-6 bg-foreground' : 'w-2 bg-outline-variant/40'
-                }`}
-              />
-            </Pressable>
-          ))}
-        </View>
-      </View>
-
-      <ScrollView className="flex-1 px-4 pt-6" showsVerticalScrollIndicator={false}>
+      <ScrollView className="flex-1 px-4 pt-4" showsVerticalScrollIndicator={false}>
         {step === 0 && (
-          <View className="gap-6">
+          <Animated.View key="step-0" entering={FadeIn.duration(Motion.duration.base)} style={{ gap: 24 }}>
             <Text className="text-foreground text-[16px] font-semibold">Identity</Text>
 
             {/* App preview */}
@@ -183,7 +174,7 @@ export default function CreateAppScreen() {
                 value={name}
                 onChangeText={setName}
                 placeholder="e.g. Fitness Coach"
-                placeholderTextColor="hsl(0, 0%, 35%)"
+                placeholderTextColor={palette.iconMuted}
                 className="bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3 text-foreground text-[15px]"
               />
             </View>
@@ -195,7 +186,7 @@ export default function CreateAppScreen() {
                 value={description}
                 onChangeText={setDescription}
                 placeholder="What does this app do?"
-                placeholderTextColor="hsl(0, 0%, 35%)"
+                placeholderTextColor={palette.iconMuted}
                 multiline
                 numberOfLines={2}
                 className="bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3 text-foreground text-[15px]"
@@ -211,7 +202,7 @@ export default function CreateAppScreen() {
                   const IconComp = getIconByName(iconName);
                   const isSelected = icon === iconName;
                   return (
-                    <Pressable
+                    <PressableScale
                       key={iconName}
                       onPress={() => setIcon(iconName)}
                       className={`h-11 w-11 rounded-xl items-center justify-center ${
@@ -222,9 +213,9 @@ export default function CreateAppScreen() {
                     >
                       <IconComp
                         size={20}
-                        color={isSelected ? 'hsl(240, 3.7%, 7.5%)' : 'hsl(0, 0%, 63%)'}
+                        color={isSelected ? palette.onAccent : palette.icon}
                       />
-                    </Pressable>
+                    </PressableScale>
                   );
                 })}
               </View>
@@ -235,7 +226,7 @@ export default function CreateAppScreen() {
               <Text className="text-on-surface-variant text-[13px] font-medium">Color</Text>
               <View className="flex-row gap-2">
                 {COLOR_PALETTE.map((c) => (
-                  <Pressable
+                  <PressableScale
                     key={c}
                     onPress={() => setColor(c)}
                     className={`h-10 w-10 rounded-full items-center justify-center ${
@@ -244,23 +235,23 @@ export default function CreateAppScreen() {
                     style={{ backgroundColor: c }}
                   >
                     {color === c && <Check size={16} color="hsl(0, 0%, 98%)" />}
-                  </Pressable>
+                  </PressableScale>
                 ))}
               </View>
             </View>
 
             {/* Next button */}
-            <Pressable
+            <PressableScale
               onPress={() => setStep(1)}
-              className="bg-foreground rounded-xl py-3.5 items-center mt-4 active:opacity-80"
+              className="bg-foreground rounded-xl py-3.5 items-center mt-4"
             >
               <Text className="text-background text-[15px] font-semibold">Next: Behavior</Text>
-            </Pressable>
-          </View>
+            </PressableScale>
+          </Animated.View>
         )}
 
         {step === 1 && (
-          <View className="gap-6">
+          <Animated.View key="step-1" entering={FadeIn.duration(Motion.duration.base)} style={{ gap: 24 }}>
             <Text className="text-foreground text-[16px] font-semibold">Behavior</Text>
 
             {/* Skill selector */}
@@ -269,7 +260,7 @@ export default function CreateAppScreen() {
                 Linked Skill (optional)
               </Text>
               <View className="flex-row flex-wrap gap-2">
-                <Pressable
+                <PressableScale
                   onPress={() => setSkillName(null)}
                   className={`rounded-full px-3 py-2 ${
                     !skillName
@@ -284,9 +275,9 @@ export default function CreateAppScreen() {
                   >
                     None
                   </Text>
-                </Pressable>
+                </PressableScale>
                 {skills.map((s) => (
-                  <Pressable
+                  <PressableScale
                     key={s.name}
                     onPress={() => setSkillName(s.name)}
                     className={`rounded-full px-3 py-2 ${
@@ -302,7 +293,7 @@ export default function CreateAppScreen() {
                     >
                       {s.name}
                     </Text>
-                  </Pressable>
+                  </PressableScale>
                 ))}
               </View>
             </View>
@@ -316,7 +307,7 @@ export default function CreateAppScreen() {
                 value={rules}
                 onChangeText={setRules}
                 placeholder="System instructions for this app's persona..."
-                placeholderTextColor="hsl(0, 0%, 35%)"
+                placeholderTextColor={palette.iconMuted}
                 multiline
                 numberOfLines={4}
                 className="bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3 text-foreground text-[15px]"
@@ -333,7 +324,7 @@ export default function CreateAppScreen() {
                 value={greeting}
                 onChangeText={setGreeting}
                 placeholder="First message when app opens..."
-                placeholderTextColor="hsl(0, 0%, 35%)"
+                placeholderTextColor={palette.iconMuted}
                 className="bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3 text-foreground text-[15px]"
               />
             </View>
@@ -347,7 +338,7 @@ export default function CreateAppScreen() {
                 value={examplePromptsText}
                 onChangeText={setExamplePromptsText}
                 placeholder={"Review this function\nFind security issues\nOptimize performance"}
-                placeholderTextColor="hsl(0, 0%, 35%)"
+                placeholderTextColor={palette.iconMuted}
                 multiline
                 numberOfLines={4}
                 className="bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3 text-foreground text-[15px]"
@@ -357,24 +348,24 @@ export default function CreateAppScreen() {
 
             {/* Navigation buttons */}
             <View className="flex-row gap-3 mt-4">
-              <Pressable
+              <PressableScale
                 onPress={() => setStep(0)}
-                className="flex-1 bg-surface-container-low border border-outline-variant/20 rounded-xl py-3.5 items-center active:opacity-80"
+                className="flex-1 bg-surface-container-low border border-outline-variant/20 rounded-xl py-3.5 items-center"
               >
                 <Text className="text-foreground text-[15px] font-semibold">Back</Text>
-              </Pressable>
-              <Pressable
+              </PressableScale>
+              <PressableScale
                 onPress={() => setStep(2)}
-                className="flex-1 bg-foreground rounded-xl py-3.5 items-center active:opacity-80"
+                className="flex-1 bg-foreground rounded-xl py-3.5 items-center"
               >
                 <Text className="text-background text-[15px] font-semibold">Next: Model</Text>
-              </Pressable>
+              </PressableScale>
             </View>
-          </View>
+          </Animated.View>
         )}
 
         {step === 2 && (
-          <View className="gap-6">
+          <Animated.View key="step-2" entering={FadeIn.duration(Motion.duration.base)} style={{ gap: 24 }}>
             <Text className="text-foreground text-[16px] font-semibold">Model</Text>
 
             <Text className="text-on-surface-variant text-[13px]">
@@ -388,7 +379,7 @@ export default function CreateAppScreen() {
               </Text>
               <View className="flex-row flex-wrap gap-2">
                 {['', 'openrouter', 'openai', 'openai-codex', 'anthropic', 'google-ai', 'minimax'].map((p) => (
-                  <Pressable
+                  <PressableScale
                     key={p}
                     onPress={() => setProvider(p)}
                     className={`rounded-full px-3 py-2 ${
@@ -404,7 +395,7 @@ export default function CreateAppScreen() {
                     >
                       {p || 'Any (default)'}
                     </Text>
-                  </Pressable>
+                  </PressableScale>
                 ))}
               </View>
             </View>
@@ -418,7 +409,7 @@ export default function CreateAppScreen() {
                 value={model}
                 onChangeText={setModel}
                 placeholder="e.g. claude-sonnet-4-20250514"
-                placeholderTextColor="hsl(0, 0%, 35%)"
+                placeholderTextColor={palette.iconMuted}
                 className="bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3 text-foreground text-[15px]"
                 autoCapitalize="none"
               />
@@ -426,27 +417,48 @@ export default function CreateAppScreen() {
 
             {/* Save */}
             <View className="flex-row gap-3 mt-4">
-              <Pressable
+              <PressableScale
                 onPress={() => setStep(1)}
-                className="flex-1 bg-surface-container-low border border-outline-variant/20 rounded-xl py-3.5 items-center active:opacity-80"
+                className="flex-1 bg-surface-container-low border border-outline-variant/20 rounded-xl py-3.5 items-center"
               >
                 <Text className="text-foreground text-[15px] font-semibold">Back</Text>
-              </Pressable>
-              <Pressable
+              </PressableScale>
+              <PressableScale
                 onPress={handleSave}
-                className="flex-1 bg-foreground rounded-xl py-3.5 items-center active:opacity-80"
+                className="flex-1 bg-foreground rounded-xl py-3.5 items-center"
               >
                 <Text className="text-background text-[15px] font-semibold">
                   {isEdit ? 'Save Changes' : 'Create App'}
                 </Text>
-              </Pressable>
+              </PressableScale>
             </View>
-          </View>
+          </Animated.View>
         )}
 
         {/* Bottom padding */}
         <View style={{ height: insets.bottom + 32 }} />
       </ScrollView>
     </View>
+  );
+}
+
+/** Progress dot that stretches into a pill for the current step. */
+function StepDot({ active }: { active: boolean }) {
+  const palette = usePalette();
+  const progress = useSharedValue(active ? 1 : 0);
+
+  React.useEffect(() => {
+    progress.set(withSpring(active ? 1 : 0, Motion.spring.pop));
+  }, [active, progress]);
+
+  const style = useAnimatedStyle(() => ({
+    width: 8 + progress.get() * 16,
+    opacity: 0.35 + progress.get() * 0.65,
+  }));
+
+  return (
+    <Animated.View
+      style={[{ height: 8, borderRadius: 4, backgroundColor: palette.text }, style]}
+    />
   );
 }

@@ -1,15 +1,19 @@
-import React, { useMemo, useState, useCallback } from 'react';
-import { View, Pressable, ScrollView, Alert } from 'react-native';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { View, ScrollView, Alert } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
-import { ArrowLeft, Trash2, BarChart3, Coins, Zap } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { PressableScale } from '@/components/ui/pressable-scale';
+import { Trash2, BarChart3, Coins, Zap } from 'lucide-react-native';
+import { usePalette } from '@/lib/palette';
+import { Motion } from '@/lib/motion';
 import { getUsageSummary, getDailyUsage, clearAllUsage } from '@/lib/db/token-usage';
 import { formatCost } from '@/lib/tokens/pricing';
 
 export default function UsageScreen() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
+  const palette = usePalette();
   const [refreshKey, setRefreshKey] = useState(0);
 
   const now = useMemo(() => Date.now(), [refreshKey]);
@@ -66,21 +70,9 @@ export default function UsageScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      {/* Header */}
-      <View
-        className="flex-row items-center px-4 h-14 border-b border-outline-variant/20"
-        style={{ marginTop: insets.top }}
-      >
-        <Pressable
-          onPress={() => router.back()}
-          className="w-10 h-10 items-center justify-center -ml-2"
-        >
-          <ArrowLeft size={24} color="hsl(0, 0%, 98%)" />
-        </Pressable>
-        <Text className="text-foreground text-[18px] font-semibold ml-2">Usage & Costs</Text>
-      </View>
+      <ScreenHeader title="Usage & Costs" />
 
-      <ScrollView className="flex-1 px-4 pt-6" showsVerticalScrollIndicator={false}>
+      <ScrollView className="flex-1 px-4 pt-3" showsVerticalScrollIndicator={false}>
         {/* Summary Cards */}
         <View className="flex-row gap-3 mb-6">
           <SummaryCard
@@ -104,12 +96,12 @@ export default function UsageScreen() {
         </View>
 
         {/* Daily Usage Chart */}
-        <View className="bg-surface-container-low border border-outline-variant/20 rounded-xl p-4 mb-6">
+        <View className="bg-surface-container-low border border-outline-variant/20 rounded-2xl p-4 mb-6">
           <Text className="text-foreground text-[15px] font-semibold mb-4">
             Daily Token Usage
           </Text>
           <View className="flex-row items-end gap-2" style={{ height: 100 }}>
-            {dailyData.map((day) => {
+            {dailyData.map((day, index) => {
               const height = Math.max(
                 (day.tokens / maxDailyTokens) * 80,
                 day.tokens > 0 ? 4 : 1
@@ -122,15 +114,11 @@ export default function UsageScreen() {
                   <Text className="text-muted-foreground text-[9px] opacity-60">
                     {day.tokens > 0 ? formatTokenCount(day.tokens) : ''}
                   </Text>
-                  <View
-                    className="w-full rounded-t-sm"
-                    style={{
-                      height,
-                      backgroundColor: day.tokens > 0
-                        ? 'hsl(200, 100%, 65%)'
-                        : 'hsl(0, 0%, 20%)',
-                      opacity: day.tokens > 0 ? 0.8 : 0.3,
-                    }}
+                  <UsageBar
+                    height={height}
+                    index={index}
+                    color={day.tokens > 0 ? 'hsl(200, 100%, 65%)' : palette.surfaceHigh}
+                    opacity={day.tokens > 0 ? 0.85 : 1}
                   />
                   <Text className="text-muted-foreground text-[10px]">{dayLabel}</Text>
                 </View>
@@ -141,7 +129,7 @@ export default function UsageScreen() {
 
         {/* Model Breakdown */}
         {monthSummary.byModel.length > 0 && (
-          <View className="bg-surface-container-low border border-outline-variant/20 rounded-xl p-4 mb-6">
+          <View className="bg-surface-container-low border border-outline-variant/20 rounded-2xl p-4 mb-6">
             <Text className="text-foreground text-[15px] font-semibold mb-3">
               Top Models (30 days)
             </Text>
@@ -168,7 +156,7 @@ export default function UsageScreen() {
 
         {/* Provider Breakdown */}
         {monthSummary.byProvider.length > 0 && (
-          <View className="bg-surface-container-low border border-outline-variant/20 rounded-xl p-4 mb-6">
+          <View className="bg-surface-container-low border border-outline-variant/20 rounded-2xl p-4 mb-6">
             <Text className="text-foreground text-[15px] font-semibold mb-3">
               By Provider (30 days)
             </Text>
@@ -196,7 +184,7 @@ export default function UsageScreen() {
         {/* Empty state */}
         {monthSummary.totalTokens === 0 && (
           <View className="items-center py-12">
-            <BarChart3 size={40} color="hsl(0, 0%, 30%)" />
+            <BarChart3 size={40} color={palette.iconMuted} />
             <Text className="text-muted-foreground text-[14px] mt-4 text-center">
               No usage data yet.{'\n'}Start chatting to track token usage and costs.
             </Text>
@@ -205,13 +193,14 @@ export default function UsageScreen() {
 
         {/* Reset button */}
         {monthSummary.totalTokens > 0 && (
-          <Pressable
+          <PressableScale
             onPress={handleReset}
-            className="flex-row items-center justify-center gap-2 py-3 px-4 rounded-lg border border-red-500/20 active:bg-red-500/10 mb-8"
+            scaleTo={0.97}
+            className="flex-row items-center justify-center gap-2 py-3 px-4 rounded-xl border border-red-500/20 bg-red-500/5 mb-8"
           >
-            <Trash2 size={16} color="hsl(0, 84%, 60%)" />
-            <Text className="text-red-400 text-[14px] font-medium">Reset Usage Data</Text>
-          </Pressable>
+            <Trash2 size={16} color={palette.destructive} />
+            <Text className="text-[14px] font-medium" style={{ color: palette.destructive }}>Reset Usage Data</Text>
+          </PressableScale>
         )}
 
         <View style={{ height: insets.bottom + 20 }} />
@@ -221,6 +210,35 @@ export default function UsageScreen() {
 }
 
 // ─── Helper components ──────────────────────────────────────────────────
+
+/** Chart bar that grows up from the baseline, staggered left to right. */
+function UsageBar({
+  height,
+  index,
+  color,
+  opacity,
+}: {
+  height: number;
+  index: number;
+  color: string;
+  opacity: number;
+}) {
+  const grow = useSharedValue(0);
+
+  useEffect(() => {
+    grow.set(
+      withDelay(index * 45, withTiming(height, { duration: Motion.duration.enter, easing: Motion.easing.enter }))
+    );
+  }, [grow, height, index]);
+
+  const style = useAnimatedStyle(() => ({ height: grow.get() }));
+
+  return (
+    <Animated.View
+      style={[{ width: '100%', borderTopLeftRadius: 4, borderTopRightRadius: 4, backgroundColor: color, opacity }, style]}
+    />
+  );
+}
 
 function SummaryCard({
   title,
@@ -234,7 +252,7 @@ function SummaryCard({
   icon: React.ReactNode;
 }) {
   return (
-    <View className="flex-1 bg-surface-container-low border border-outline-variant/20 rounded-xl p-3">
+    <View className="flex-1 bg-surface-container-low border border-outline-variant/20 rounded-2xl p-3">
       <View className="flex-row items-center gap-1.5 mb-2">
         {icon}
         <Text className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">

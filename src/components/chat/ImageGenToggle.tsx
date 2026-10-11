@@ -1,8 +1,9 @@
 import React from 'react';
-import { Pressable } from 'react-native';
 import { Image } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { PressableScale } from '@/components/ui/pressable-scale';
 import { useSettingsStore } from '@/stores/settings-store';
+import { usePalette } from '@/lib/palette';
 
 /**
  * Small toggle pill for enabling/disabling image generation in the chat top bar.
@@ -11,6 +12,7 @@ import { useSettingsStore } from '@/stores/settings-store';
 export function ImageGenToggle() {
   const imageGenEnabled = useSettingsStore((s) => s.imageGenEnabled);
   const setImageGenEnabled = useSettingsStore((s) => s.setImageGenEnabled);
+  const palette = usePalette();
 
   const handleToggle = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -18,21 +20,24 @@ export function ImageGenToggle() {
   };
 
   return (
-    <Pressable
+    <PressableScale
       onPress={handleToggle}
-      className={`w-8 h-8 items-center justify-center rounded-full ${
-        imageGenEnabled
-          ? 'bg-foreground'
-          : 'bg-muted'
-      }`}
+      scaleTo={0.9}
+      style={{
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: imageGenEnabled ? palette.accent : palette.surface,
+        borderWidth: imageGenEnabled ? 0 : 1,
+        borderColor: palette.border,
+      }}
       accessibilityRole="switch"
       accessibilityState={{ checked: imageGenEnabled }}
       accessibilityLabel="Image generation"
     >
-      <Image
-        size={15}
-        color={imageGenEnabled ? 'hsl(0, 0%, 9%)' : 'hsl(0, 0%, 63%)'}
-      />
-    </Pressable>
+      <Image size={15} color={imageGenEnabled ? palette.onAccent : palette.icon} />
+    </PressableScale>
   );
 }

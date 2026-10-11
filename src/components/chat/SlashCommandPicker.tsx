@@ -1,6 +1,9 @@
 import React from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
+import { usePalette } from '@/lib/palette';
+import { Motion } from '@/lib/motion';
 import {
   FileText,
   Languages,
@@ -30,12 +33,22 @@ interface SlashCommandPickerProps {
 }
 
 export function SlashCommandPicker({ commands, onSelect }: SlashCommandPickerProps) {
+  const palette = usePalette();
   if (commands.length === 0) return null;
 
   return (
-    <View
-      className="bg-surface-container-low border border-outline-variant/20 rounded-xl mx-4 mb-2 overflow-hidden"
-      style={{ maxHeight: 260 }}
+    <Animated.View
+      entering={FadeInDown.duration(Motion.duration.base).easing(Motion.easing.enter)}
+      exiting={FadeOut.duration(Motion.duration.fast)}
+      style={{
+        maxHeight: 260,
+        marginBottom: 8,
+        borderRadius: 20,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: palette.border,
+        backgroundColor: palette.sheet,
+      }}
     >
       <ScrollView keyboardShouldPersistTaps="always">
         {commands.map((cmd, index) => {
@@ -50,13 +63,16 @@ export function SlashCommandPicker({ commands, onSelect }: SlashCommandPickerPro
               className="flex-row items-center px-4 py-3 active:bg-surface-container-high"
               style={
                 index < commands.length - 1
-                  ? { borderBottomWidth: 0.5, borderBottomColor: 'hsla(0, 0%, 50%, 0.12)' }
+                  ? { borderBottomWidth: 0.5, borderBottomColor: palette.border }
                   : undefined
               }
             >
               {IconComponent && (
-                <View className="w-8 h-8 rounded-lg bg-muted items-center justify-center mr-3">
-                  <IconComponent size={16} color="hsl(0, 0%, 63%)" />
+                <View
+                  className="w-8 h-8 rounded-lg items-center justify-center mr-3"
+                  style={{ backgroundColor: palette.surfaceRaised }}
+                >
+                  <IconComponent size={16} color={palette.icon} />
                 </View>
               )}
               <View className="flex-1">
@@ -78,6 +94,6 @@ export function SlashCommandPicker({ commands, onSelect }: SlashCommandPickerPro
           );
         })}
       </ScrollView>
-    </View>
+    </Animated.View>
   );
 }

@@ -15,7 +15,7 @@ export function ToolResultCard({ display }: ToolResultCardProps) {
     : 'hsl(0, 0%, 63%)';
 
   return (
-    <View className="mt-1 rounded-lg border border-outline-variant/15 bg-surface-container-low overflow-hidden">
+    <View className="mt-1 rounded-2xl border border-outline-variant/20 bg-surface-container-low overflow-hidden">
       <View className="flex-row items-start gap-2 px-3 py-2 border-b border-outline-variant/10">
         <View className="h-7 w-7 rounded-full bg-muted items-center justify-center">
           <Icon size={14} color={iconColor} />

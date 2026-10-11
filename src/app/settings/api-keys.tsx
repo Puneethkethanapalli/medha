@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { ArrowLeft, Plus, Trash2, Shield, X, Check } from 'lucide-react-native';
+import { Plus, Trash2, Shield, X, Check } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as WebBrowser from 'expo-web-browser';
 import { useSettingsStore, hasProviderKey, deleteProviderKey, maskKey } from '@/stores/settings-store';
@@ -15,6 +13,9 @@ import {
   requestCodexDeviceAuthorization,
   serializeCodexCredential,
 } from '@/lib/auth/openai-codex';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { PressableScale } from '@/components/ui/pressable-scale';
+import { usePalette } from '@/lib/palette';
 
 type ProviderId = 'openrouter' | 'openai' | 'openai-codex' | 'google-ai' | 'anthropic' | 'minimax' | 'cloudflare-ai' | 'tavily' | 'image-gen';
 
@@ -38,8 +39,7 @@ const PROVIDERS: ProviderConfig[] = [
 ];
 
 export default function ApiKeysScreen() {
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const palette = usePalette();
   const { validateApiKey } = useSettingsStore();
 
   const [connectedProviders, setConnectedProviders] = useState<Set<ProviderId>>(new Set());
@@ -191,31 +191,15 @@ export default function ApiKeysScreen() {
     }
   };
 
-  const handleBack = () => {
-    router.back();
-  };
-
   return (
     <View className="flex-1 bg-background">
       <View className="flex-1 bg-background">
-      {/* Top Bar */}
-      <View className="flex flex-row items-center justify-between px-6 h-16 w-full" style={{ marginTop: insets.top }}>
-        <Pressable
-          className="p-2 -ml-2 rounded-full active:bg-surface-container"
-          onPress={handleBack}
-        >
-          <ArrowLeft size={24} className="text-on-surface-variant" color="#c6c6c6" />
-        </Pressable>
-        <Text className="font-headline font-semibold text-base text-primary absolute left-1/2 -translate-x-1/2">
-          API Keys
-        </Text>
-        <View className="w-10" />
-      </View>
+      <ScreenHeader title="API Keys" />
 
       {/* Main Content */}
       <KeyboardAwareScrollView
         bottomOffset={62}
-        contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 16, paddingTop: 16 }}
+        contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 16, paddingTop: 8 }}
         keyboardShouldPersistTaps="handled"
         style={{ flex: 1 }}
       >
@@ -227,10 +211,10 @@ export default function ApiKeysScreen() {
           return (
             <View
               key={provider.id}
-              className="bg-surface-container-lowest rounded-xl p-4 mb-4 border border-outline-variant/15"
+              className="bg-surface-container-low rounded-2xl p-4 mb-3 border border-outline-variant/20"
             >
               <View className="flex flex-row items-center justify-between z-10 relative">
-                <View>
+                <View className="flex-1 mr-3">
                   <Text className="font-headline font-semibold text-primary text-base tracking-tight">
                     {provider.name}
                   </Text>
@@ -242,7 +226,7 @@ export default function ApiKeysScreen() {
                   {isConnected ? (
                     <>
                       <Text className="text-xs text-on-surface-variant font-medium">Connected</Text>
-                      <View className="w-2 h-2 rounded-full bg-[#22C55E]" />
+                      <View className="w-2 h-2 rounded-full" style={{ backgroundColor: palette.success }} />
                     </>
                   ) : (
                     <Text className="text-[13px] text-on-surface-variant">Not connected</Text>
@@ -252,7 +236,7 @@ export default function ApiKeysScreen() {
 
               {isConnected && (
                 <View className="mt-3 z-10 relative">
-                  <Text className="font-mono text-[13px] text-on-surface-variant bg-surface-container-low px-3 py-2 rounded-md border border-outline-variant/10">
+                  <Text className="font-mono text-[13px] text-on-surface-variant bg-surface-container px-3 py-2 rounded-lg border border-outline-variant/10">
                     {maskKey('xxxx-xxxxxxxxxxxxxxxxxxxx')}
                   </Text>
                 </View>
@@ -260,13 +244,14 @@ export default function ApiKeysScreen() {
 
               {isConnected ? (
                 <View className="flex flex-row items-center gap-2 pt-3 z-10 relative">
-                  <Pressable
-                    className="bg-surface-container px-3 py-1.5 rounded-full flex flex-row items-center gap-1.5 active:bg-surface-container-high"
+                  <PressableScale
+                    scaleTo={0.95}
+                    className="bg-surface-container px-3 py-1.5 rounded-full flex flex-row items-center gap-1.5"
                     onPress={() => handleDeleteKey(provider)}
                   >
-                    <Trash2 size={14} className="text-destructive" color="#EF4444" />
-                    <Text className="text-xs font-medium text-destructive">Delete</Text>
-                  </Pressable>
+                    <Trash2 size={14} color={palette.destructive} />
+                    <Text className="text-xs font-medium" style={{ color: palette.destructive }}>Delete</Text>
+                  </PressableScale>
                 </View>
               ) : isAdding ? (
                 <View className="mt-3 z-10 relative">
@@ -275,8 +260,9 @@ export default function ApiKeysScreen() {
                     <>
                       <Text className="text-xs text-on-surface-variant mb-1.5 ml-1">Account ID</Text>
                       <TextInput
-                        className="w-full bg-surface-container-high border border-outline-variant/40 rounded-lg px-4 py-2.5 text-primary font-mono text-sm placeholder-on-surface-variant/50 mb-3"
+                        className="w-full bg-surface-container border border-outline-variant/40 rounded-xl px-4 py-2.5 text-primary font-mono text-sm mb-3"
                         placeholder="Cloudflare Account ID"
+                        placeholderTextColor={palette.iconMuted}
                         value={cloudflareAccountId}
                         onChangeText={setCloudflareAccountIdState}
                         autoCapitalize="none"
@@ -286,13 +272,14 @@ export default function ApiKeysScreen() {
                     </>
                   )}
                   {provider.authMode === 'codex-oauth' ? (
-                    <View className="bg-surface-container-high border border-outline-variant/40 rounded-lg px-4 py-3">
+                    <View className="bg-surface-container border border-outline-variant/40 rounded-xl px-4 py-3">
                       <Text className="text-[13px] text-on-surface-variant">
                         Sign in with ChatGPT to use Codex models from your ChatGPT plan.
                       </Text>
                       {codexUserCode && (
-                        <Pressable
-                          className="mt-3 bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2"
+                        <PressableScale
+                          scaleTo={0.97}
+                          className="mt-3 bg-surface-container-low border border-outline-variant/20 rounded-xl px-3 py-2"
                           onPress={() => Clipboard.setStringAsync(codexUserCode)}
                         >
                           <Text className="font-mono text-primary text-lg tracking-widest text-center">
@@ -301,13 +288,14 @@ export default function ApiKeysScreen() {
                           <Text className="text-[11px] text-on-surface-variant text-center mt-1">
                             Code copied. Enter it at auth.openai.com/codex/device
                           </Text>
-                        </Pressable>
+                        </PressableScale>
                       )}
                     </View>
                   ) : (
                     <TextInput
-                      className="w-full bg-surface-container-high border border-outline-variant/40 rounded-lg px-4 py-2.5 text-primary font-mono text-sm placeholder-on-surface-variant/50"
+                      className="w-full bg-surface-container border border-outline-variant/40 rounded-xl px-4 py-2.5 text-primary font-mono text-sm"
                       placeholder={`Enter ${provider.name} API key`}
+                      placeholderTextColor={palette.iconMuted}
                       value={keys[provider.id]}
                       onChangeText={(text) => setKeys(prev => ({ ...prev, [provider.id]: text }))}
                       autoCapitalize="none"
@@ -316,8 +304,9 @@ export default function ApiKeysScreen() {
                     />
                   )}
                   <View className="flex flex-row items-center gap-2 mt-3">
-                    <Pressable
-                      className="flex-1 bg-surface-container px-3 py-2 rounded-lg flex flex-row items-center justify-center gap-1.5 active:bg-surface-container-high"
+                    <PressableScale
+                      scaleTo={0.95}
+                      className="flex-1 bg-surface-container px-3 py-2.5 rounded-xl flex flex-row items-center justify-center gap-1.5"
                       onPress={() => {
                         setIsAddingKey(null);
                         setKeys(prev => ({ ...prev, [provider.id]: '' }));
@@ -326,38 +315,42 @@ export default function ApiKeysScreen() {
                         codexAbortRef.current?.abort();
                       }}
                     >
-                      <X size={14} className="text-on-surface-variant" color="#c6c6c6" />
+                      <X size={14} color={palette.icon} />
                       <Text className="text-xs font-medium text-on-surface-variant">Cancel</Text>
-                    </Pressable>
-                    <Pressable
-                      className="flex-1 bg-primary px-3 py-2 rounded-lg flex flex-row items-center justify-center gap-1.5 active:bg-primary/90"
+                    </PressableScale>
+                    <PressableScale
+                      scaleTo={0.95}
+                      haptic
+                      className="flex-1 bg-primary px-3 py-2.5 rounded-xl flex flex-row items-center justify-center gap-1.5"
+                      style={isValidating ? { opacity: 0.7 } : undefined}
                       onPress={() => handleAddKey(provider)}
                       disabled={isValidating}
                     >
                       {isValidating ? (
-                        <ActivityIndicator size="small" className="text-on-primary" />
+                        <ActivityIndicator size="small" color={palette.onAccent} />
                       ) : (
-                        <Check size={14} className="text-on-primary" color="#1a1c1c" />
+                        <Check size={14} color={palette.onAccent} strokeWidth={2.5} />
                       )}
                       <Text className="text-xs font-medium text-on-primary">
                         {provider.authMode === 'codex-oauth' ? 'Sign In' : 'Save Key'}
                       </Text>
-                    </Pressable>
+                    </PressableScale>
                   </View>
                 </View>
               ) : (
-                <Pressable
-                  className="mt-3 w-full h-11 bg-surface-container rounded-lg border border-dashed border-outline-variant/30 flex flex-row items-center justify-center gap-2 active:bg-surface-container-high"
+                <PressableScale
+                  scaleTo={0.98}
+                  className="mt-3 w-full h-11 bg-surface-container rounded-xl border border-dashed border-outline-variant/40 flex flex-row items-center justify-center gap-2"
                   onPress={() => {
                     setIsAddingKey(provider.id);
                     setCodexUserCode(null);
                   }}
                 >
-                  <Plus size={16} className="text-on-surface-variant" color="#c6c6c6" />
+                  <Plus size={16} color={palette.icon} />
                   <Text className="text-sm font-medium text-on-surface-variant">
                     {provider.authMode === 'codex-oauth' ? `Connect ${provider.name}` : `Add ${provider.name} API Key`}
                   </Text>
-                </Pressable>
+                </PressableScale>
               )}
             </View>
           );
@@ -365,7 +358,7 @@ export default function ApiKeysScreen() {
 
         {/* Bottom Note */}
         <View className="mt-6 flex flex-col items-center justify-center gap-2 text-center">
-          <Shield size={16} className="text-on-surface-variant" color="#c6c6c6" />
+          <Shield size={16} color={palette.iconMuted} />
           <Text className="text-xs text-on-surface-variant font-medium tracking-wide text-center">
             Keys are encrypted and stored locally on your device
           </Text>

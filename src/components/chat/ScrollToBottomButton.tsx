@@ -8,6 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { ChevronDown } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { usePalette } from '@/lib/palette';
 
 interface ScrollToBottomButtonProps {
   visible: boolean;
@@ -29,6 +30,7 @@ export const ScrollToBottomButton = React.memo(function ScrollToBottomButton({
   onPress,
 }: ScrollToBottomButtonProps) {
   const progress = useSharedValue(0);
+  const palette = usePalette();
 
   useEffect(() => {
     progress.value = withSpring(visible ? 1 : 0, {
@@ -58,13 +60,19 @@ export const ScrollToBottomButton = React.memo(function ScrollToBottomButton({
     >
       <Pressable
         onPress={handlePress}
-        style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+        style={({ pressed }) => [
+          styles.button,
+          { backgroundColor: palette.surfaceRaised, borderColor: palette.border },
+          pressed && styles.buttonPressed,
+        ]}
         accessibilityLabel="Scroll to bottom"
         accessibilityRole="button"
         hitSlop={4}
       >
-        <ChevronDown size={18} color="hsl(0, 0%, 72%)" strokeWidth={2.5} />
-        {isStreaming && <View style={styles.streamingDot} />}
+        <ChevronDown size={18} color={palette.text} strokeWidth={2.25} />
+        {isStreaming && (
+          <View style={[styles.streamingDot, { borderColor: palette.surfaceRaised }]} />
+        )}
       </Pressable>
     </Animated.View>
   );
@@ -80,16 +88,14 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#1C1C1E',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 6,
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   buttonPressed: {
     opacity: 0.7,
@@ -104,6 +110,5 @@ const styles = StyleSheet.create({
     borderRadius: 3.5,
     backgroundColor: '#34C759',
     borderWidth: 1.5,
-    borderColor: '#1C1C1E',
   },
 });

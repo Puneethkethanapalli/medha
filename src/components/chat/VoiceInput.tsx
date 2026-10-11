@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
-import { View, Pressable, Text } from 'react-native';
+import { View, Text } from 'react-native';
 import Animated, {
+  FadeIn,
   useSharedValue,
   withSequence,
   withTiming,
@@ -10,6 +11,9 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { requireOptionalNativeModule } from 'expo';
 import { X, Send } from 'lucide-react-native';
+import { PressableScale } from '@/components/ui/pressable-scale';
+import { usePalette } from '@/lib/palette';
+import { Motion } from '@/lib/motion';
 import type {
   ExpoSpeechRecognitionNativeEventMap,
   ExpoSpeechRecognitionOptions,
@@ -44,6 +48,7 @@ export function isVoiceInputAvailable() {
 
 export function VoiceInput({ onTranscript, onCancel }: VoiceInputProps) {
   const [transcript, setTranscript] = useState('');
+  const palette = usePalette();
   const speechModuleRef = React.useRef<SpeechRecognitionModule | null>(null);
 
   // Waveform bars driven by volume
@@ -146,49 +151,67 @@ export function VoiceInput({ onTranscript, onCancel }: VoiceInputProps) {
   }, [bars, onCancel, onTranscript, startListening]);
 
   // Animated bar styles
+  const barColor = palette.text;
   const barStyle0 = useAnimatedStyle(() => ({
     height: bar0.value,
     width: 3,
     borderRadius: 1.5,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: barColor,
   }));
   const barStyle1 = useAnimatedStyle(() => ({
     height: bar1.value,
     width: 3,
     borderRadius: 1.5,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: barColor,
   }));
   const barStyle2 = useAnimatedStyle(() => ({
     height: bar2.value,
     width: 3,
     borderRadius: 1.5,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: barColor,
   }));
   const barStyle3 = useAnimatedStyle(() => ({
     height: bar3.value,
     width: 3,
     borderRadius: 1.5,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: barColor,
   }));
   const barStyle4 = useAnimatedStyle(() => ({
     height: bar4.value,
     width: 3,
     borderRadius: 1.5,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: barColor,
   }));
   const barStyles = [barStyle0, barStyle1, barStyle2, barStyle3, barStyle4];
 
   const hasTranscript = transcript.length > 0;
 
   return (
-    <View className="flex-row items-center gap-3 px-4 py-3 bg-surface-container-low rounded-2xl">
+    <Animated.View
+      entering={FadeIn.duration(Motion.duration.base)}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingHorizontal: 8,
+        paddingVertical: 6,
+        borderRadius: 26,
+        borderWidth: 1,
+        borderColor: palette.border,
+        backgroundColor: palette.surface,
+      }}
+    >
       {/* Cancel button */}
-      <Pressable
+      <PressableScale
         onPress={handleCancel}
-        className="w-8 h-8 rounded-full bg-muted items-center justify-center active:scale-95"
+        scaleTo={0.88}
+        className="w-9 h-9 rounded-full items-center justify-center"
+        style={{ backgroundColor: palette.surfaceRaised }}
+        accessibilityRole="button"
+        accessibilityLabel="Cancel voice input"
       >
-        <X size={16} color="hsl(0, 0%, 63%)" />
-      </Pressable>
+        <X size={17} color={palette.icon} />
+      </PressableScale>
 
       {/* Waveform + transcript area — waveform always visible while listening */}
       <View className="flex-1 flex-row items-center justify-center min-h-[36px] gap-2">
@@ -212,18 +235,17 @@ export function VoiceInput({ onTranscript, onCancel }: VoiceInputProps) {
       </View>
 
       {/* Send button */}
-      <Pressable
+      <PressableScale
         onPress={handleSend}
         disabled={!transcript.trim()}
-        className={`w-8 h-8 rounded-full items-center justify-center active:scale-95 ${
-          transcript.trim() ? 'bg-foreground' : 'bg-outline-variant'
-        }`}
+        scaleTo={0.88}
+        className="w-9 h-9 rounded-full items-center justify-center"
+        style={{ backgroundColor: transcript.trim() ? palette.accent : palette.surfaceRaised }}
+        accessibilityRole="button"
+        accessibilityLabel="Send transcript"
       >
-        <Send
-          size={16}
-          color={transcript.trim() ? 'hsl(240, 3.7%, 7.5%)' : 'hsl(0, 0%, 44%)'}
-        />
-      </Pressable>
-    </View>
+        <Send size={16} color={transcript.trim() ? palette.onAccent : palette.iconMuted} />
+      </PressableScale>
+    </Animated.View>
   );
 }

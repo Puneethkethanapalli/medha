@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState, useTransition } from 'react';
-import { FlatList, Pressable, TextInput, View } from 'react-native';
+import { FlatList, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, Search, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { Text } from '@/components/ui/text';
+import { PressableScale } from '@/components/ui/pressable-scale';
+import { usePalette } from '@/lib/palette';
 import { searchConversationMessages } from '@/lib/db/messages';
 import { useUIStore } from '@/stores/ui-store';
 import type { MessageSearchResult } from '@/types';
@@ -11,6 +13,7 @@ import type { MessageSearchResult } from '@/types';
 export default function SearchScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const palette = usePalette();
   const setActiveConversation = useUIStore((state) => state.setActiveConversation);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<MessageSearchResult[]>([]);
@@ -43,38 +46,48 @@ export default function SearchScreen() {
   return (
     <View className="flex-1 bg-background">
       <View
-        className="border-b border-outline-variant/20 px-4 h-14 flex-row items-center"
-        style={{ marginTop: insets.top }}
+        className="px-2 flex-row items-center gap-1"
+        style={{ marginTop: insets.top, minHeight: 56 }}
       >
-        <Pressable
+        <PressableScale
           onPress={() => router.back()}
-          className="w-10 h-10 items-center justify-center -ml-2"
+          scaleTo={0.88}
+          hitSlop={4}
+          className="w-10 h-10 items-center justify-center rounded-full"
+          accessibilityRole="button"
+          accessibilityLabel="Back"
         >
-          <ArrowLeft size={22} color="hsl(0, 0%, 63%)" />
-        </Pressable>
+          <ArrowLeft size={22} color={palette.text} />
+        </PressableScale>
 
-        <View className="flex-1 flex-row items-center px-2">
-          <Search size={17} color="hsl(0, 0%, 44%)" />
+        <View
+          className="flex-1 flex-row items-center rounded-xl px-3 mr-2"
+          style={{ height: 42, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border }}
+        >
+          <Search size={17} color={palette.iconMuted} />
           <TextInput
             autoFocus
             value={query}
             onChangeText={setQuery}
             placeholder="Search messages..."
-            placeholderTextColor="hsl(0, 0%, 44%)"
-            className="flex-1 text-foreground text-[16px] ml-3 p-0"
+            placeholderTextColor={palette.iconMuted}
+            cursorColor={palette.text}
+            className="flex-1 text-foreground text-[15px] ml-2.5 p-0"
           />
+          {query.length > 0 && (
+            <PressableScale
+              onPress={() => setQuery('')}
+              scaleTo={0.85}
+              hitSlop={8}
+              className="w-6 h-6 items-center justify-center rounded-full"
+              style={{ backgroundColor: palette.surfaceHigh }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+            >
+              <X size={13} color={palette.icon} strokeWidth={2.5} />
+            </PressableScale>
+          )}
         </View>
-
-        <Pressable
-          onPress={() => setQuery('')}
-          className="w-10 h-10 items-center justify-center -mr-2"
-          disabled={!query.length}
-        >
-          <X
-            size={18}
-            color={query.length ? 'hsl(0, 0%, 63%)' : 'hsl(0, 0%, 24%)'}
-          />
-        </Pressable>
       </View>
 
       {!query.trim() ? (
@@ -97,8 +110,8 @@ export default function SearchScreen() {
         </View>
       ) : (
         <View className="flex-1">
-          <View className="px-4 py-4">
-            <Text className="text-on-surface-variant text-[12px] uppercase tracking-[2px] font-medium">
+          <View className="px-5 pt-4 pb-2">
+            <Text className="text-muted-foreground text-[11px] uppercase tracking-wider font-semibold">
               {isPending ? 'Searching...' : resultCountLabel}
             </Text>
           </View>
@@ -107,7 +120,8 @@ export default function SearchScreen() {
             data={results}
             keyExtractor={(item) => item.message_id}
             renderItem={({ item }) => (
-              <Pressable
+              <PressableScale
+                scaleTo={0.98}
                 onPress={() => {
                   setActiveConversation(item.conversation_id);
                   router.replace(
@@ -121,7 +135,8 @@ export default function SearchScreen() {
                     } as any
                   );
                 }}
-                className="px-4 py-3 border-b border-outline-variant/10 active:bg-surface-container-low"
+                className="mx-3 mb-1.5 px-4 py-3 rounded-2xl"
+                style={{ backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border }}
               >
                 <View className="flex-row items-baseline justify-between gap-3">
                   <Text
@@ -130,7 +145,7 @@ export default function SearchScreen() {
                   >
                     {item.conversation_title}
                   </Text>
-                  <Text className="text-on-surface-variant text-[12px]">
+                  <Text className="text-muted-foreground text-[12px]">
                     {formatSearchDate(item.conversation_updated_at)}
                   </Text>
                 </View>
@@ -142,7 +157,7 @@ export default function SearchScreen() {
                   </Text>
                   {item.preview.slice(item.match_end)}
                 </Text>
-              </Pressable>
+              </PressableScale>
             )}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}

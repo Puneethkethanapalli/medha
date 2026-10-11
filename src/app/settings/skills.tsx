@@ -6,10 +6,9 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Pressable, ScrollView, Alert, Modal } from 'react-native';
+import { View, ScrollView, Alert, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  ArrowLeft,
   Plus,
   Sparkles,
   ShieldAlert,
@@ -20,8 +19,10 @@ import {
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
 import { File as ExpoFile, Paths } from 'expo-file-system';
-import { useRouter } from 'expo-router';
 import { Text } from '@/components/ui/text';
+import { ScreenHeader, HeaderIconButton } from '@/components/ui/screen-header';
+import { PressableScale } from '@/components/ui/pressable-scale';
+import { usePalette } from '@/lib/palette';
 import { Switch } from '@/components/ui/switch';
 import { SkillEditor } from '@/components/skills/SkillEditor';
 import {
@@ -42,8 +43,8 @@ import { useUIStore } from '@/stores/ui-store';
 import type { SkillRecord, ParsedSkill } from '@/lib/skills/types';
 
 export default function SkillsScreen() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
+  const palette = usePalette();
   const showToast = useUIStore((s) => s.showToast);
   const [skills, setSkills] = useState<SkillRecord[]>([]);
   const [showEditor, setShowEditor] = useState(false);
@@ -200,15 +201,17 @@ export default function SkillsScreen() {
     (skill: SkillRecord) => {
       const isDeletable = skill.source !== 'bundled';
       return (
-        <Pressable
+        <PressableScale
           key={skill.name}
           onPress={() => handleView(skill)}
           onLongPress={isDeletable ? () => handleDelete(skill) : undefined}
-          className="flex-row items-center gap-3 py-3.5 px-3 border-b border-outline-variant/10 active:bg-surface-container-low rounded-lg"
+          delayLongPress={350}
+          scaleTo={0.98}
+          className="flex-row items-center gap-3 py-3 px-3 mb-1.5 bg-surface-container-low border border-outline-variant/20 rounded-2xl"
         >
           {/* Icon */}
-          <View className="w-10 h-10 bg-surface-container-low rounded-lg items-center justify-center">
-            <Sparkles size={18} color="hsl(0, 0%, 63%)" />
+          <View className="w-10 h-10 bg-surface-container rounded-xl items-center justify-center">
+            <Sparkles size={18} color={palette.icon} />
           </View>
 
           {/* Content */}
@@ -227,49 +230,43 @@ export default function SkillsScreen() {
           {/* Actions */}
           <View className="flex-row items-center gap-2">
             {isDeletable && (
-              <Pressable
+              <PressableScale
                 onPress={() => handleExport(skill)}
-                className="w-8 h-8 items-center justify-center"
+                scaleTo={0.85}
+                className="w-8 h-8 items-center justify-center rounded-full"
                 hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={`Share ${skill.name}`}
               >
-                <Share2 size={14} color="hsl(0, 0%, 50%)" />
-              </Pressable>
+                <Share2 size={14} color={palette.iconMuted} />
+              </PressableScale>
             )}
             <Switch
               checked={skill.enabled === 1}
               onCheckedChange={() => handleToggle(skill)}
             />
           </View>
-        </Pressable>
+        </PressableScale>
       );
     },
-    [handleView, handleDelete, handleToggle, handleExport]
+    [handleView, handleDelete, handleToggle, handleExport, palette]
   );
 
   return (
     <View className="flex-1 bg-background">
-      {/* Header */}
-      <View
-        className="flex-row items-center px-4 h-14 border-b border-outline-variant/20"
-        style={{ marginTop: insets.top }}
-      >
-        <Pressable onPress={() => router.back()} className="w-10 h-10 items-center justify-center -ml-2">
-          <ArrowLeft size={24} color="hsl(0, 0%, 98%)" />
-        </Pressable>
-        <Text className="flex-1 text-foreground text-[18px] font-semibold ml-2">Skills</Text>
-        <Pressable
-          onPress={handleImport}
-          className="w-10 h-10 items-center justify-center"
-        >
-          <Download size={20} color="hsl(0, 0%, 63%)" />
-        </Pressable>
-        <Pressable
-          onPress={() => setShowEditor(true)}
-          className="w-10 h-10 items-center justify-center"
-        >
-          <Plus size={22} color="hsl(0, 0%, 63%)" />
-        </Pressable>
-      </View>
+      <ScreenHeader
+        title="Skills"
+        right={
+          <>
+            <HeaderIconButton onPress={handleImport} accessibilityLabel="Import skill">
+              <Download size={20} color={palette.icon} />
+            </HeaderIconButton>
+            <HeaderIconButton onPress={() => setShowEditor(true)} accessibilityLabel="Create skill">
+              <Plus size={22} color={palette.icon} />
+            </HeaderIconButton>
+          </>
+        }
+      />
 
       <ScrollView className="flex-1 px-4 pt-2">
         {/* Bundled section */}
@@ -291,7 +288,7 @@ export default function SkillsScreen() {
             imported.map(renderSkillCard)
           ) : (
             <View className="py-6 items-center">
-              <Download size={24} color="hsl(0, 0%, 35%)" />
+              <Download size={24} color={palette.iconMuted} />
               <Text className="text-muted-foreground text-[13px] text-center mt-2">
                 Import SKILL.md files from Claude Code, Cursor, or other tools
               </Text>
@@ -308,7 +305,7 @@ export default function SkillsScreen() {
             created.map(renderSkillCard)
           ) : (
             <View className="py-6 items-center">
-              <Plus size={24} color="hsl(0, 0%, 35%)" />
+              <Plus size={24} color={palette.iconMuted} />
               <Text className="text-muted-foreground text-[13px] text-center mt-2">
                 Create your own skills with the + button
               </Text>
@@ -318,7 +315,7 @@ export default function SkillsScreen() {
       </ScrollView>
 
       {/* Skill Editor Modal */}
-      <Modal visible={showEditor} animationType="slide" presentationStyle="fullScreen">
+      <Modal visible={showEditor} animationType="fade" presentationStyle="fullScreen">
         <SkillEditor
           onClose={() => setShowEditor(false)}
           onSaved={loadSkills}
@@ -328,39 +325,35 @@ export default function SkillsScreen() {
       {/* Skill Viewer Modal */}
       <Modal
         visible={viewingSkill !== null}
-        animationType="slide"
+        animationType="fade"
         presentationStyle="fullScreen"
       >
         {viewingSkill && (
           <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
-            <View className="flex-row items-center px-4 h-14 border-b border-outline-variant/20">
-              <Pressable
-                onPress={() => {
-                  setViewingSkill(null);
-                  setViewingSkillName(null);
-                }}
-                className="w-10 h-10 items-center justify-center -ml-2"
-              >
-                <ArrowLeft size={24} color="hsl(0, 0%, 98%)" />
-              </Pressable>
-              <Text className="flex-1 text-foreground text-[18px] font-semibold ml-2">
-                {viewingSkillName}
-              </Text>
-              {viewingSkillName && (
-                <Pressable
-                  onPress={() => {
-                    const record = skills.find((s) => s.name === viewingSkillName);
-                    if (record) handleExport(record);
-                  }}
-                  className="w-10 h-10 items-center justify-center"
-                >
-                  <Share2 size={18} color="hsl(0, 0%, 63%)" />
-                </Pressable>
-              )}
-            </View>
+            <ScreenHeader
+              title={viewingSkillName ?? ''}
+              noInset
+              onBack={() => {
+                setViewingSkill(null);
+                setViewingSkillName(null);
+              }}
+              right={
+                viewingSkillName ? (
+                  <HeaderIconButton
+                    onPress={() => {
+                      const record = skills.find((s) => s.name === viewingSkillName);
+                      if (record) handleExport(record);
+                    }}
+                    accessibilityLabel="Share skill"
+                  >
+                    <Share2 size={18} color={palette.icon} />
+                  </HeaderIconButton>
+                ) : undefined
+              }
+            />
             <ScrollView className="flex-1 px-4 py-4">
               {/* Frontmatter summary */}
-              <View className="bg-surface-container-low rounded-xl p-4 mb-4 border border-outline-variant/10">
+              <View className="bg-surface-container-low rounded-2xl p-4 mb-4 border border-outline-variant/20">
                 <Text className="text-muted-foreground text-[11px] uppercase tracking-wider mb-2">
                   Metadata
                 </Text>
@@ -387,7 +380,7 @@ export default function SkillsScreen() {
               </View>
 
               {/* Body content */}
-              <View className="bg-surface-container-low rounded-xl p-4 border border-outline-variant/10">
+              <View className="bg-surface-container-low rounded-2xl p-4 border border-outline-variant/20">
                 <Text className="text-muted-foreground text-[11px] uppercase tracking-wider mb-2">
                   Instructions
                 </Text>

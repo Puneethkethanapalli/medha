@@ -9,17 +9,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
-  Pressable,
   ScrollView,
   TextInput,
   Alert,
-  Modal,
   ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
-  ArrowLeft,
   Brain,
   Plus,
   Pin,
@@ -38,6 +35,11 @@ import {
   FolderClosed,
 } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
+import { ScreenHeader, HeaderIconButton } from '@/components/ui/screen-header';
+import { PressableScale } from '@/components/ui/pressable-scale';
+import { Sheet } from '@/components/ui/sheet';
+import { Switch } from '@/components/ui/switch';
+import { usePalette } from '@/lib/palette';
 import { useUIStore } from '@/stores/ui-store';
 import { useSettingsStore } from '@/stores/settings-store';
 import { getConversation } from '@/lib/db/conversations';
@@ -71,24 +73,6 @@ const CATEGORY_COLORS: Record<MemoryCategory, string> = {
   general: 'hsl(0, 0%, 63%)',
 };
 
-/** Simple toggle switch */
-function Toggle({ value, onValueChange }: { value: boolean; onValueChange: (v: boolean) => void }) {
-  return (
-    <Pressable
-      onPress={() => onValueChange(!value)}
-      className={`w-12 h-7 rounded-full justify-center px-1 ${
-        value ? 'bg-foreground' : 'bg-muted'
-      }`}
-    >
-      <View
-        className={`w-5 h-5 rounded-full bg-background shadow-sm ${
-          value ? 'translate-x-5' : 'translate-x-0'
-        }`}
-      />
-    </Pressable>
-  );
-}
-
 function SettingToggleRow({
   icon: Icon,
   title,
@@ -102,15 +86,25 @@ function SettingToggleRow({
   value: boolean;
   onValueChange: (value: boolean) => void;
 }) {
+  const palette = usePalette();
   return (
-    <View className="flex-row items-center bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3.5">
-      <Icon size={20} color="hsl(0, 0%, 63%)" />
+    <PressableScale
+      onPress={() => onValueChange(!value)}
+      scaleTo={0.98}
+      className="flex-row items-center bg-surface-container-low border border-outline-variant/20 rounded-2xl px-4 py-3.5"
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value }}
+      accessibilityLabel={title}
+    >
+      <View className="w-9 h-9 rounded-xl bg-surface-container items-center justify-center">
+        <Icon size={18} color={palette.icon} />
+      </View>
       <View className="flex-1 ml-3 mr-3">
         <Text className="text-foreground text-[15px] font-medium">{title}</Text>
         <Text className="text-on-surface-variant text-[12px] mt-0.5">{description}</Text>
       </View>
-      <Toggle value={value} onValueChange={onValueChange} />
-    </View>
+      <Switch checked={value} onCheckedChange={onValueChange} accessibilityLabel={title} />
+    </PressableScale>
   );
 }
 
@@ -135,35 +129,45 @@ function ProfileCard({
     : profile.userEdited
       ? 'Edited by you · automatic updates paused'
       : `Updated ${formatRelativeTime(profile.generatedAt)}`;
+  const palette = usePalette();
 
   return (
-    <View className="bg-surface-container-low border border-outline-variant/20 rounded-xl p-4">
+    <View className="bg-surface-container-low border border-outline-variant/20 rounded-2xl p-4">
       <View className="flex-row items-center">
-        <UserRound size={18} color="hsl(0, 0%, 63%)" />
+        <View className="w-9 h-9 rounded-xl bg-surface-container items-center justify-center">
+          <UserRound size={18} color={palette.icon} />
+        </View>
         <View className="flex-1 ml-3">
           <Text className="text-foreground text-[15px] font-medium">Profile</Text>
           <Text className="text-on-surface-variant text-[11px] mt-0.5">{status}</Text>
         </View>
-        <Pressable onPress={onEdit} className="p-2" accessibilityRole="button" accessibilityLabel="Edit profile">
-          <Pencil size={16} color="hsl(0, 0%, 44%)" />
-        </Pressable>
-        <Pressable
+        <PressableScale
+          onPress={onEdit}
+          scaleTo={0.85}
+          className="p-2 rounded-full"
+          accessibilityRole="button"
+          accessibilityLabel="Edit profile"
+        >
+          <Pencil size={16} color={palette.iconMuted} />
+        </PressableScale>
+        <PressableScale
           onPress={onRegenerate}
           disabled={regenerating}
-          className="p-2"
+          scaleTo={0.85}
+          className="p-2 rounded-full"
           accessibilityRole="button"
           accessibilityLabel="Regenerate profile"
         >
           {regenerating ? (
-            <ActivityIndicator size="small" color="hsl(0, 0%, 44%)" />
+            <ActivityIndicator size="small" color={palette.iconMuted} />
           ) : (
-            <RefreshCw size={16} color="hsl(0, 0%, 44%)" />
+            <RefreshCw size={16} color={palette.iconMuted} />
           )}
-        </Pressable>
+        </PressableScale>
       </View>
 
       {content ? (
-        <Pressable onPress={() => setExpanded((value) => !value)} className="mt-3">
+        <PressableScale onPress={() => setExpanded((value) => !value)} scaleTo={0.99} className="mt-3">
           <Text
             className="text-foreground text-[13px] leading-5"
             numberOfLines={expanded ? undefined : 6}
@@ -173,7 +177,7 @@ function ProfileCard({
           <Text className="text-muted-foreground text-[12px] mt-1.5">
             {expanded ? 'Show less' : 'Show more'}
           </Text>
-        </Pressable>
+        </PressableScale>
       ) : (
         <Text className="text-on-surface-variant text-[12px] mt-3 leading-4">
           {"A short summary of you, included in every chat. It's written automatically once Medha has learned a few things about you, or tap regenerate."}
@@ -217,11 +221,13 @@ function MemoryCard({
   const usage = memory.hit_count > 0 && memory.last_used_at
     ? `Used ${memory.hit_count}× · ${formatRelativeTime(memory.last_used_at)}`
     : 'Not used yet';
+  const palette = usePalette();
 
   return (
-    <Pressable
+    <PressableScale
       onPress={() => onEdit(memory)}
-      className="bg-surface-container-low border border-outline-variant/20 rounded-xl p-4 active:opacity-80"
+      scaleTo={0.98}
+      className="bg-surface-container-low border border-outline-variant/20 rounded-2xl p-4"
       accessibilityRole="button"
       accessibilityHint="Edit memory"
     >
@@ -232,7 +238,7 @@ function MemoryCard({
           </Text>
           <View className="flex-row flex-wrap items-center gap-2 mt-2.5">
             <View
-              className="px-2 py-0.5 rounded-full bg-muted"
+              className="px-2 py-0.5 rounded-full bg-surface-container"
               style={{ borderWidth: 0 }}
             >
               <Text
@@ -243,30 +249,32 @@ function MemoryCard({
               </Text>
             </View>
             {memory.app_id && (
-              <View className="flex-row items-center gap-1 px-2 py-0.5 rounded-full bg-muted">
-                <FolderClosed size={11} color="hsl(0, 0%, 55%)" />
+              <View className="flex-row items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container">
+                <FolderClosed size={11} color={palette.icon} />
                 <Text className="text-muted-foreground text-[11px] font-medium" numberOfLines={1}>
                   {projectName ?? 'Deleted project'}
                 </Text>
               </View>
             )}
             <View className="flex-row items-center gap-1">
-              <Zap size={12} color="hsl(0, 0%, 44%)" />
+              <Zap size={12} color={palette.iconMuted} />
               <Text className="text-muted-foreground text-[11px]">{usage}</Text>
             </View>
           </View>
           {memory.conversation_id && sourceChatTitle ? (
-            <Pressable
+            <PressableScale
               onPress={() => onOpenSource(memory.conversation_id!)}
               hitSlop={6}
-              className="flex-row items-center gap-1 mt-2 self-start active:opacity-60"
+              scaleTo={0.96}
+              dimTo={0.6}
+              className="flex-row items-center gap-1 mt-2 self-start"
               accessibilityRole="link"
             >
-              <MessageSquare size={12} color="hsl(0, 0%, 44%)" />
+              <MessageSquare size={12} color={palette.iconMuted} />
               <Text className="text-muted-foreground text-[11px]" numberOfLines={1}>
                 From: {sourceChatTitle}
               </Text>
-            </Pressable>
+            </PressableScale>
           ) : memory.source === 'user' ? (
             <Text className="text-muted-foreground text-[11px] mt-2">Added by you</Text>
           ) : memory.source === 'auto' ? (
@@ -275,31 +283,39 @@ function MemoryCard({
         </View>
 
         <View className="flex-row items-center gap-1">
-          <Pressable
+          <PressableScale
             onPress={() => onTogglePin(memory.id, !memory.pinned)}
-            className="p-2"
+            scaleTo={0.85}
+            haptic
+            className="p-2 rounded-full"
+            accessibilityRole="button"
+            accessibilityLabel={memory.pinned ? 'Unpin memory' : 'Pin memory'}
           >
             {memory.pinned ? (
-              <Pin size={16} color="hsl(0, 0%, 98%)" />
+              <Pin size={16} color={palette.text} />
             ) : (
-              <PinOff size={16} color="hsl(0, 0%, 44%)" />
+              <PinOff size={16} color={palette.iconMuted} />
             )}
-          </Pressable>
-          <Pressable
+          </PressableScale>
+          <PressableScale
             onPress={() => onDelete(memory.id)}
-            className="p-2"
+            scaleTo={0.85}
+            className="p-2 rounded-full"
+            accessibilityRole="button"
+            accessibilityLabel="Delete memory"
           >
-            <Trash2 size={16} color="hsl(0, 0%, 44%)" />
-          </Pressable>
+            <Trash2 size={16} color={palette.iconMuted} />
+          </PressableScale>
         </View>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 
 export default function MemoriesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const palette = usePalette();
   const showToast = useUIStore((s) => s.showToast);
   const setActiveConversation = useUIStore((s) => s.setActiveConversation);
   const memoryEnabled = useSettingsStore((s) => s.memoryEnabled);
@@ -400,6 +416,10 @@ export default function MemoriesScreen() {
     setNewCategory((memory.category as MemoryCategory) || 'general');
     setAddModalOpen(true);
   }, []);
+
+  // Keep the sheet's title and fields stable while it animates closed.
+  const [shownEditingMemory, setShownEditingMemory] = useState(editingMemory);
+  if (addModalOpen && editingMemory !== shownEditingMemory) setShownEditingMemory(editingMemory);
 
   const closeModal = useCallback(() => {
     setAddModalOpen(false);
@@ -526,44 +546,20 @@ export default function MemoriesScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      {/* Header */}
-      <View
-        className="h-14 px-4 border-b border-outline-variant/20 flex-row items-center"
-        style={{ marginTop: insets.top }}
-      >
-        <Pressable
-          onPress={() => router.back()}
-          className="w-10 h-10 items-center justify-center -ml-2"
-        >
-          <ArrowLeft size={22} color="hsl(0, 0%, 63%)" />
-        </Pressable>
-
-        <View className="flex-1 items-center">
-          <Text className="text-foreground text-[15px] font-semibold">
-            Memories
-          </Text>
-          <Text className="text-on-surface-variant text-[11px]">
-            {count} saved
-          </Text>
-        </View>
-
-        <Pressable
-          onPress={openAddModal}
-          className="w-10 h-10 items-center justify-center"
-          accessibilityRole="button"
-          accessibilityLabel="Add memory"
-        >
-          <Plus size={22} color="hsl(0, 0%, 63%)" />
-        </Pressable>
-        <Pressable
-          onPress={openMoreMenu}
-          className="w-8 h-10 items-center justify-center -mr-2"
-          accessibilityRole="button"
-          accessibilityLabel="Import or export memories"
-        >
-          <MoreVertical size={20} color="hsl(0, 0%, 63%)" />
-        </Pressable>
-      </View>
+      <ScreenHeader
+        title="Memories"
+        subtitle={`${count} saved`}
+        right={
+          <>
+            <HeaderIconButton onPress={openAddModal} accessibilityLabel="Add memory">
+              <Plus size={22} color={palette.icon} />
+            </HeaderIconButton>
+            <HeaderIconButton onPress={openMoreMenu} accessibilityLabel="Import or export memories">
+              <MoreVertical size={20} color={palette.icon} />
+            </HeaderIconButton>
+          </>
+        }
+      />
 
       <ScrollView
         className="flex-1 px-4"
@@ -612,25 +608,33 @@ export default function MemoriesScreen() {
 
         {/* Search bar */}
         <View className="flex-row items-center bg-surface-container-low border border-outline-variant/20 rounded-xl px-3 py-2.5 mt-1">
-          <Search size={18} color="hsl(0, 0%, 44%)" />
+          <Search size={18} color={palette.iconMuted} />
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholder="Search memories..."
-            placeholderTextColor="hsl(0, 0%, 44%)"
+            placeholderTextColor={palette.iconMuted}
             className="flex-1 text-foreground text-[15px] ml-2"
           />
           {searchQuery.length > 0 && (
-            <Pressable onPress={() => setSearchQuery('')}>
-              <X size={16} color="hsl(0, 0%, 44%)" />
-            </Pressable>
+            <PressableScale
+              onPress={() => setSearchQuery('')}
+              scaleTo={0.85}
+              hitSlop={8}
+              className="w-6 h-6 rounded-full items-center justify-center"
+              style={{ backgroundColor: palette.surfaceHigh }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+            >
+              <X size={13} color={palette.icon} strokeWidth={2.5} />
+            </PressableScale>
           )}
         </View>
 
         {/* Memory list */}
         {filteredMemories.length === 0 ? (
           <View className="items-center justify-center py-20">
-            <Brain size={48} color="hsl(0, 0%, 30%)" />
+            <Brain size={48} color={palette.iconMuted} />
             <Text className="text-muted-foreground text-[16px] font-medium mt-4">
               {searchQuery.trim() ? 'No matches found' : 'No memories yet'}
             </Text>
@@ -656,136 +660,120 @@ export default function MemoriesScreen() {
         )}
       </ScrollView>
 
-      {/* Edit Profile Modal */}
-      <Modal
-        transparent
-        animationType="fade"
-        visible={profileEditorOpen}
-        onRequestClose={() => setProfileEditorOpen(false)}
+      {/* Edit Profile Sheet */}
+      <Sheet
+        open={profileEditorOpen}
+        onClose={() => setProfileEditorOpen(false)}
+        title="Edit Profile"
+        subtitle="Included in every chat. Automatic updates pause after you edit; tap regenerate to resume. Clear it to delete."
+        avoidKeyboard
       >
-        <View className="flex-1 bg-black/60 items-center justify-center px-6">
-          <View className="w-full max-w-[420px] rounded-2xl bg-card border border-outline-variant/20 p-5">
-            <View className="flex-row items-center justify-between mb-2">
-              <Text className="text-foreground text-[18px] font-semibold">Edit Profile</Text>
-              <Pressable onPress={() => setProfileEditorOpen(false)} className="p-1">
-                <X size={20} color="hsl(0, 0%, 63%)" />
-              </Pressable>
-            </View>
-            <Text className="text-on-surface-variant text-[12px] mb-3 leading-4">
-              Included in every chat. Automatic updates pause after you edit; tap regenerate to resume. Clear it to delete.
-            </Text>
-            <TextInput
-              value={profileDraft}
-              onChangeText={setProfileDraft}
-              multiline
-              maxLength={2000}
-              placeholder={'e.g. **About**\n- User is a backend engineer in Bangalore'}
-              placeholderTextColor="hsl(0, 0%, 44%)"
-              className="min-h-[200px] max-h-[360px] rounded-xl border border-outline-variant/20 bg-muted px-4 py-3 text-foreground text-[14px] leading-5"
-              textAlignVertical="top"
-              autoFocus
-            />
-            <Pressable
-              onPress={handleSaveProfile}
-              className="mt-4 h-12 rounded-xl items-center justify-center bg-foreground"
-            >
-              <Text className="text-[15px] font-medium text-background">Save</Text>
-            </Pressable>
-          </View>
+        <View className="px-5">
+          <TextInput
+            value={profileDraft}
+            onChangeText={setProfileDraft}
+            multiline
+            maxLength={2000}
+            placeholder={'e.g. **About**\n- User is a backend engineer in Bangalore'}
+            placeholderTextColor={palette.iconMuted}
+            className="min-h-[200px] max-h-[360px] rounded-xl border border-outline-variant/20 bg-surface-container-low px-4 py-3 text-foreground text-[14px] leading-5"
+            textAlignVertical="top"
+            autoFocus
+          />
+          <PressableScale
+            onPress={handleSaveProfile}
+            haptic
+            scaleTo={0.97}
+            className="mt-4 h-12 rounded-xl items-center justify-center bg-foreground"
+          >
+            <Text className="text-[15px] font-medium text-background">Save</Text>
+          </PressableScale>
         </View>
-      </Modal>
+      </Sheet>
 
-      {/* Add Memory Modal */}
-      <Modal
-        transparent
-        animationType="fade"
-        visible={addModalOpen}
-        onRequestClose={closeModal}
+      {/* Add / Edit Memory Sheet */}
+      <Sheet
+        open={addModalOpen}
+        onClose={closeModal}
+        title={shownEditingMemory ? 'Edit Memory' : 'Add Memory'}
+        avoidKeyboard
       >
-        <View className="flex-1 bg-black/60 items-center justify-center px-6">
-          <View className="w-full max-w-[360px] rounded-2xl bg-card border border-outline-variant/20 p-5">
-            <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-foreground text-[18px] font-semibold">
-                {editingMemory ? 'Edit Memory' : 'Add Memory'}
-              </Text>
-              <Pressable onPress={closeModal} className="p-1">
-                <X size={20} color="hsl(0, 0%, 63%)" />
-              </Pressable>
-            </View>
+        <View className="px-5">
+          <Text className="text-on-surface-variant text-[13px] mb-1.5">
+            What should the AI remember?
+          </Text>
+          <TextInput
+            value={newContent}
+            onChangeText={setNewContent}
+            placeholder="e.g. I prefer dark mode, My name is Alex..."
+            placeholderTextColor={palette.iconMuted}
+            multiline
+            className="min-h-[80px] rounded-xl border border-outline-variant/20 bg-surface-container-low px-4 py-3 text-foreground text-[15px] leading-5"
+            textAlignVertical="top"
+            autoFocus
+          />
 
-            <Text className="text-on-surface-variant text-[13px] mb-1">
-              What should the AI remember?
-            </Text>
-            <TextInput
-              value={newContent}
-              onChangeText={setNewContent}
-              placeholder="e.g. I prefer dark mode, My name is Alex..."
-              placeholderTextColor="hsl(0, 0%, 44%)"
-              multiline
-              className="min-h-[80px] rounded-xl border border-outline-variant/20 bg-muted px-4 py-3 text-foreground text-[15px] leading-5"
-              textAlignVertical="top"
-              autoFocus
-            />
-
-            <Text className="text-on-surface-variant text-[13px] mb-2 mt-4">
-              Category
-            </Text>
-            <View className="flex-row flex-wrap gap-2">
-              {(['preference', 'fact', 'instruction', 'general'] as MemoryCategory[]).map(
-                (cat) => (
-                  <Pressable
-                    key={cat}
-                    onPress={() => setNewCategory(cat)}
-                    className={`px-3 py-1.5 rounded-full border ${
-                      newCategory === cat
-                        ? 'bg-foreground border-foreground'
-                        : 'bg-muted border-outline-variant/20'
+          <Text className="text-on-surface-variant text-[13px] mb-2 mt-4">
+            Category
+          </Text>
+          <View className="flex-row flex-wrap gap-2">
+            {(['preference', 'fact', 'instruction', 'general'] as MemoryCategory[]).map(
+              (cat) => (
+                <PressableScale
+                  key={cat}
+                  onPress={() => setNewCategory(cat)}
+                  scaleTo={0.93}
+                  className={`px-3 py-1.5 rounded-full border ${
+                    newCategory === cat
+                      ? 'bg-foreground border-foreground'
+                      : 'bg-surface-container-low border-outline-variant/20'
+                  }`}
+                >
+                  <Text
+                    className={`text-[13px] font-medium ${
+                      newCategory === cat ? 'text-background' : 'text-muted-foreground'
                     }`}
                   >
-                    <Text
-                      className={`text-[13px] font-medium ${
-                        newCategory === cat ? 'text-background' : 'text-muted-foreground'
-                      }`}
-                    >
-                      {CATEGORY_LABELS[cat]}
-                    </Text>
-                  </Pressable>
-                )
-              )}
-            </View>
-
-            {editingMemory?.app_id && (
-              <View className="flex-row items-center mt-4">
-                <View className="flex-1 mr-3">
-                  <Text className="text-foreground text-[14px] font-medium">
-                    Only in {projectNames[editingMemory.app_id] ?? 'its project'}
+                    {CATEGORY_LABELS[cat]}
                   </Text>
-                  <Text className="text-on-surface-variant text-[12px] mt-0.5">
-                    Turn off to use this memory in every chat
-                  </Text>
-                </View>
-                <Toggle value={editingProjectOnly} onValueChange={setEditingProjectOnly} />
-              </View>
+                </PressableScale>
+              )
             )}
+          </View>
 
-            <Pressable
-              onPress={handleSaveMemory}
-              disabled={!newContent.trim()}
-              className={`mt-5 h-12 rounded-xl items-center justify-center ${
-                newContent.trim() ? 'bg-foreground' : 'bg-muted'
+          {shownEditingMemory?.app_id && (
+            <View className="flex-row items-center mt-4">
+              <View className="flex-1 mr-3">
+                <Text className="text-foreground text-[14px] font-medium">
+                  Only in {projectNames[shownEditingMemory.app_id] ?? 'its project'}
+                </Text>
+                <Text className="text-on-surface-variant text-[12px] mt-0.5">
+                  Turn off to use this memory in every chat
+                </Text>
+              </View>
+              <Switch checked={editingProjectOnly} onCheckedChange={setEditingProjectOnly} />
+            </View>
+          )}
+
+          <PressableScale
+            onPress={handleSaveMemory}
+            disabled={!newContent.trim()}
+            haptic
+            scaleTo={0.97}
+            className={`mt-5 h-12 rounded-xl items-center justify-center ${
+              newContent.trim() ? 'bg-foreground' : 'bg-surface-container'
+            }`}
+          >
+            <Text
+              className={`text-[15px] font-medium ${
+                newContent.trim() ? 'text-background' : 'text-muted-foreground'
               }`}
             >
-              <Text
-                className={`text-[15px] font-medium ${
-                  newContent.trim() ? 'text-background' : 'text-muted-foreground'
-                }`}
-              >
-                {editingMemory ? 'Save' : 'Add Memory'}
-              </Text>
-            </Pressable>
-          </View>
+              {shownEditingMemory ? 'Save' : 'Add Memory'}
+            </Text>
+          </PressableScale>
         </View>
-      </Modal>
+      </Sheet>
     </View>
   );
 }

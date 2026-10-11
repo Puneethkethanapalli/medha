@@ -1,10 +1,14 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { View, Pressable, AppState, type AppStateStatus, type LayoutChangeEvent } from 'react-native';
+import { View, AppState, type AppStateStatus, type LayoutChangeEvent } from 'react-native';
 import { KeyboardStickyView, useKeyboardState } from 'react-native-keyboard-controller';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Menu, PenSquare, Zap, Ghost } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
+import { PressableScale } from '@/components/ui/pressable-scale';
+import { usePalette } from '@/lib/palette';
+import { Motion } from '@/lib/motion';
 import { ModelPill } from '@/components/chat/ModelPill';
 import { ChatSettingsButton } from '@/components/chat/ChatSettingsButton';
 import { ImageGenToggle } from '@/components/chat/ImageGenToggle';
@@ -98,6 +102,7 @@ export const ChatScreen = React.memo(function ChatScreen({
   const usageAccumRef = useRef<UsageData>({ promptTokens: 0, completionTokens: 0 });
 
   const openDrawer = useUIStore((s) => s.openDrawer);
+  const palette = usePalette();
   const setActiveConversation = useUIStore((s) => s.setActiveConversation);
   const setEditingMessage = useUIStore((s) => s.setEditingMessage);
   const pendingConversationRule = useUIStore((s) => s.pendingConversationRule);
@@ -1015,23 +1020,31 @@ export const ChatScreen = React.memo(function ChatScreen({
         className="flex-row items-center px-4 h-14"
         style={{ marginTop: insets.top }}
       >
-        <Pressable onPress={openDrawer} className="w-10 h-10 items-center justify-center">
-          <Menu size={24} color="hsl(0, 0%, 63%)" />
-        </Pressable>
+        <PressableScale
+          onPress={openDrawer}
+          scaleTo={0.88}
+          hitSlop={4}
+          className="w-10 h-10 items-center justify-center rounded-full"
+          accessibilityRole="button"
+          accessibilityLabel="Open conversations"
+        >
+          <Menu size={22} color={palette.icon} />
+        </PressableScale>
         <View
           className="flex-1 flex-row items-center justify-center gap-1.5 px-1"
           style={{ minWidth: 0 }}
         >
           {/* Active app indicator */}
           {activeApp ? (
-            <Pressable
+            <PressableScale
               onPress={openModelPicker}
-              className="flex-row items-center gap-1.5 bg-surface-container-low rounded-full px-3 py-1.5 active:opacity-70"
-              style={{ maxWidth: 148, minWidth: 0, flexShrink: 1 }}
+              scaleTo={0.95}
+              className="flex-row items-center gap-1.5 bg-surface-container-low rounded-full px-3 py-1.5"
+              style={{ maxWidth: 148, minWidth: 0, flexShrink: 1, borderWidth: 1, borderColor: palette.border }}
             >
               {React.createElement(getIconByName(activeApp.icon), {
                 size: 14,
-                color: activeApp.color ?? 'hsl(0, 0%, 63%)',
+                color: activeApp.color ?? palette.icon,
               })}
               <Text
                 className="text-foreground text-[12px] font-medium"
@@ -1041,26 +1054,35 @@ export const ChatScreen = React.memo(function ChatScreen({
               >
                 {activeApp.name.length > 14 ? activeApp.name.slice(0, 14) + '…' : activeApp.name}
               </Text>
-            </Pressable>
+            </PressableScale>
           ) : (
             <ModelPill />
           )}
           {hasImageGenKey && <ImageGenToggle />}
           <ChatSettingsButton />
           {/* Skill activation pill */}
-          <Pressable
+          <PressableScale
             onPress={openSkillPicker}
-            className={`flex-row items-center gap-1 rounded-full px-2.5 py-1.5 ${
-              activeSkillName ? 'bg-foreground' : 'bg-surface-container-low'
+            haptic
+            scaleTo={0.9}
+            className={`flex-row items-center justify-center gap-1 rounded-full ${
+              activeSkillName ? 'bg-foreground px-2.5' : 'bg-surface-container-low'
             }`}
-            style={{ maxWidth: activeSkillName ? 108 : 32, minWidth: 32, flexShrink: 0 }}
+            style={{
+              height: 32,
+              maxWidth: activeSkillName ? 108 : 32,
+              minWidth: 32,
+              flexShrink: 0,
+              borderWidth: activeSkillName ? 0 : 1,
+              borderColor: palette.border,
+            }}
             accessibilityRole="button"
             accessibilityLabel="Select skill"
           >
             <Zap
-              size={13}
-              color={activeSkillName ? 'hsl(240, 3.7%, 7.5%)' : 'hsl(0, 0%, 50%)'}
-              fill={activeSkillName ? 'hsl(240, 3.7%, 7.5%)' : 'transparent'}
+              size={14}
+              color={activeSkillName ? palette.onAccent : palette.icon}
+              fill={activeSkillName ? palette.onAccent : 'transparent'}
             />
             {activeSkillName && (
               <Text
@@ -1072,25 +1094,37 @@ export const ChatScreen = React.memo(function ChatScreen({
                 {activeSkillName.length > 12 ? activeSkillName.slice(0, 12) + '…' : activeSkillName}
               </Text>
             )}
-          </Pressable>
+          </PressableScale>
         </View>
-        <Pressable onPress={handleNewChat} className="w-10 h-10 items-center justify-center">
-          <PenSquare size={20} color="hsl(0, 0%, 63%)" />
-        </Pressable>
+        <PressableScale
+          onPress={handleNewChat}
+          scaleTo={0.88}
+          hitSlop={4}
+          className="w-10 h-10 items-center justify-center rounded-full"
+          accessibilityRole="button"
+          accessibilityLabel="New chat"
+        >
+          <PenSquare size={20} color={palette.icon} />
+        </PressableScale>
       </View>
 
       {/* Offline Banner */}
       <OfflineBanner />
 
       {(currentConvId ? conversationTemporary : pendingTemporaryChat) && (
-        <View className="items-center px-4 pb-1" accessibilityRole="text">
+        <Animated.View
+          entering={FadeIn.duration(Motion.duration.base)}
+          exiting={FadeOut.duration(Motion.duration.fast)}
+          style={{ alignItems: 'center', paddingHorizontal: 16, paddingBottom: 4 }}
+          accessibilityRole="text"
+        >
           <View className="flex-row items-center gap-1.5 rounded-full border border-outline-variant/20 bg-surface-container-low px-3 py-1">
-            <Ghost size={12} color="hsl(0, 0%, 55%)" />
+            <Ghost size={12} color={palette.icon} />
             <Text className="text-muted-foreground text-[11px]">
               Temporary chat · not saved to history or memory
             </Text>
           </View>
-        </View>
+        </Animated.View>
       )}
 
       {/* Content */}
@@ -1108,13 +1142,15 @@ export const ChatScreen = React.memo(function ChatScreen({
             onChoiceDismiss={handleChoiceDismiss}
           />
         ) : (
-          <EmptyState
-            onSuggestionPress={handleSuggestion}
-            appName={activeApp?.name}
-            appGreeting={activeApp?.greeting}
-            appPrompts={activeApp?.example_prompts ? parseExamplePrompts(activeApp.example_prompts) : undefined}
-            footer={pendingTemporaryChat ? null : <MemoryIntroCard />}
-          />
+          <Animated.View key="empty" exiting={FadeOut.duration(Motion.duration.fast)} style={{ flex: 1 }}>
+            <EmptyState
+              onSuggestionPress={handleSuggestion}
+              appName={activeApp?.name}
+              appGreeting={activeApp?.greeting}
+              appPrompts={activeApp?.example_prompts ? parseExamplePrompts(activeApp.example_prompts) : undefined}
+              footer={pendingTemporaryChat ? null : <MemoryIntroCard />}
+            />
+          </Animated.View>
         )}
       </View>
 
@@ -1138,7 +1174,12 @@ export const ChatScreen = React.memo(function ChatScreen({
       {/* Input — sticks above keyboard */}
       <KeyboardStickyView offset={{ closed: 0, opened: 0 }} onLayout={handleInputBarLayout}>
         {liveTokensPerSecondLabel && (
-          <View pointerEvents="none" className="items-center bg-background px-4 pb-1">
+          <Animated.View
+            entering={FadeIn.duration(Motion.duration.base)}
+            exiting={FadeOut.duration(Motion.duration.fast)}
+            pointerEvents="none"
+            style={{ alignItems: 'center', backgroundColor: palette.background, paddingHorizontal: 16, paddingBottom: 4 }}
+          >
             <View className="rounded-full border border-outline-variant/20 bg-surface-container-low px-3 py-1">
               <Text
                 className="text-muted-foreground text-[11px]"
@@ -1147,7 +1188,7 @@ export const ChatScreen = React.memo(function ChatScreen({
                 {liveTokensPerSecondLabel} tokens/s
               </Text>
             </View>
-          </View>
+          </Animated.View>
         )}
         <InputBar
           onSend={handleSend}

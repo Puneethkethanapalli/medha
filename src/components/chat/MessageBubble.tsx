@@ -1,10 +1,14 @@
 import React, { useState, useCallback } from 'react';
-import { Pressable, View, TextInput, Image } from 'react-native';
+import { View, TextInput, Image } from 'react-native';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import LottieView from 'lottie-react-native';
 import { Copy, RefreshCw, TriangleAlert, FileText } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
+import { PressableScale } from '@/components/ui/pressable-scale';
+import { usePalette } from '@/lib/palette';
+import { Motion } from '@/lib/motion';
 import {
   useStreamingContent,
   useStreamingContentStartedAt,
@@ -27,6 +31,12 @@ import type { Citation, ToolDisplay } from '@/lib/tools/types';
 
 const waitingAnimation = require('../../../lottie/glow waiting.json');
 const STATIC_PROGRESS = 0.58;
+/** Messages younger than this when they mount are new in this session and animate in. */
+const FRESH_MESSAGE_MS = 2500;
+
+const USER_ENTER = FadeInDown.duration(Motion.duration.enter).easing(Motion.easing.enter);
+const ASSISTANT_ENTER = FadeIn.duration(Motion.duration.enter);
+const ACTIONS_ENTER = FadeIn.duration(Motion.duration.base).delay(80);
 
 interface MessageBubbleProps {
   message: Message;
@@ -102,6 +112,10 @@ export const MessageBubble = React.memo(function MessageBubble({
   const showToast = useUIStore((s) => s.showToast);
   const responseMetrics = parseResponseTokenMetrics(message.tokens_used);
   const responseMetricsLabel = formatResponseMetricsLabel(responseMetrics);
+  const palette = usePalette();
+  // Decided once at mount: history loads in place, new messages animate in.
+  const [isFresh] = useState(() => Date.now() - message.created_at < FRESH_MESSAGE_MS);
+  const [mountedWhileStreaming] = useState(isStreaming);
 
   // Edit mode state
   const [editText, setEditText] = useState(message.content);
@@ -144,16 +158,22 @@ export const MessageBubble = React.memo(function MessageBubble({
       const metadata = JSON.parse(message.tool_calls);
       if (isToolDisplay(metadata)) {
         return (
-          <View className={`w-[85%] mb-4 ${dimmed ? 'opacity-40' : ''}`}>
+          <Animated.View
+            entering={isFresh ? ASSISTANT_ENTER : undefined}
+            style={{ width: '85%', marginBottom: 16, opacity: dimmed ? 0.4 : 1 }}
+          >
             <ToolResultCard display={metadata} />
-          </View>
+          </Animated.View>
         );
       }
       if (isCitationArray(metadata)) {
         return (
-          <View className={`w-[85%] mb-4 ${dimmed ? 'opacity-40' : ''}`}>
+          <Animated.View
+            entering={isFresh ? ASSISTANT_ENTER : undefined}
+            style={{ width: '85%', marginBottom: 16, opacity: dimmed ? 0.4 : 1 }}
+          >
             <SearchResults citations={metadata} />
-          </View>
+          </Animated.View>
         );
       }
     } catch {
@@ -169,33 +189,34 @@ export const MessageBubble = React.memo(function MessageBubble({
         <View className="w-[90%]">
           {/* Editable text area */}
           <View
-            className="bg-surface-container-low border border-foreground/50 p-4"
-            style={{ borderRadius: 12 }}
+            className="bg-surface-container border p-4"
+            style={{ borderRadius: 20, borderColor: palette.textMuted }}
           >
             <TextInput
               value={editText}
               onChangeText={setEditText}
               multiline
               autoFocus
-              className="text-foreground text-[14px] leading-relaxed"
+              className="text-foreground text-[15px] leading-[22px]"
               style={{ minHeight: 40, maxHeight: 200, padding: 0 }}
-              placeholderTextColor="hsl(0, 0%, 44%)"
+              placeholderTextColor={palette.iconMuted}
             />
           </View>
           {/* Action buttons */}
           <View className="flex-row items-center justify-end gap-2 mt-2">
-            <Pressable
+            <PressableScale
               onPress={handleEditCancel}
-              className="h-9 px-4 rounded-lg bg-surface-container-low border border-outline-variant/20 items-center justify-center"
+              className="h-9 px-4 rounded-full bg-surface-container items-center justify-center"
             >
               <Text className="text-muted-foreground text-[13px] font-medium">Cancel</Text>
-            </Pressable>
-            <Pressable
+            </PressableScale>
+            <PressableScale
               onPress={handleEditSubmit}
-              className="h-9 px-5 rounded-lg bg-foreground items-center justify-center"
+              haptic
+              className="h-9 px-5 rounded-full bg-foreground items-center justify-center"
             >
-              <Text className="text-background text-[13px] font-medium">Send</Text>
-            </Pressable>
+              <Text className="text-background text-[13px] font-semibold">Send</Text>
+            </PressableScale>
           </View>
         </View>
       </View>
@@ -205,18 +226,25 @@ export const MessageBubble = React.memo(function MessageBubble({
   // User message — normal
   if (isUser) {
     return (
-      <View className={`flex-col items-end w-full mb-4 ${dimmed ? 'opacity-40' : ''}`}>
-        <Pressable
+      <Animated.View
+        entering={isFresh ? USER_ENTER : undefined}
+        style={{ width: '100%', alignItems: 'flex-end', marginBottom: 16, opacity: dimmed ? 0.4 : 1 }}
+      >
+        <PressableScale
           onLongPress={handleLongPress}
           delayLongPress={350}
-          className={`border px-4 py-3 max-w-[85%] ${
-            highlighted
-              ? 'bg-[#202024] border-foreground/30'
-              : 'bg-surface-container-low border-outline-variant/20'
+          scaleTo={0.98}
+          className={`px-4 py-2.5 max-w-[85%] ${
+            highlighted ? 'bg-surface-container-high' : 'bg-surface-container'
           }`}
-          style={{ borderRadius: 16, borderBottomRightRadius: 4 }}
+          style={{
+            borderRadius: 20,
+            borderBottomRightRadius: 6,
+            borderWidth: highlighted ? 1 : 0,
+            borderColor: palette.textMuted,
+          }}
         >
-          <Text className="text-foreground text-[14px] leading-relaxed">
+          <Text className="text-foreground text-[15px] leading-[22px]">
             {message.content}
           </Text>
           {/* Attachments */}
@@ -233,9 +261,9 @@ export const MessageBubble = React.memo(function MessageBubble({
                 ) : (
                   <View
                     key={att.id}
-                    className="flex-row items-center bg-muted/50 rounded-lg px-2 py-1.5 gap-1.5"
+                    className="flex-row items-center bg-surface-container-high rounded-lg px-2 py-1.5 gap-1.5"
                   >
-                    <FileText size={12} color="hsl(0, 0%, 63%)" />
+                    <FileText size={12} color={palette.icon} />
                     <Text className="text-muted-foreground text-[11px]" numberOfLines={1}>
                       {att.name}
                     </Text>
@@ -244,8 +272,8 @@ export const MessageBubble = React.memo(function MessageBubble({
               )}
             </View>
           )}
-        </Pressable>
-      </View>
+        </PressableScale>
+      </Animated.View>
     );
   }
 
@@ -257,7 +285,10 @@ export const MessageBubble = React.memo(function MessageBubble({
   const isThinkingOnly = showThinkingBlock && !displayContent;
 
   return (
-    <View className={`flex-row items-start w-full mb-4 ${dimmed ? 'opacity-40' : ''}`}>
+    <Animated.View
+      entering={isFresh ? ASSISTANT_ENTER : undefined}
+      style={{ flexDirection: 'row', alignItems: 'flex-start', width: '100%', marginBottom: 20, opacity: dimmed ? 0.4 : 1 }}
+    >
       <AssistantStatusMark status={message.status} />
 
       <View className="flex-1 items-start">
@@ -295,9 +326,12 @@ export const MessageBubble = React.memo(function MessageBubble({
 
         {/* Error state with retry */}
         {message.status === 'error' && (
-          <View className="mt-2 px-4 py-3 bg-[#18181B] border rounded-lg" style={{ borderColor: 'hsla(0, 84%, 60%, 0.3)' }}>
+          <View
+            className="mt-2 px-4 py-3 border rounded-2xl"
+            style={{ backgroundColor: palette.surface, borderColor: 'hsla(0, 84%, 60%, 0.3)' }}
+          >
             <View className="flex-row items-start gap-3">
-              <TriangleAlert size={18} color="hsl(10, 100%, 85%)" style={{ marginTop: 2 }} />
+              <TriangleAlert size={18} color={palette.destructive} style={{ marginTop: 2 }} />
               <View className="flex-1 gap-1">
                 <Text className="text-foreground text-[14px] font-medium">Failed to get a response</Text>
                 <Text className="text-muted-foreground text-[12px] leading-relaxed">
@@ -308,41 +342,49 @@ export const MessageBubble = React.memo(function MessageBubble({
               </View>
             </View>
             {onRetry && (
-              <Pressable
+              <PressableScale
                 onPress={() => onRetry(message.id)}
-                className="self-start mt-2 flex-row items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#18181B] border border-[#27272A] active:scale-95"
+                haptic
+                className="self-start mt-3 flex-row items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-foreground"
               >
-                <RefreshCw size={14} color="hsl(0, 0%, 63%)" />
-                <Text className="text-muted-foreground text-[12px] font-medium">Retry</Text>
-              </Pressable>
+                <RefreshCw size={13} color={palette.onAccent} strokeWidth={2.25} />
+                <Text className="text-background text-[12px] font-semibold">Retry</Text>
+              </PressableScale>
             )}
           </View>
         )}
 
         {/* Copy button + token usage for completed messages */}
         {!!displayContent && !isStreaming && message.status !== 'waiting' && message.status !== 'error' && (
-          <View className="mt-1 flex-row items-center gap-2 pt-1">
-            <Pressable
+          <Animated.View
+            entering={mountedWhileStreaming ? ACTIONS_ENTER : undefined}
+            style={{ marginTop: 4, paddingTop: 4, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+          >
+            <PressableScale
               accessibilityLabel="Copy message"
               accessibilityRole="button"
               hitSlop={8}
+              scaleTo={0.85}
               onPress={handleCopyMessage}
-              className="h-7 w-7 items-center justify-center rounded-md"
+              className="h-7 w-7 items-center justify-center rounded-full"
             >
-              <Copy size={15} color="hsl(0, 0%, 44%)" strokeWidth={2} />
-            </Pressable>
+              <Copy size={15} color={palette.iconMuted} strokeWidth={2} />
+            </PressableScale>
             {/* Token usage indicator */}
             {responseMetricsLabel && (
-              <Text className="text-muted-foreground text-[10px] opacity-50">
+              <Text
+                className="text-muted-foreground text-[10px] opacity-60"
+                style={{ fontVariant: ['tabular-nums'] }}
+              >
                 {responseMetricsLabel}
               </Text>
             )}
-          </View>
+          </Animated.View>
         )}
 
         {!isStreaming && <MemoryUpdateChip messageId={message.id} />}
       </View>
-    </View>
+    </Animated.View>
   );
 });
 

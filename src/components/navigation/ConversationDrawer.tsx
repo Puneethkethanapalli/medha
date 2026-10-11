@@ -1,9 +1,11 @@
 import React, { useMemo, useCallback } from 'react';
-import { View, Pressable, FlatList, Alert } from 'react-native';
+import { View, FlatList, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
 import { PenSquare, Search, Pin, MessageCircle, Settings, Grid3X3 } from 'lucide-react-native';
-import { MedhaLogo } from '@/components/branding/MedhaLogo';
+import { BrandTile } from '@/components/branding/BrandTile';
+import { PressableScale } from '@/components/ui/pressable-scale';
+import { usePalette } from '@/lib/palette';
 import { deleteConversation } from '@/lib/db/conversations';
 import { getConversationUsage } from '@/lib/db/token-usage';
 import { getApp } from '@/lib/db/apps';
@@ -78,6 +80,7 @@ function ConversationItem({
   onDelete: () => void;
   onEditRules: () => void;
 }) {
+  const palette = usePalette();
   const handleLongPress = () => {
     Alert.alert(
       conversation.title,
@@ -90,32 +93,30 @@ function ConversationItem({
     );
   };
 
-    return (
-    <Pressable
+  return (
+    <PressableScale
       onPress={onPress}
       onLongPress={handleLongPress}
-      className={`flex-row items-center gap-3 px-2 py-2.5 rounded-lg ${
-        isActive ? 'bg-surface-container-low' : ''
-      }`}
+      delayLongPress={350}
+      scaleTo={0.98}
+      className="flex-row items-center gap-3 px-3 py-2.5 rounded-xl"
+      style={isActive ? { backgroundColor: palette.surfaceRaised } : undefined}
+      accessibilityRole="button"
+      accessibilityState={{ selected: isActive }}
     >
-      {isActive && (
-        <View
-          className="absolute left-0 w-[2px] h-[60%] bg-foreground rounded-r-full"
-          style={{ top: '20%' }}
-        />
-      )}
       {(() => {
+        const color = isActive ? palette.text : palette.iconMuted;
         if (conversation.pinned) {
-          return <Pin size={18} color="hsl(0, 0%, 44%)" />;
+          return <Pin size={16} color={color} />;
         }
         if (conversation.app_id) {
           const app = getApp(conversation.app_id);
           if (app) {
             const AppIcon = getIconByName(app.icon);
-            return <AppIcon size={18} color={app.color ?? 'hsl(0, 0%, 44%)'} />;
+            return <AppIcon size={16} color={app.color ?? color} />;
           }
         }
-        return <MessageCircle size={18} color={isActive ? 'hsl(0, 0%, 98%)' : 'hsl(0, 0%, 44%)'} />;
+        return <MessageCircle size={16} color={color} />;
       })()}
       <Text
         className={`text-[14px] font-medium flex-1 ${
@@ -126,7 +127,7 @@ function ConversationItem({
         {conversation.title}
       </Text>
       <ConversationCostBadge conversationId={conversation.id} />
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -183,38 +184,44 @@ export function ConversationDrawer({
   }, [grouped]);
 
   const insets = useSafeAreaInsets();
+  const palette = usePalette();
 
   return (
-    <View className="flex-1 bg-background p-4" style={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom }}>
+    <View className="flex-1 bg-background px-4" style={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom + 8 }}>
       {/* Header */}
-      <View className="flex-row items-center justify-between pb-4 border-b border-outline-variant/20">
+      <View className="flex-row items-center justify-between pb-4">
         <View className="flex-row items-center gap-3">
-          <View className="h-10 w-10 items-center justify-center rounded-xl border border-outline-variant/20 bg-[#09090B]">
-            <MedhaLogo size={20} />
-          </View>
-          <Text className="text-foreground text-[18px] font-semibold">Medha</Text>
+          <BrandTile size={36} />
+          <Text className="text-foreground text-[19px] font-semibold tracking-tight">Medha</Text>
         </View>
-        <Pressable
+        <PressableScale
           onPress={onNewChat}
-          className="flex-row items-center bg-surface-container-low border border-outline-variant/20 rounded-full px-3 py-1.5 gap-1.5 active:opacity-70"
+          haptic
+          scaleTo={0.93}
+          className="flex-row items-center rounded-full px-3.5 gap-1.5"
+          style={{ height: 34, backgroundColor: palette.accent }}
+          accessibilityRole="button"
+          accessibilityLabel="New chat"
         >
-          <PenSquare size={16} color="hsl(0, 0%, 98%)" />
-          <Text className="text-foreground text-[14px] font-medium">New</Text>
-        </Pressable>
+          <PenSquare size={15} color={palette.onAccent} strokeWidth={2.25} />
+          <Text className="text-[13px] font-semibold" style={{ color: palette.onAccent }}>New</Text>
+        </PressableScale>
       </View>
 
       {/* Search */}
-      <View className="py-4 border-b border-outline-variant/20">
-        <Pressable
-          onPress={onOpenSearch}
-          className="flex-row items-center bg-surface-container-low border border-outline-variant/20 rounded-lg px-3 py-2 active:opacity-80"
-        >
-          <Search size={18} color="hsl(0, 0%, 44%)" />
-          <Text className="flex-1 text-on-surface-variant text-[13px] ml-2">
-            Search messages...
-          </Text>
-        </Pressable>
-      </View>
+      <PressableScale
+        onPress={onOpenSearch}
+        scaleTo={0.98}
+        className="flex-row items-center rounded-xl px-3"
+        style={{ height: 42, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border }}
+        accessibilityRole="search"
+        accessibilityLabel="Search messages"
+      >
+        <Search size={17} color={palette.iconMuted} />
+        <Text className="flex-1 text-muted-foreground text-[14px] ml-2.5">
+          Search messages
+        </Text>
+      </PressableScale>
 
       {/* Conversation List */}
       <FlatList
@@ -225,7 +232,7 @@ export function ConversationDrawer({
         renderItem={({ item }) => {
           if (item.type === 'header') {
             return (
-              <Text className="text-on-surface-variant text-[10px] font-semibold uppercase tracking-widest px-2 mt-4 mb-2">
+              <Text className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wider px-3 mt-5 mb-1.5 opacity-80">
                 {item.label}
               </Text>
             );
@@ -245,21 +252,22 @@ export function ConversationDrawer({
       />
 
       {/* Footer — Apps & Settings */}
-      <View className="pt-4 border-t border-outline-variant/20 gap-1">
-        <Pressable
-          onPress={onOpenApps}
-          className="flex-row items-center gap-3 px-2 py-2.5 rounded-lg active:bg-surface-container-low"
-        >
-          <Grid3X3 size={20} color="hsl(0, 0%, 63%)" />
-          <Text className="text-on-surface-variant text-[14px] font-medium">Apps</Text>
-        </Pressable>
-        <Pressable
-          onPress={onOpenSettings}
-          className="flex-row items-center gap-3 px-2 py-2.5 rounded-lg active:bg-surface-container-low"
-        >
-          <Settings size={20} color="hsl(0, 0%, 63%)" />
-          <Text className="text-on-surface-variant text-[14px] font-medium">Settings</Text>
-        </Pressable>
+      <View className="pt-3 gap-0.5" style={{ borderTopWidth: 1, borderTopColor: palette.border }}>
+        {[
+          { icon: Grid3X3, label: 'Apps', onPress: onOpenApps },
+          { icon: Settings, label: 'Settings', onPress: onOpenSettings },
+        ].map(({ icon: Icon, label, onPress }) => (
+          <PressableScale
+            key={label}
+            onPress={onPress}
+            scaleTo={0.98}
+            className="flex-row items-center gap-3 px-3 py-2.5 rounded-xl"
+            accessibilityRole="button"
+          >
+            <Icon size={19} color={palette.icon} />
+            <Text className="text-on-surface-variant text-[14px] font-medium">{label}</Text>
+          </PressableScale>
+        ))}
       </View>
     </View>
   );
