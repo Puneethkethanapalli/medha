@@ -9,6 +9,10 @@ interface ChatState {
   streamingReasoning: string;
   streamingActivity: string;
   streamingTokensPerSecond: number;
+  /** When the current response was requested (0 when idle). */
+  streamingStartedAt: number;
+  /** When the first answer token (not reasoning) arrived; 0 until then. */
+  streamingContentStartedAt: number;
   toolActivityMessageId: string | null;
   toolActivity: string;
   error: string | null;
@@ -19,6 +23,10 @@ interface ChatState {
   appendReasoningToken: (token: string) => void;
   setStreamingActivity: (activity: string) => void;
   setStreamingTokensPerSecond: (tokensPerSecond: number) => void;
+  /** Reveal everything still queued and return the full text so far. */
+  flushStreaming: () => { content: string; reasoning: string };
+  /** How long the model has been (or was) thinking before answering, or null. */
+  getThinkingDurationMs: () => number | null;
   startToolActivity: (messageId: string, activity: string) => void;
   stopToolActivity: (messageId?: string) => void;
   stopStreaming: () => void;
@@ -56,6 +64,8 @@ export const useChatStore = create<ChatState>((set, _get) => ({
   streamingReasoning: '',
   streamingActivity: '',
   streamingTokensPerSecond: 0,
+  streamingStartedAt: 0,
+  streamingContentStartedAt: 0,
   toolActivityMessageId: null,
   toolActivity: '',
   error: null,
@@ -75,13 +85,18 @@ export const useChatStore = create<ChatState>((set, _get) => ({
       streamingReasoning: '',
       streamingActivity: DEFAULT_THINKING_ACTIVITY,
       streamingTokensPerSecond: 0,
+      streamingStartedAt: Date.now(),
+      streamingContentStartedAt: 0,
       error: null,
     });
   },
 
   appendToken: (token: string) => {
-    const { streamingMessageId } = _get();
+    const { streamingMessageId, streamingContentStartedAt } = _get();
     if (!streamingMessageId) return;
+    if (!streamingContentStartedAt && token.trim()) {
+      set({ streamingContentStartedAt: Date.now() });
+    }
 
     const stream = getOrCreateStream(streamingMessageId, set);
     stream.pushToken(token);
@@ -108,6 +123,23 @@ export const useChatStore = create<ChatState>((set, _get) => ({
     const rounded = Number(tokensPerSecond.toFixed(1));
     if (streamingTokensPerSecond === rounded) return;
     set({ streamingTokensPerSecond: rounded });
+  },
+
+  flushStreaming: () => {
+    const { streamingMessageId } = _get();
+    const stream = streamingMessageId ? streams.get(streamingMessageId) : undefined;
+    if (stream) {
+      stream.flushAll();
+      return { content: stream.content, reasoning: stream.reasoning };
+    }
+    const { streamingContent, streamingReasoning } = _get();
+    return { content: streamingContent, reasoning: streamingReasoning };
+  },
+
+  getThinkingDurationMs: () => {
+    const { streamingStartedAt, streamingContentStartedAt } = _get();
+    if (!streamingStartedAt) return null;
+    return Math.max(0, (streamingContentStartedAt || Date.now()) - streamingStartedAt);
   },
 
   startToolActivity: (messageId: string, activity: string) => {
@@ -145,6 +177,8 @@ export const useChatStore = create<ChatState>((set, _get) => ({
       streamingReasoning: '',
       streamingActivity: '',
       streamingTokensPerSecond: 0,
+      streamingStartedAt: 0,
+      streamingContentStartedAt: 0,
       toolActivityMessageId: null,
       toolActivity: '',
     });
@@ -166,6 +200,8 @@ export const useChatStore = create<ChatState>((set, _get) => ({
       streamingReasoning: '',
       streamingActivity: '',
       streamingTokensPerSecond: 0,
+      streamingStartedAt: 0,
+      streamingContentStartedAt: 0,
       toolActivityMessageId: null,
       toolActivity: '',
     });
@@ -207,6 +243,20 @@ export function useStreamingTokensPerSecond(messageId: string | null) {
     if (state.streamingMessageId !== messageId) return 0;
     return state.streamingTokensPerSecond;
   });
+}
+
+/** Request start time for the message while it streams, else 0. */
+export function useStreamingStartedAt(messageId: string | null) {
+  return useChatStore((state) =>
+    state.streamingMessageId === messageId ? state.streamingStartedAt : 0
+  );
+}
+
+/** First answer-token time for the message while it streams, else 0. */
+export function useStreamingContentStartedAt(messageId: string | null) {
+  return useChatStore((state) =>
+    state.streamingMessageId === messageId ? state.streamingContentStartedAt : 0
+  );
 }
 
 export function useToolActivity(messageId: string | null) {

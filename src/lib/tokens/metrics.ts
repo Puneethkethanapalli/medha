@@ -2,6 +2,8 @@ export interface ResponseTokenMetrics {
   prompt: number;
   completion: number;
   tokensPerSecond?: number;
+  /** How long the model thought before answering. */
+  reasoningMs?: number;
 }
 
 export function parseResponseTokenMetrics(value: string | null): ResponseTokenMetrics | null {
@@ -12,8 +14,9 @@ export function parseResponseTokenMetrics(value: string | null): ResponseTokenMe
     const prompt = coerceNonNegativeInteger(parsed.prompt);
     const completion = coerceNonNegativeInteger(parsed.completion);
     const tokensPerSecond = coercePositiveNumber(parsed.tokensPerSecond);
+    const reasoningMs = coercePositiveNumber(parsed.reasoningMs);
 
-    if (prompt === 0 && completion === 0 && tokensPerSecond === undefined) {
+    if (prompt === 0 && completion === 0 && tokensPerSecond === undefined && reasoningMs === undefined) {
       return null;
     }
 
@@ -21,6 +24,7 @@ export function parseResponseTokenMetrics(value: string | null): ResponseTokenMe
       prompt,
       completion,
       ...(tokensPerSecond !== undefined ? { tokensPerSecond } : {}),
+      ...(reasoningMs !== undefined ? { reasoningMs: Math.round(reasoningMs) } : {}),
     };
   } catch {
     return null;
@@ -31,8 +35,9 @@ export function serializeResponseTokenMetrics(metrics: ResponseTokenMetrics): st
   const prompt = coerceNonNegativeInteger(metrics.prompt);
   const completion = coerceNonNegativeInteger(metrics.completion);
   const tokensPerSecond = coercePositiveNumber(metrics.tokensPerSecond);
+  const reasoningMs = coercePositiveNumber(metrics.reasoningMs);
 
-  if (prompt === 0 && completion === 0 && tokensPerSecond === undefined) {
+  if (prompt === 0 && completion === 0 && tokensPerSecond === undefined && reasoningMs === undefined) {
     return null;
   }
 
@@ -42,6 +47,7 @@ export function serializeResponseTokenMetrics(metrics: ResponseTokenMetrics): st
     ...(tokensPerSecond !== undefined
       ? { tokensPerSecond: Number(tokensPerSecond.toFixed(1)) }
       : {}),
+    ...(reasoningMs !== undefined ? { reasoningMs: Math.round(reasoningMs) } : {}),
   });
 }
 

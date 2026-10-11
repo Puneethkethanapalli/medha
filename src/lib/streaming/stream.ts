@@ -114,6 +114,22 @@ export async function streamCompletion(
   const toolAccum = new ToolCallAccumulator();
   const usageAccum: UsageData = { promptTokens: 0, completionTokens: 0 };
 
+  /** Release held-back think-tag text, report usage, then end the stream. */
+  const finish = () => {
+    const leftover = thinkSep.flush();
+    if (leftover.reasoning) onReasoning(leftover.reasoning);
+    if (leftover.content) onContent(leftover.content);
+
+    if (onUsage && (usageAccum.promptTokens > 0 || usageAccum.completionTokens > 0)) {
+      onUsage({ ...usageAccum });
+    }
+    if (toolAccum.hasToolCalls() && onToolCalls) {
+      onToolCalls(toolAccum.finalize());
+    } else {
+      onDone();
+    }
+  };
+
   // ── 1. Fetch ──────────────────────────────────────────────────────────
 
   let response: Response;
@@ -151,17 +167,7 @@ export async function streamCompletion(
       }
       processEvents(sseParser.feed(text), thinkSep, onContent, onReasoning, format, toolAccum, usageAccum);
       processEvents(sseParser.flush(), thinkSep, onContent, onReasoning, format, toolAccum, usageAccum);
-      if (toolAccum.hasToolCalls() && onToolCalls) {
-        if (onUsage && (usageAccum.promptTokens > 0 || usageAccum.completionTokens > 0)) {
-          onUsage({ ...usageAccum });
-        }
-        onToolCalls(toolAccum.finalize());
-      } else {
-        if (onUsage && (usageAccum.promptTokens > 0 || usageAccum.completionTokens > 0)) {
-          onUsage({ ...usageAccum });
-        }
-        onDone();
-      }
+      finish();
     } catch (err) {
       if (!isAbort(err)) {
         onError(toError(err, 'Failed to read response'));
@@ -184,17 +190,7 @@ export async function streamCompletion(
 
       if (processEvents(events, thinkSep, onContent, onReasoning, format, toolAccum, usageAccum)) {
         // [DONE] sentinel received
-        if (toolAccum.hasToolCalls() && onToolCalls) {
-          if (onUsage && (usageAccum.promptTokens > 0 || usageAccum.completionTokens > 0)) {
-            onUsage({ ...usageAccum });
-          }
-          onToolCalls(toolAccum.finalize());
-        } else {
-          if (onUsage && (usageAccum.promptTokens > 0 || usageAccum.completionTokens > 0)) {
-            onUsage({ ...usageAccum });
-          }
-          onDone();
-        }
+        finish();
         return;
       }
     }
@@ -210,17 +206,7 @@ export async function streamCompletion(
     const remaining = sseParser.flush();
     processEvents(remaining, thinkSep, onContent, onReasoning, format, toolAccum, usageAccum);
 
-    if (toolAccum.hasToolCalls() && onToolCalls) {
-      if (onUsage && (usageAccum.promptTokens > 0 || usageAccum.completionTokens > 0)) {
-        onUsage({ ...usageAccum });
-      }
-      onToolCalls(toolAccum.finalize());
-    } else {
-      if (onUsage && (usageAccum.promptTokens > 0 || usageAccum.completionTokens > 0)) {
-        onUsage({ ...usageAccum });
-      }
-      onDone();
-    }
+    finish();
   } catch (err) {
     if (!isAbort(err)) {
       onError(toError(err, 'Stream error'));

@@ -6,9 +6,10 @@ import LottieView from 'lottie-react-native';
 import { Copy, RefreshCw, TriangleAlert, FileText } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import {
-  useStreamingActivity,
   useStreamingContent,
+  useStreamingContentStartedAt,
   useStreamingReasoning,
+  useStreamingStartedAt,
   useToolActivity,
 } from '@/stores/chat-store';
 import { useUIStore } from '@/stores/ui-store';
@@ -89,15 +90,14 @@ export const MessageBubble = React.memo(function MessageBubble({
 }: MessageBubbleProps) {
   const streamingContent = useStreamingContent(message.id);
   const streamingReasoning = useStreamingReasoning(message.id);
-  const streamingActivity = useStreamingActivity(message.id);
+  const streamingStartedAt = useStreamingStartedAt(message.id);
+  const streamingContentStartedAt = useStreamingContentStartedAt(message.id);
   const toolActivity = useToolActivity(message.id);
   const showActionsMenu = useUIStore((s) => s.showActionsMenu);
   const isStreaming = message.status === 'streaming';
   const displayContent = isStreaming ? streamingContent : message.content;
   const displayReasoning = isStreaming ? streamingReasoning : message.reasoning;
-  const isStreamingActivityVisible = isStreaming && !displayContent && !!streamingActivity;
   const isToolActivityVisible = !!toolActivity;
-  const displayActivity = toolActivity || (isStreamingActivityVisible ? streamingActivity : null);
   const isUser = message.role === 'user';
   const showToast = useUIStore((s) => s.showToast);
   const responseMetrics = parseResponseTokenMetrics(message.tokens_used);
@@ -250,8 +250,10 @@ export const MessageBubble = React.memo(function MessageBubble({
   }
 
   // Assistant message
-  const hasReasoning = !!displayReasoning;
-  const showThinkingBlock = hasReasoning || isStreamingActivityVisible || isToolActivityVisible;
+  const hasReasoning = !!displayReasoning?.trim();
+  // Thinking phase: streaming, but no answer text visible yet.
+  const isThinking = isStreaming && !displayContent;
+  const showThinkingBlock = hasReasoning || isThinking || isToolActivityVisible;
   const isThinkingOnly = showThinkingBlock && !displayContent;
 
   return (
@@ -262,10 +264,12 @@ export const MessageBubble = React.memo(function MessageBubble({
         {/* Thinking block */}
         {showThinkingBlock && (
           <ThinkingBlock
-            reasoning={displayReasoning}
-            activity={displayActivity}
-            isActive={isStreamingActivityVisible || isToolActivityVisible}
-            expandReasoning={isStreamingActivityVisible && hasReasoning}
+            reasoning={displayReasoning ?? ''}
+            toolActivity={toolActivity || null}
+            isThinking={isThinking}
+            startedAt={streamingStartedAt}
+            contentStartedAt={streamingContentStartedAt}
+            reasoningMs={responseMetrics?.reasoningMs ?? null}
           />
         )}
 

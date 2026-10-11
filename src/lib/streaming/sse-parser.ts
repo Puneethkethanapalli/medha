@@ -147,88 +147,110 @@ export class SSEParser {
 
 // ─── ThinkTag separator ─────────────────────────────────────────────────
 //
-// Google AI (Gemini 2.5) wraps reasoning in <think>/<thought> tags inside
-// delta.content. These tags can be split across SSE chunks.
-// State is per-instance so concurrent streams don't corrupt each other.
+// Some models (DeepSeek R1, MiniMax M2, Qwen, Gemini via the OpenAI-compatible
+// endpoint) put their reasoning inside <think>/<thought> tags in delta.content.
+// Tags can be split across SSE chunks. State is per-instance so concurrent
+// streams don't corrupt each other.
 
-const THINK_OPEN_TAGS = ['<thought>', '<think>', '<Thought>', '<Think>'] as const;
-const THINK_CLOSE_MAP: Record<string, string> = {
-  '<thought>': '</thought>',
-  '<think>': '</think>',
-  '<Thought>': '</Thought>',
-  '<Think>': '</Think>',
-};
+const THINK_OPEN_TAGS = [
+  '<think>', '<thought>', '<thinking>',
+  '<Think>', '<Thought>', '<Thinking>',
+] as const;
+
+function closeTagFor(openTag: string): string {
+  return `</${openTag.slice(1)}`;
+}
+
+/** Length of the longest suffix of `text` that is a proper prefix of `tag`. */
+function partialSuffixLength(text: string, tag: string): number {
+  for (let len = Math.min(tag.length - 1, text.length); len > 0; len--) {
+    if (text.endsWith(tag.slice(0, len))) return len;
+  }
+  return 0;
+}
 
 export class ThinkTagSeparator {
-  private inside = false;
-  private buffer = '';
+  /**
+   * 'start': nothing but whitespace seen yet — a think tag may still open.
+   * 'reasoning': inside a think block.
+   * 'content': the answer. Tags are only honored at the very start, so a
+   * literal "<think>" later in an answer is left alone.
+   */
+  private mode: 'start' | 'reasoning' | 'content' = 'start';
+  /** Text held back because it might be the start of a tag. */
+  private pending = '';
   private closeTag = '';
+  private trimLeading = false;
 
   reset(): void {
-    this.inside = false;
-    this.buffer = '';
+    this.mode = 'start';
+    this.pending = '';
     this.closeTag = '';
+    this.trimLeading = false;
   }
 
   /**
-   * Splits raw content into reasoning (inside think tags) and content (outside).
-   * Handles tags split across multiple chunks.
+   * Splits raw content into reasoning (inside think tags) and content.
+   * Reasoning streams as it arrives; only a possible partial tag is held back.
    */
   separate(text: string): { content?: string; reasoning?: string } {
-    let reasoning = '';
     let content = '';
-    let remaining = text;
+    let reasoning = '';
+    let input = this.pending + text;
+    this.pending = '';
 
-    while (remaining.length > 0) {
-      if (this.inside) {
-        const closeIdx = remaining.indexOf(this.closeTag);
-        if (closeIdx !== -1) {
-          reasoning += this.buffer + remaining.slice(0, closeIdx);
-          this.buffer = '';
-          this.inside = false;
-          remaining = remaining.slice(closeIdx + this.closeTag.length);
-          this.closeTag = '';
-        } else {
-          // Still inside, buffer everything
-          this.buffer += remaining;
-          remaining = '';
-        }
-      } else {
-        // Flush any non-tag buffer from a previous partial-tag false alarm
-        if (this.buffer) {
-          content += this.buffer;
-          this.buffer = '';
+    while (input) {
+      if (this.mode === 'start') {
+        const trimmed = input.replace(/^\s+/, '');
+        if (!trimmed) {
+          this.pending = input;
+          break;
         }
 
-        // Find earliest opening tag
-        let bestIdx = -1;
-        let bestTag = '';
-        for (const tag of THINK_OPEN_TAGS) {
-          const idx = remaining.indexOf(tag);
-          if (idx !== -1 && (bestIdx === -1 || idx < bestIdx)) {
-            bestIdx = idx;
-            bestTag = tag;
-          }
+        const openTag = THINK_OPEN_TAGS.find((tag) => trimmed.startsWith(tag));
+        if (openTag) {
+          this.mode = 'reasoning';
+          this.closeTag = closeTagFor(openTag);
+          this.trimLeading = true;
+          input = trimmed.slice(openTag.length);
+          continue;
         }
 
-        if (bestIdx !== -1) {
-          content += remaining.slice(0, bestIdx);
-          this.inside = true;
-          this.buffer = '';
-          this.closeTag = THINK_CLOSE_MAP[bestTag];
-          remaining = remaining.slice(bestIdx + bestTag.length);
-        } else {
-          // Check for partial tag at chunk boundary
-          const partialLen = this.findPartialTagAtEnd(remaining);
-          if (partialLen > 0) {
-            content += remaining.slice(0, -partialLen);
-            this.buffer = remaining.slice(-partialLen);
-          } else {
-            content += remaining;
-          }
-          remaining = '';
+        if (THINK_OPEN_TAGS.some((tag) => tag.startsWith(trimmed))) {
+          // Could still become an opening tag — wait for more text.
+          this.pending = input;
+          break;
         }
+
+        this.mode = 'content';
+        input = trimmed;
+        continue;
       }
+
+      if (this.trimLeading) {
+        input = input.replace(/^\s+/, '');
+        if (!input) break;
+        this.trimLeading = false;
+      }
+
+      if (this.mode === 'reasoning') {
+        const closeIdx = input.indexOf(this.closeTag);
+        if (closeIdx !== -1) {
+          reasoning += input.slice(0, closeIdx);
+          input = input.slice(closeIdx + this.closeTag.length);
+          this.mode = 'content';
+          this.trimLeading = true;
+          continue;
+        }
+
+        const hold = partialSuffixLength(input, this.closeTag);
+        reasoning += input.slice(0, input.length - hold);
+        this.pending = input.slice(input.length - hold);
+        break;
+      }
+
+      content += input;
+      break;
     }
 
     return {
@@ -237,20 +259,32 @@ export class ThinkTagSeparator {
     };
   }
 
-  private findPartialTagAtEnd(text: string): number {
-    let longest = 0;
-    for (const tag of THINK_OPEN_TAGS) {
-      for (let len = Math.min(tag.length - 1, text.length); len > 0; len--) {
-        if (text.endsWith(tag.slice(0, len)) && len > longest) {
-          longest = len;
-        }
-      }
-    }
-    return longest;
+  /** Release anything held back once the stream ends. */
+  flush(): { content?: string; reasoning?: string } {
+    const pending = this.pending;
+    this.pending = '';
+    if (!pending) return {};
+    if (this.mode === 'reasoning') return { reasoning: pending };
+    // A partial tag that never completed was ordinary text after all.
+    return pending.trim() ? { content: pending.replace(/^\s+/, '') } : {};
   }
 }
 
 // ─── Content extraction ─────────────────────────────────────────────────
+
+/** Plain text from an OpenRouter-style reasoning_details array. */
+function reasoningDetailsText(details: unknown): string {
+  if (!Array.isArray(details)) return '';
+  let text = '';
+  for (const detail of details) {
+    if (detail?.type === 'reasoning.text' && typeof detail.text === 'string') {
+      text += detail.text;
+    } else if (detail?.type === 'reasoning.summary' && typeof detail.summary === 'string') {
+      text += detail.summary;
+    }
+  }
+  return text;
+}
 
 /**
  * Extract content/reasoning tokens from a parsed SSE data payload.
@@ -276,27 +310,17 @@ export function extractTokens(
   const result: TokenContent = {};
 
   // --- Reasoning extraction (multiple formats) ---
-
-  // OpenRouter / Google: reasoning_details array
+  //
+  // Providers often send the same text in more than one field (OpenRouter
+  // sends both `reasoning` and `reasoning_details`; some servers mirror
+  // `reasoning_content` into `reasoning`). Use exactly one source per chunk.
   const delta = (parsed.choices as any)?.[0]?.delta;
-  if (delta?.reasoning_details && Array.isArray(delta.reasoning_details)) {
-    for (const detail of delta.reasoning_details) {
-      if (detail.type === 'reasoning.text' && detail.text) {
-        result.reasoning = (result.reasoning || '') + detail.text;
-      } else if (detail.type === 'reasoning.summary' && detail.summary) {
-        result.reasoning = (result.reasoning || '') + detail.summary;
-      }
-    }
-  }
-
-  // MiniMax: delta.reasoning_content
-  if (delta?.reasoning_content) {
-    result.reasoning = (result.reasoning || '') + delta.reasoning_content;
-  }
-
-  // OpenAI older: delta.reasoning
-  if (delta?.reasoning) {
-    result.reasoning = (result.reasoning || '') + delta.reasoning;
+  const reasoningText =
+    (typeof delta?.reasoning === 'string' && delta.reasoning)
+    || (typeof delta?.reasoning_content === 'string' && delta.reasoning_content)
+    || reasoningDetailsText(delta?.reasoning_details);
+  if (reasoningText) {
+    result.reasoning = reasoningText;
   }
 
   // --- Content extraction ---
@@ -432,12 +456,12 @@ export function extractGeminiNativeTokens(data: string): TokenContent | null {
   const parts = candidate.content?.parts as any[];
   if (parts) {
     for (const part of parts) {
-      if (part.text && typeof part.text === 'string') {
+      if (!part.text || typeof part.text !== 'string') continue;
+      // Thought summaries arrive as { text, thought: true }.
+      if (part.thought === true) {
+        result.reasoning = (result.reasoning || '') + part.text;
+      } else {
         result.content = (result.content || '') + part.text;
-      }
-      // Thinking/reasoning in native format
-      if (part.thought && typeof part.thought === 'string') {
-        result.reasoning = (result.reasoning || '') + part.thought;
       }
     }
   }
@@ -482,6 +506,11 @@ export function extractOpenAIResponsesTokens(data: string): TokenContent | null 
     && typeof parsed.delta === 'string'
   ) {
     result.reasoning = parsed.delta;
+  }
+
+  // Each new summary part is its own section; separate it from the previous one.
+  if (type === 'response.reasoning_summary_part.added' && Number(parsed.summary_index ?? 0) > 0) {
+    result.reasoning = '\n\n';
   }
 
   if (type === 'response.output_item.done') {

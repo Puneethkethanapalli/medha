@@ -49,7 +49,6 @@ import {
 } from '@/lib/tools/ask-user-choice';
 import { describeToolCalls, executeToolCall } from '@/lib/tools/orchestrator';
 import {
-  deriveThinkingActivity,
   describeToolActivity,
   WRITING_RESPONSE_ACTIVITY,
 } from '@/lib/streaming/thinking-activity';
@@ -197,19 +196,11 @@ export const ChatScreen = React.memo(function ChatScreen({
           abortRef.current.abort();
           abortRef.current = null;
         }
-        const { streamingMessageId, streamingContent } = useChatStore.getState();
-        if (streamingMessageId) {
-          updateMessage(streamingMessageId, {
-            content: streamingContent,
-            status: 'cancelled',
-          });
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === streamingMessageId
-                ? { ...m, content: streamingContent, status: 'cancelled' as const }
-                : m
-            )
-          );
+        const interrupted = captureInterruptedResponse();
+        if (interrupted) {
+          const { messageId, fields } = interrupted;
+          updateMessage(messageId, fields);
+          setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, ...fields } : m)));
           stopStreaming();
         }
       }
@@ -470,14 +461,20 @@ export const ChatScreen = React.memo(function ChatScreen({
         setStreamingTokensPerSecond(tokensPerSecond);
       };
 
+      /** How long the model thought before answering, if it reasoned at all. */
+      const getReasoningMs = () =>
+        accumulatedReasoning.trim() ? useChatStore.getState().getThinkingDurationMs() : null;
+
       const handleDone = () => {
         // Save usage data
         const { promptTokens, completionTokens } = usageAccumRef.current;
         const tokensPerSecond = calculateTokensPerSecond(Date.now());
+        const reasoningMs = getReasoningMs();
         const tokensUsedJson = serializeResponseTokenMetrics({
           prompt: promptTokens,
           completion: completionTokens,
           ...(tokensPerSecond ? { tokensPerSecond } : {}),
+          ...(reasoningMs ? { reasoningMs } : {}),
         });
         const costUsd = calculateCost(promptTokens, completionTokens, model);
 
@@ -536,10 +533,14 @@ export const ChatScreen = React.memo(function ChatScreen({
       };
 
       const handleError = (error: Error) => {
+        const reasoningMs = getReasoningMs();
         updateMessage(assistantMsgId, {
           content: accumulated || 'Error: ' + error.message,
           reasoning: accumulatedReasoning || null,
           status: 'error',
+          ...(reasoningMs
+            ? { tokens_used: serializeResponseTokenMetrics({ prompt: 0, completion: 0, reasoningMs }) }
+            : {}),
         });
         touchConversation(convId);
         setError(error.message);
@@ -599,16 +600,28 @@ export const ChatScreen = React.memo(function ChatScreen({
         // Update the assistant message to show tool usage status + save tool_calls metadata
         const statusText = accumulated || describeToolCalls(toolCalls);
         const toolCallsJson = JSON.stringify(toolCalls);
+        const reasoningMs = getReasoningMs();
+        const toolRoundMetrics = reasoningMs
+          ? serializeResponseTokenMetrics({ prompt: 0, completion: 0, reasoningMs })
+          : null;
         updateMessage(assistantMsgId, {
           content: statusText,
           reasoning: accumulatedReasoning || null,
           status: 'complete',
           tool_calls: toolCallsJson,
+          ...(toolRoundMetrics ? { tokens_used: toolRoundMetrics } : {}),
         });
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantMsgId
-              ? { ...m, content: statusText, reasoning: accumulatedReasoning || null, status: 'complete', tool_calls: toolCallsJson }
+              ? {
+                  ...m,
+                  content: statusText,
+                  reasoning: accumulatedReasoning || null,
+                  status: 'complete',
+                  tool_calls: toolCallsJson,
+                  ...(toolRoundMetrics ? { tokens_used: toolRoundMetrics } : {}),
+                }
               : m
           )
         );
@@ -660,7 +673,6 @@ export const ChatScreen = React.memo(function ChatScreen({
         (reasoningToken) => {
           fireFirstTokenHaptic();
           accumulatedReasoning += reasoningToken;
-          updateActivity(deriveThinkingActivity(accumulatedReasoning));
           appendReasoningToken(reasoningToken);
           updateTokensPerSecond();
         },
@@ -768,19 +780,11 @@ export const ChatScreen = React.memo(function ChatScreen({
       abortRef.current.abort();
       abortRef.current = null;
     }
-    const { streamingMessageId, streamingContent } = useChatStore.getState();
-    if (streamingMessageId) {
-      updateMessage(streamingMessageId, {
-        content: streamingContent,
-        status: 'cancelled',
-      });
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === streamingMessageId
-            ? { ...m, content: streamingContent, status: 'cancelled' }
-            : m
-        )
-      );
+    const interrupted = captureInterruptedResponse();
+    if (interrupted) {
+      const { messageId, fields } = interrupted;
+      updateMessage(messageId, fields);
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, ...fields } : m)));
     }
     stopStreaming();
   }, [stopStreaming]);
@@ -1178,6 +1182,33 @@ export const ChatScreen = React.memo(function ChatScreen({
     </View>
   );
 });
+
+/**
+ * Everything a stopped or interrupted response produced so far — reasoning
+ * included — as fields to save on its message. Null when nothing is streaming.
+ */
+function captureInterruptedResponse(): {
+  messageId: string;
+  fields: Pick<Message, 'content' | 'reasoning' | 'status'> & { tokens_used?: string | null };
+} | null {
+  const store = useChatStore.getState();
+  const messageId = store.streamingMessageId;
+  if (!messageId) return null;
+
+  const { content, reasoning } = store.flushStreaming();
+  const reasoningMs = reasoning.trim() ? store.getThinkingDurationMs() : null;
+  return {
+    messageId,
+    fields: {
+      content,
+      reasoning: reasoning || null,
+      status: 'cancelled',
+      ...(reasoningMs
+        ? { tokens_used: serializeResponseTokenMetrics({ prompt: 0, completion: 0, reasoningMs }) }
+        : {}),
+    },
+  };
+}
 
 function getDefaultModel(providerId: string): string {
   switch (providerId) {
