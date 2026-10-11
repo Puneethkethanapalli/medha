@@ -1,5 +1,6 @@
 import { fetch } from 'expo/fetch';
 import type { AIProvider, ListModelsOptions, StreamConfig } from './types';
+import { PROVIDER_CATALOG } from './catalog';
 import { streamCompletion } from '@/lib/streaming/stream';
 import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { buildOpenAIMessages } from '@/lib/attachments/multimodal';
@@ -10,7 +11,7 @@ const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
 export class OpenRouterProvider implements AIProvider {
   id = 'openrouter';
-  name = 'OpenRouter';
+  name = PROVIDER_CATALOG.openrouter.displayName;
 
   stream(
     messages: Message[],

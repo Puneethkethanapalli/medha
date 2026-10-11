@@ -1,5 +1,6 @@
 import { fetch } from 'expo/fetch';
 import type { AIProvider, ListModelsOptions, StreamConfig } from './types';
+import { PROVIDER_CATALOG } from './catalog';
 import { streamCompletion } from '@/lib/streaming/stream';
 import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { buildOpenAIMessages } from '@/lib/attachments/multimodal';
@@ -22,20 +23,6 @@ function getBaseUrl(accountId: string): string {
   return `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1`;
 }
 
-// Static model list used by the picker when Cloudflare cannot be refreshed.
-// Context windows and capability badges come from Cloudflare's API response or LiteLLM.
-export const CLOUDFLARE_FALLBACK_MODELS: Model[] = [
-  { id: '@cf/openai/gpt-oss-120b', name: 'GPT-OSS 120B', provider: 'cloudflare-ai' },
-  { id: '@cf/openai/gpt-oss-20b', name: 'GPT-OSS 20B', provider: 'cloudflare-ai' },
-  { id: '@cf/meta/llama-3.3-70b-instruct-fp8-fast', name: 'Llama 3.3 70B', provider: 'cloudflare-ai' },
-  { id: '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b', name: 'DeepSeek R1 Distill 32B', provider: 'cloudflare-ai' },
-  { id: '@cf/qwen/qwq-32b', name: 'QwQ 32B', provider: 'cloudflare-ai' },
-  { id: '@cf/meta/llama-3.2-3b-instruct', name: 'Llama 3.2 3B', provider: 'cloudflare-ai' },
-  { id: '@cf/meta/llama-3.2-1b-instruct', name: 'Llama 3.2 1B', provider: 'cloudflare-ai' },
-  { id: '@hf/mistral/mistral-7b-instruct-v0.2', name: 'Mistral 7B v0.2', provider: 'cloudflare-ai' },
-  { id: '@hf/google/gemma-7b-it', name: 'Gemma 7B', provider: 'cloudflare-ai' },
-];
-
 /** Read the Cloudflare Account ID from MMKV storage. */
 function getAccountId(): string | null {
   try {
@@ -48,7 +35,7 @@ function getAccountId(): string | null {
 
 export class CloudflareAIProvider implements AIProvider {
   id = 'cloudflare-ai';
-  name = 'Cloudflare AI';
+  name = PROVIDER_CATALOG['cloudflare-ai'].displayName;
 
   stream(
     messages: Message[],

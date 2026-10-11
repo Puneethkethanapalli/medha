@@ -1,6 +1,8 @@
 # How to Add a New AI Provider to Medha
 
-This guide documents the provider architecture and gives step-by-step instructions for adding a new AI provider. It was written by analyzing the five existing providers — **OpenRouter**, **Google AI**, **Anthropic**, **MiniMax**, and **Cloudflare AI**.
+This guide documents the provider architecture and gives step-by-step instructions for adding a new AI provider. It covers the seven built-in providers — **OpenRouter**, **OpenAI**, **ChatGPT Codex**, **Google AI**, **Anthropic**, **MiniMax**, and **Cloudflare AI**.
+
+> **TL;DR** — Provider metadata (names, key copy, default/fallback models, display order) lives in **one file**: `src/lib/providers/catalog.ts`. A typical new provider touches the catalog, its provider class, `registry.ts`, the settings-store id list, and the catalog test. Onboarding, Settings › API Keys, the model picker, the model pill, and the chat default model all read from the catalog — don't edit them.
 
 ---
 
@@ -8,9 +10,14 @@ This guide documents the provider architecture and gives step-by-step instructio
 
 ```
 src/lib/providers/
+├── catalog.ts        # ProviderInfo per provider — the single source of truth for metadata
+├── catalog.test.ts   # Locks catalog values; fails if registry.ts and the catalog disagree
+├── setup-fields.ts   # Storage setters for extra setup fields (Cloudflare Account ID)
 ├── types.ts          # AIProvider interface + StreamConfig
 ├── registry.ts       # Map<id, AIProvider> + registerBuiltInProviders()
 ├── openrouter.ts     # OpenAI-compatible, streaming via SSE
+├── openai.ts         # OpenAI platform API (/chat/completions)
+├── openai-codex.ts   # ChatGPT Codex via the Responses API, ChatGPT sign-in (device code)
 ├── google-ai.ts      # Dual-path: OpenAI-compat + native Gemini endpoint
 ├── anthropic.ts      # Custom SSE format, proprietary message structure
 ├── minimax.ts        # OpenAI-compatible
@@ -27,6 +34,10 @@ src/lib/tools/
 ├── types.ts          # ToolDefinition, OpenAIToolSchema
 └── registry.ts       # getOpenAIToolSchemas() / getAnthropicToolSchemas()
 
+src/lib/chat/
+├── run-turn.ts       # createTurnRunner() — one assistant turn: provider, tools, streaming, tool rounds
+└── run-turn.deps.ts  # createTurnServices() — wires the runner to the real modules
+
 src/lib/models/
 ├── capabilities.ts        # Dynamic metadata cache + metadata lookup helpers
 ├── capability-metadata.ts # Provider/LiteLLM metadata → app capability flags
@@ -39,23 +50,64 @@ src/stores/
 └── settings-store.ts # Zustand store — provider list, key validation, hasAnyProviderKey()
 
 src/app/settings/
-└── api-keys.tsx      # UI for adding/deleting provider API keys
+└── api-keys.tsx      # UI for adding/deleting provider API keys (renders from the catalog)
 
 src/app/
-└── onboarding.tsx    # First-run screen — provider selection + key input
+└── onboarding.tsx    # First-run screen — provider selection + key input (renders from the catalog)
+
+src/components/chat/
+├── ModelPicker.tsx   # Provider tabs + fallback model lists (from the catalog)
+└── ModelPill.tsx     # Provider short badge (from the catalog)
 ```
 
 ### Data Flow (simplified)
 
 ```
 User sends message
-  → ChatScreen resolves provider via registry.getProvider(providerId)
+  → ChatScreen starts a turn: createTurnRunner().run() in src/lib/chat/run-turn.ts
+  → run-turn resolves provider via registry.getProvider(providerId)
   → Calls provider.stream(messages, config, ...callbacks)
     → Provider builds request body (OpenAI format or proprietary)
     → Calls streamCompletion(options, ...) from lib/streaming/stream.ts
       → fetch() + ReadableStream → SSEParser → extractTokens() or extractGeminiNativeTokens()
       → Dispatches onContent / onReasoning / onToolCalls / onUsage callbacks
 ```
+
+---
+
+## The Provider Catalog
+
+`src/lib/providers/catalog.ts` is plain data: it imports nothing at runtime (only `import type`), so it loads in Node unit tests. **Keep it that way** — never import `react-native`, `expo`, storage, or a provider class into it.
+
+Each provider has one `ProviderInfo` entry in `PROVIDER_CATALOG`, and `PROVIDER_IDS` sets the display order:
+
+| Field | Required | Where it shows up |
+|---|---|---|
+| `id` | yes | Must equal `AIProvider.id`, `Model.provider`, and the secure-store key name |
+| `displayName` | yes | Model picker tabs, onboarding pills, Settings › API Keys, success alerts, `AIProvider.name` |
+| `shortName` | yes | Badge on the model pill (e.g. `OR`, `CF`) |
+| `description` | yes | One-liner under the name in Settings › API Keys |
+| `authMode` | yes | `'api-key'` (paste + `validateKey()`) or `'codex-oauth'` (ChatGPT device-code sign-in) |
+| `keyPlaceholder` | yes | Onboarding key input placeholder (`''` for OAuth providers) |
+| `keyHint` | yes | Onboarding hint, rendered as "Get your key at {keyHint}" (shown verbatim for OAuth) |
+| `setupFields` | no | Extra non-secret inputs collected before key validation (Cloudflare Account ID) |
+| `keyLabel` | no | Label above the key input in Settings when `setupFields` precede it (e.g. `'API Token'`) |
+| `defaultModel` | yes | Chat model used before the user picks one (`getDefaultModel()`) |
+| `fallbackModels` | yes | Picker list when there's no cached list and the live fetch failed (`id`, `name`, `provider` only) |
+
+Helpers (all safe for unknown ids):
+
+| Helper | Returns |
+|---|---|
+| `getProviderInfo(id)` | The entry, or `undefined` for ids the app doesn't ship (`'tavily'`, `'constructor'`, …) |
+| `listProviderInfo()` | Every entry in `PROVIDER_IDS` order |
+| `getProviderDisplayName(id)` | `displayName`, or the raw id |
+| `getDefaultModel(id)` | `defaultModel`, or the default provider's (OpenRouter) for unknown ids |
+| `getFallbackModels(id)` | `fallbackModels`, or `[]` |
+| `findMissingSetupField(provider, values)` | The first blank setup field, if any |
+| `isProviderId(id)` | Type guard for `ProviderId` |
+
+`MINIMAX_MODELS` and `CLOUDFLARE_FALLBACK_MODELS` are defined in the catalog; import them from `@/lib/providers/catalog`.
 
 ---
 
@@ -140,7 +192,43 @@ Google AI supports both an OpenAI-compat endpoint and a native Gemini endpoint. 
 
 ## Step-by-Step: Adding a New Provider
 
-### Step 1: Create the Provider File
+### Step 1: Add the Catalog Entry
+
+Edit `src/lib/providers/catalog.ts` — this one entry feeds onboarding, Settings › API Keys, the model picker, the model pill, and the chat default model.
+
+```diff
+ export const PROVIDER_IDS = [
+   'openrouter',
+   // ...existing...
+   'cloudflare-ai',
++  'example',
+ ] as const;
+
+ export const PROVIDER_CATALOG: Readonly<Record<ProviderId, ProviderInfo>> = {
+   // ...existing...
++  example: {
++    id: 'example',
++    displayName: 'Example AI',
++    shortName: 'EX',
++    description: 'Example models via the Example API',
++    authMode: 'api-key',
++    keyPlaceholder: 'sk-ex-...',
++    keyHint: 'example.com/keys',
++    defaultModel: 'example-large',
++    fallbackModels: [
++      { id: 'example-large', name: 'Example Large', provider: 'example' },
++      { id: 'example-small', name: 'Example Small', provider: 'example' },
++    ],
++  },
+ };
+```
+
+- **Order:** the position in `PROVIDER_IDS` is the order in onboarding and Settings.
+- **Record type:** `PROVIDER_CATALOG` is a `Record<ProviderId, ProviderInfo>`, so TypeScript reports a missing entry as soon as you add the id.
+- **`defaultModel`:** it should also be in `fallbackModels`, so the picker can show it offline. The catalog test enforces this.
+- **`fallbackModels`:** only `id`, `name`, and `provider`. See the hard rule in Step 6.
+
+### Step 2: Create the Provider File
 
 Create `src/lib/providers/<provider-id>.ts`.
 
@@ -150,6 +238,7 @@ If the API is OpenAI-compatible, copy `minimax.ts` as your starting template. If
 // src/lib/providers/example.ts
 import { fetch } from 'expo/fetch';
 import type { AIProvider, StreamConfig } from './types';
+import { PROVIDER_CATALOG } from './catalog';
 import { streamCompletion } from '@/lib/streaming/stream';
 import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { buildOpenAIMessages } from '@/lib/attachments/multimodal';
@@ -158,8 +247,8 @@ import type { Message, Model } from '@/types';
 const BASE_URL = 'https://api.example.com/v1';
 
 export class ExampleProvider implements AIProvider {
-  id = 'example';      // Must be unique, lowercase, kebab-case
-  name = 'Example AI';  // Human-readable display name
+  id = 'example';      // Must match the catalog id (unique, lowercase, kebab-case)
+  name = PROVIDER_CATALOG.example.displayName;  // Display name comes from the catalog
 
   stream(
     messages: Message[],
@@ -230,21 +319,21 @@ export class ExampleProvider implements AIProvider {
       const res = await fetch(`${BASE_URL}/models`, {
         headers: { Authorization: `Bearer ${apiKey}` },
       });
-      if (!res.ok) return FALLBACK_MODELS;
+      if (!res.ok) return PROVIDER_CATALOG.example.fallbackModels;
       const data = await res.json();
       const models: any[] = data.data || [];
-      if (models.length === 0) return FALLBACK_MODELS;
+      if (models.length === 0) return PROVIDER_CATALOG.example.fallbackModels;
       return models.map((m: any) => ({
         id: m.id,
         name: m.name || m.id,
         provider: 'example',  // Must match this.id
       }));
     } catch {
-      return FALLBACK_MODELS;
+      return PROVIDER_CATALOG.example.fallbackModels;
     }
 
     // FALLBACK-ONLY: Use when the provider has no public model-listing API
-    // return EXAMPLE_MODELS;
+    // return PROVIDER_CATALOG.example.fallbackModels;
   }
 
   async validateKey(apiKey: string): Promise<boolean> {
@@ -261,93 +350,67 @@ export class ExampleProvider implements AIProvider {
 }
 ```
 
-### Step 2: Register the Provider
+### Step 3: Register the Provider
 
 Edit `src/lib/providers/registry.ts`:
 
 ```diff
  export function registerBuiltInProviders(): void {
    const { OpenRouterProvider } = require('./openrouter');
-   const { GoogleAIProvider } = require('./google-ai');
-   const { AnthropicProvider } = require('./anthropic');
-   const { MiniMaxProvider } = require('./minimax');
+   // ...existing...
+   const { CloudflareAIProvider } = require('./cloudflare-ai');
 +  const { ExampleProvider } = require('./example');
    registerProvider(new OpenRouterProvider());
-   registerProvider(new GoogleAIProvider());
-   registerProvider(new AnthropicProvider());
-   registerProvider(new MiniMaxProvider());
+   // ...existing...
+   registerProvider(new CloudflareAIProvider());
 +  registerProvider(new ExampleProvider());
  }
 ```
 
 > **Why `require()` instead of `import`?** To avoid circular dependencies. The registry is loaded lazily by the settings store.
 
-### Step 3: Add to the API Keys UI
+`catalog.test.ts` reads `registry.ts` and fails if a registered provider has no catalog entry, or if a catalog entry has no registered provider.
 
-Edit `src/app/settings/api-keys.tsx`:
+### Step 4: Add to the Settings Store Provider List
 
-```diff
- type ProviderId = 'openrouter' | 'google-ai' | 'anthropic' | 'minimax'
--  | 'tavily' | 'image-gen';
-+  | 'example' | 'tavily' | 'image-gen';
-
- const PROVIDERS: ProviderConfig[] = [
-   { id: 'openrouter', name: 'OpenRouter', description: 'Access to 200+ AI models' },
-   // ...existing...
-+  { id: 'example', name: 'Example AI', description: 'Example models via Example API' },
-   { id: 'tavily', name: 'Web Search (Tavily)', description: '...' },
-   { id: 'image-gen', name: 'Image Generation', description: '...' },
- ];
-```
-
-Also update the initial `keys` state to include the new provider:
+`getConfiguredProviders()` in `src/stores/settings-store.ts` has its own hardcoded id array, and `hasAnyProviderKey()` uses it. Add the new id there in catalog order:
 
 ```diff
- const [keys, setKeys] = useState<Record<ProviderId, string>>({
-   openrouter: '',
-   'google-ai': '',
-   anthropic: '',
-   minimax: '',
-+  example: '',
-   tavily: '',
-   'image-gen': '',
- });
-```
-
-### Step 4: Add to the Settings Store Provider Lists
-
-Edit `src/stores/settings-store.ts` — update the hardcoded provider ID arrays:
-
-```diff
- export async function hasAnyProviderKey(): Promise<boolean> {
--  const providers = ['openrouter', 'google-ai', 'anthropic', 'minimax'];
-+  const providers = ['openrouter', 'google-ai', 'anthropic', 'minimax', 'example'];
-   // ...
- }
-
  export async function getConfiguredProviders(): Promise<string[]> {
--  const allProviders = ['openrouter', 'google-ai', 'anthropic', 'minimax'];
-+  const allProviders = ['openrouter', 'google-ai', 'anthropic', 'minimax', 'example'];
+-  const allProviders = ['openrouter', 'openai', 'openai-codex', 'google-ai', 'anthropic', 'minimax', 'cloudflare-ai'];
++  const allProviders = ['openrouter', 'openai', 'openai-codex', 'google-ai', 'anthropic', 'minimax', 'cloudflare-ai', 'example'];
    // ...
  }
 ```
 
-### Step 5: Add to the Onboarding Screen
+> Once this list reads `PROVIDER_IDS` from the catalog, this step goes away.
 
-Edit `src/app/onboarding.tsx` — this is the first-run screen that new users see:
+### Step 5: Extra Setup Fields (only if needed)
 
-```diff
- type ProviderId = 'openrouter' | 'google-ai' | 'anthropic' | 'minimax'
--  | 'cloudflare-ai';
-+  | 'cloudflare-ai' | 'example';
+Onboarding and Settings › API Keys need **no edits** for a standard API-key provider; both screens render from `listProviderInfo()`.
 
- const PROVIDERS: ProviderOption[] = [
-   // ...existing...
-+  { id: 'example', name: 'Example AI', placeholder: 'sk-ex-...', hint: 'example.com/keys' },
- ];
+If the provider needs more than a key (as Cloudflare needs an Account ID):
+
+1. Add a field id to `ProviderSetupFieldId` in `catalog.ts`, then declare it on the entry:
+
+```typescript
+setupFields: [
+  {
+    id: 'example-region',
+    label: 'Region',                          // label in Settings › API Keys
+    placeholder: 'Example region',
+    hint: 'Shown on your Example dashboard',  // helper text in onboarding
+    requiredMessage: 'Please enter your Example region',
+  },
+],
+keyLabel: 'API Key', // label above the key input in Settings, after the setup fields
 ```
 
-> **If your provider needs extra config** (like Cloudflare's Account ID), add a conditional input field that appears when the provider is selected. See `cloudflare-ai` in `onboarding.tsx` for the pattern.
+2. Add a getter and setter to `src/lib/storage/mmkv.ts`. These are non-secret values, so they don't go in secure storage. Map the field id to the setter in `SETUP_FIELD_SETTERS` in `src/lib/providers/setup-fields.ts`.
+
+Both screens then render the field and refuse to continue while it's blank. They save it before key validation and clear it when the key is deleted. Your provider class reads the value from storage, as `cloudflare-ai.ts` does in `getAccountId()`.
+
+> **New auth flows** (another OAuth provider, say) are the exception: add an `authMode` value and handle it in `onboarding.tsx` and `api-keys.tsx`, following the `'codex-oauth'` branches.
 
 ### Step 6: Add Model Metadata
 
@@ -478,7 +541,21 @@ export interface StreamConfig {
 }
 ```
 
-3. The ChatScreen's tool-call loop will pass tools in OpenAI format via `config.tools`. Your provider should convert them in its `stream()` method or read from the new field.
+3. The turn runner (`createTurnRunner` in `src/lib/chat/run-turn.ts`) builds `toolConfig` and passes tools in OpenAI format via `config.tools`; only Anthropic also gets `config.anthropicTools`. Either convert `config.tools` in your provider's `stream()` method, or fill the new field there (next to the `providerId === 'anthropic'` branch) and add its converter to `TurnServices.tools`, wired in `src/lib/chat/run-turn.deps.ts`.
+
+### Step 9: Update and Run the Catalog Test
+
+`src/lib/providers/catalog.test.ts` locks every catalog value, so silent copy changes show up in review. Add the new provider's expected values to `EXPECTED`, in catalog order, then run:
+
+```bash
+npm test
+```
+
+The test also checks:
+- ids are unique
+- every fallback model is tagged with its provider and carries only `id` / `name` / `provider`
+- each `defaultModel` appears in its fallback list
+- the catalog and `registry.ts` list the same providers
 
 ---
 
@@ -486,11 +563,13 @@ export interface StreamConfig {
 
 Use this checklist when adding a new provider:
 
-- [ ] **Provider file** — `src/lib/providers/<id>.ts` implementing `AIProvider`
+- [ ] **Catalog entry** — `PROVIDER_IDS` + `PROVIDER_CATALOG` in `src/lib/providers/catalog.ts` (name, short name, description, auth mode, key placeholder/hint, default model, fallback models)
+- [ ] **Provider file** — `src/lib/providers/<id>.ts` implementing `AIProvider`, `name` taken from the catalog
 - [ ] **Registry** — Added to `registerBuiltInProviders()` in `registry.ts`
-- [ ] **API Keys UI** — Added to `ProviderId` type, `PROVIDERS` array, and `keys` state in `api-keys.tsx`
-- [ ] **Settings store** — Added to `hasAnyProviderKey()` and `getConfiguredProviders()` arrays in `settings-store.ts`
-- [ ] **Onboarding screen** — Added to `ProviderId` type and `PROVIDERS` array in `onboarding.tsx`
+- [ ] **Settings store** — Added to the `getConfiguredProviders()` array in `settings-store.ts`
+- [ ] **Setup fields** (only if needed) — `setupFields` / `keyLabel` in the catalog, storage in `mmkv.ts`, setter in `setup-fields.ts`
+- [ ] **Catalog test** — Expected values added to `catalog.test.ts`; `npm test` passes
+- [ ] **No UI edits** — Onboarding, API Keys, model picker, and model pill render from the catalog; touch them only for a new `authMode`
 - [ ] **Model capabilities** — If the provider API returns capability metadata, populate `capabilities` on returned `Model` objects via `capabilitiesFromMetadata()`. If not, verify LiteLLM coverage with `npm run check:litellm -- <provider> <model>` and leave unknown models unbadged.
 - [ ] **Context windows** — If your provider's API returns context info in `listModels()`, populate `contextWindow` on `Model` objects. If not, verify LiteLLM coverage and leave unknown models in the unknown context state.
 - [ ] **Model listing** — Prefer dynamic fetch with a hardcoded model-list fallback; fallback objects should only include `id`, `name`, and `provider`
@@ -516,7 +595,7 @@ Use this checklist when adding a new provider:
 
 5. **Dynamic model fetching is preferred** — Always try to fetch models from the provider's API, with a hardcoded fallback list for availability. This ensures users automatically see new models as the provider adds them. See `cloudflare-ai.ts` for the pattern. If the provider's API returns context window info (e.g. `context_length`, `inputTokenLimit`, `max_input_tokens`), populate `contextWindow` on the returned `Model` objects — see `openrouter.ts`, `google-ai.ts`, and `anthropic.ts` for examples. Do not put context windows or capabilities into fallback-only model arrays.
 
-6. **Tool call loop is handled externally** — Your provider just needs to emit `onToolCalls` with the accumulated calls. The ChatScreen handles execution and re-submission.
+6. **Tool call loop is handled externally** — Your provider just needs to emit `onToolCalls` with the accumulated calls. The turn runner (`src/lib/chat/run-turn.ts`) handles execution and re-submission.
 
 7. **Usage data is optional but recommended** — If the API returns token counts in the streaming response, extract them and call `onUsage`. This feeds the Usage & Costs dashboard.
 
@@ -524,7 +603,9 @@ Use this checklist when adding a new provider:
 
 9. **Thinking mode has three states** — `'auto'` means the provider decides. `'on'` means explicitly enable. `'off'` means swallow reasoning tokens client-side (via no-op handler). Always implement the no-op pattern for `'off'`.
 
-10. **Providers needing extra config** — If a provider needs more than just an API key (e.g. Cloudflare needs an Account ID), store the extra config in MMKV (`src/lib/storage/mmkv.ts`) and add conditional input fields in both `api-keys.tsx` and `onboarding.tsx`.
+10. **Providers needing extra config** — If a provider needs more than just an API key (e.g. Cloudflare needs an Account ID), declare `setupFields` on its catalog entry, store the value in MMKV (`src/lib/storage/mmkv.ts`), and map the field to its setter in `src/lib/providers/setup-fields.ts`. Both `api-keys.tsx` and `onboarding.tsx` render and validate the fields from the catalog (see Step 5).
+
+11. **Keep the catalog Node-safe** — `catalog.ts` is unit-tested under plain Node. Use `import type` only; anything native (storage, `expo/fetch`, provider classes) belongs elsewhere.
 
 ---
 
@@ -532,21 +613,27 @@ Use this checklist when adding a new provider:
 
 | File | Purpose | When to modify |
 |------|---------|----------------|
+| `src/lib/providers/catalog.ts` | Provider metadata: names, key copy, setup fields, default + fallback models, display order | Always — add your provider's entry here |
+| `src/lib/providers/catalog.test.ts` | Locks catalog values; checks catalog ↔ registry coverage | Always — add expected values |
+| `src/lib/providers/setup-fields.ts` | Storage setters for catalog `setupFields` | Only if the provider needs extra config |
 | `src/lib/providers/types.ts` | `AIProvider` interface, `StreamConfig` | Only if adding a new config field (e.g. new tool format) |
 | `src/lib/providers/registry.ts` | Provider registration | Always — add your provider here |
 | `src/lib/streaming/stream.ts` | Shared SSE streaming engine | Only if adding a new SSE format |
 | `src/lib/streaming/sse-parser.ts` | SSE line parsing + token extraction | Only if adding a new SSE format |
 | `src/lib/attachments/multimodal.ts` | Message format builders | Only if provider needs non-OpenAI message format |
 | `src/lib/tools/registry.ts` | Tool schema converters | Only if provider needs non-OpenAI tool format |
+| `src/lib/chat/run-turn.ts` | One assistant turn: provider lookup, tool config, streaming, tool rounds | Only if adding a new tool format |
+| `src/lib/chat/run-turn.deps.ts` | Wires `TurnServices` (incl. tool schema converters) to the real modules | Only if adding a new tool format |
 | `src/lib/models/capabilities.ts` | Dynamic model metadata cache + metadata lookup | Rarely — only for metadata resolution behavior |
 | `src/lib/models/capability-metadata.ts` | Converts provider/LiteLLM metadata fields into app capability flags | Rarely — only for new capability field shapes |
 | `src/lib/models/litellm-registry.ts` | LiteLLM community model metadata fallback (context windows + capabilities) | Only to add provider prefix mappings |
 | `scripts/check-litellm-model.js` | CLI check for LiteLLM lookup keys and derived metadata | Only if LiteLLM lookup behavior changes |
 | `src/lib/storage/secure.ts` | API key CRUD | Never — generic, works for any provider ID |
 | `src/lib/storage/mmkv.ts` | Non-secret config (e.g. Account IDs) | Only if provider needs extra config beyond an API key |
-| `src/stores/settings-store.ts` | Provider lists + key validation | Always — update provider ID arrays |
-| `src/app/settings/api-keys.tsx` | API key management UI | Always — add provider to UI list |
-| `src/app/onboarding.tsx` | First-run provider selection | Always — add provider to onboarding UI |
+| `src/stores/settings-store.ts` | Configured-provider list + key validation | Always — add the id to the `getConfiguredProviders()` array |
+| `src/app/settings/api-keys.tsx` | API key management UI (renders from the catalog) | Only for a new `authMode` |
+| `src/app/onboarding.tsx` | First-run provider selection (renders from the catalog) | Only for a new `authMode` |
+| `src/components/chat/ModelPicker.tsx` / `ModelPill.tsx` | Provider tabs, fallback lists, short badge (from the catalog) | Never for a new provider |
 | `src/types/index.ts` | `Model`, `Message`, `Provider` types | Rarely — only if types need extension |
 
 ---

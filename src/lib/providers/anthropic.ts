@@ -1,5 +1,6 @@
 import { fetch } from 'expo/fetch';
 import type { AIProvider, ListModelsOptions, StreamConfig } from './types';
+import { PROVIDER_CATALOG } from './catalog';
 import { streamCompletion } from '@/lib/streaming/stream';
 import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { buildAnthropicMessages } from '@/lib/attachments/multimodal';
@@ -20,7 +21,7 @@ function isThinkingCapable(model: string): boolean {
 
 export class AnthropicProvider implements AIProvider {
   id = 'anthropic';
-  name = 'Anthropic';
+  name = PROVIDER_CATALOG.anthropic.displayName;
 
   stream(
     messages: Message[],

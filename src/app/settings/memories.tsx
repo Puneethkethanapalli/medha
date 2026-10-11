@@ -333,7 +333,6 @@ export default function MemoriesScreen() {
   const [memories, setMemories] = useState<Memory[]>([]);
   const [count, setCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
   const [chatTitles, setChatTitles] = useState<Record<string, string>>({});
   const [projectNames, setProjectNames] = useState<Record<string, string>>({});
   /** While editing a project memory: keep it project-only (false makes it global). */
@@ -539,7 +538,7 @@ export default function MemoriesScreen() {
   const handleOpenSource = useCallback(
     (conversationId: string) => {
       setActiveConversation(conversationId);
-      router.navigate(`/chat/${conversationId}` as any);
+      router.navigate(`/chat/${conversationId}`);
     },
     [router, setActiveConversation]
   );

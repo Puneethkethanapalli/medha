@@ -1,5 +1,6 @@
 import { fetch } from 'expo/fetch';
 import type { AIProvider, ListModelsOptions, StreamConfig } from './types';
+import { PROVIDER_CATALOG } from './catalog';
 import { streamCompletion } from '@/lib/streaming/stream';
 import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { buildOpenAIMessages } from '@/lib/attachments/multimodal';
@@ -11,7 +12,7 @@ const OPENAI_COMPAT_BASE = `${GOOGLE_AI_BASE}/openai`;
 
 export class GoogleAIProvider implements AIProvider {
   id = 'google-ai';
-  name = 'Google AI';
+  name = PROVIDER_CATALOG['google-ai'].displayName;
 
   stream(
     messages: Message[],
@@ -244,14 +245,6 @@ type GeminiPart = GeminiTextPart | GeminiInlineDataPart;
 interface GeminiContent {
   role: 'user' | 'model';
   parts: GeminiPart[];
-}
-
-function isTextPart(part: GeminiPart): part is GeminiTextPart {
-  return 'text' in part;
-}
-
-function isInlineDataPart(part: GeminiPart): part is GeminiInlineDataPart {
-  return 'inline_data' in part;
 }
 
 function readAttachmentBase64(uri: string): string | null {

@@ -30,7 +30,7 @@ export function MemoryIntroCard() {
 
   const manage = useCallback(() => {
     void setMemoryIntroSeen(true);
-    router.push('/settings/memories' as any);
+    router.push('/settings/memories');
   }, [router, setMemoryIntroSeen]);
 
   const turnOff = useCallback(() => {

@@ -132,7 +132,7 @@ export default function SearchScreen() {
                         messageId: item.message_id,
                         focusKey: String(Date.now()),
                       },
-                    } as any
+                    }
                   );
                 }}
                 className="mx-3 mb-1.5 px-4 py-3 rounded-2xl"

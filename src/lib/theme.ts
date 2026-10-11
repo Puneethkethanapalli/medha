@@ -1,86 +1,33 @@
-import { DarkTheme, DefaultTheme, type Theme } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, type Theme as NavigationTheme } from '@react-navigation/native';
+import { getPalette } from '@/lib/palette';
+import type { Theme } from '@/lib/storage/mmkv';
 
-export const THEME = {
-  light: {
-    background: 'hsl(0 0% 100%)',
-    foreground: 'hsl(0 0% 4%)',
-    primary: 'hsl(0 0% 4%)',
-    primaryForeground: 'hsl(0 0% 100%)',
-    secondary: 'hsl(0 0% 96%)',
-    secondaryForeground: 'hsl(0 0% 4%)',
-    muted: 'hsl(0 0% 96%)',
-    mutedForeground: 'hsl(0 0% 45%)',
-    accent: 'hsl(0 0% 96%)',
-    accentForeground: 'hsl(0 0% 4%)',
-    destructive: 'hsl(0 0% 63%)',
-    destructiveForeground: 'hsl(0 0% 100%)',
-    border: 'hsl(0 0% 90%)',
-    input: 'hsl(0 0% 90%)',
-    ring: 'hsl(0 0% 4%)',
-    card: 'hsl(0 0% 98%)',
-    cardForeground: 'hsl(0 0% 4%)',
-  },
-  dark: {
-    background: 'hsl(0 0% 4%)',
-    foreground: 'hsl(0 0% 98%)',
-    primary: 'hsl(0 0% 98%)',
-    primaryForeground: 'hsl(0 0% 4%)',
-    secondary: 'hsl(0 0% 9%)',
-    secondaryForeground: 'hsl(0 0% 98%)',
-    muted: 'hsl(0 0% 9%)',
-    mutedForeground: 'hsl(0 0% 65%)',
-    accent: 'hsl(0 0% 9%)',
-    accentForeground: 'hsl(0 0% 98%)',
-    destructive: 'hsl(0 0% 93%)',
-    destructiveForeground: 'hsl(0 0% 98%)',
-    border: 'hsl(0 0% 15%)',
-    input: 'hsl(0 0% 15%)',
-    ring: 'hsl(0 0% 98%)',
-    card: 'hsl(0 0% 4%)',
-    cardForeground: 'hsl(0 0% 98%)',
-  },
-  oled: {
-    background: 'hsl(0 0% 0%)',
-    foreground: 'hsl(0 0% 100%)',
-    primary: 'hsl(0 0% 100%)',
-    primaryForeground: 'hsl(0 0% 0%)',
-    secondary: 'hsl(0 0% 5%)',
-    secondaryForeground: 'hsl(0 0% 100%)',
-    muted: 'hsl(0 0% 5%)',
-    mutedForeground: 'hsl(0 0% 60%)',
-    accent: 'hsl(0 0% 5%)',
-    accentForeground: 'hsl(0 0% 100%)',
-    destructive: 'hsl(0 0% 93%)',
-    destructiveForeground: 'hsl(0 0% 100%)',
-    border: 'hsl(0 0% 10%)',
-    input: 'hsl(0 0% 10%)',
-    ring: 'hsl(0 0% 100%)',
-    card: 'hsl(0 0% 0%)',
-    cardForeground: 'hsl(0 0% 100%)',
-  },
+/**
+ * React Navigation theme built from the same palette the screens use, so the
+ * navigator background revealed during screen transitions matches the app's.
+ */
+function buildNavTheme(theme: Theme): NavigationTheme {
+  const palette = getPalette(theme);
+  return {
+    ...(palette.isDark ? DarkTheme : DefaultTheme),
+    colors: {
+      background: palette.background,
+      card: palette.background,
+      border: palette.border,
+      text: palette.text,
+      primary: palette.accent,
+      notification: palette.destructive,
+    },
+  };
+}
+
+// Built once per theme so ThemeProvider gets a stable value across renders.
+const NAV_THEMES: Record<Theme, NavigationTheme> = {
+  dark: buildNavTheme('dark'),
+  light: buildNavTheme('light'),
+  oled: buildNavTheme('oled'),
 };
 
-export const NAV_THEME: Record<'light' | 'dark', Theme> = {
-  light: {
-    ...DefaultTheme,
-    colors: {
-      background: THEME.light.background,
-      border: THEME.light.border,
-      card: THEME.light.card,
-      notification: THEME.light.destructive,
-      primary: THEME.light.primary,
-      text: THEME.light.foreground,
-    },
-  },
-  dark: {
-    ...DarkTheme,
-    colors: {
-      background: THEME.dark.background,
-      border: THEME.dark.border,
-      card: THEME.dark.card,
-      notification: THEME.dark.destructive,
-      primary: THEME.dark.primary,
-      text: THEME.dark.foreground,
-    },
-  },
-};
+export function getNavTheme(theme: Theme): NavigationTheme {
+  return NAV_THEMES[theme] ?? NAV_THEMES.dark;
+}

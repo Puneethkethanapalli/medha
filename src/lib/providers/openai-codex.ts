@@ -1,4 +1,5 @@
 import type { AIProvider, StreamConfig } from './types';
+import { PROVIDER_CATALOG } from './catalog';
 import { streamCompletion } from '@/lib/streaming/stream';
 import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { buildOpenAIMessages, type OpenAIMessage } from '@/lib/attachments/multimodal';
@@ -49,7 +50,7 @@ type ResponsesContentPart =
 
 export class OpenAICodexProvider implements AIProvider {
   id = 'openai-codex';
-  name = 'ChatGPT Codex';
+  name = PROVIDER_CATALOG['openai-codex'].displayName;
 
   stream(
     messages: Message[],
@@ -151,13 +152,7 @@ function buildResponsesInput(
   const input: ResponsesInputItem[] = [];
   const instructions: string[] = [CODEX_SYSTEM_PREFIX];
 
-  for (const message of buildOpenAIMessages(messages, systemPrompt) as (OpenAIMessage & {
-    tool_call_id?: string;
-    tool_calls?: {
-      id?: string;
-      function?: { name?: string; arguments?: string };
-    }[];
-  })[]) {
+  for (const message of buildOpenAIMessages(messages, systemPrompt)) {
     if (message.role === 'system' || message.role === 'developer') {
       if (typeof message.content === 'string' && message.content.trim()) {
         instructions.push(message.content);
@@ -168,14 +163,15 @@ function buildResponsesInput(
     if (message.role === 'tool') {
       input.push({
         type: 'function_call_output',
-        call_id: message.tool_call_id || '',
+        call_id: ('tool_call_id' in message && message.tool_call_id) || '',
         output: typeof message.content === 'string' ? message.content : JSON.stringify(message.content),
       });
       continue;
     }
 
-    if (message.role === 'assistant' && message.tool_calls?.length) {
+    if (message.role === 'assistant' && 'tool_calls' in message && message.tool_calls.length) {
       for (const [index, toolCall] of message.tool_calls.entries()) {
+        // Stored tool_calls JSON is untrusted, so fields may be missing at runtime.
         const name = toolCall.function?.name;
         if (!name) continue;
         input.push({
@@ -202,6 +198,8 @@ function buildResponsesInput(
 
 function toResponsesContent(content: OpenAIMessage['content']): string | ResponsesContentPart[] {
   if (typeof content === 'string') return content;
+  // Assistant turns with an empty tool_calls list carry `content: null`.
+  if (content === null) return '';
 
   const parts: ResponsesContentPart[] = [];
   for (const part of content) {

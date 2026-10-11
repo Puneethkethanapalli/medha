@@ -133,7 +133,7 @@ export default function SystemPromptsScreen() {
       if (router.canDismiss()) {
         router.dismissAll();
       }
-      router.replace(`/chat/${conversationId}` as any);
+      router.replace(`/chat/${conversationId}`);
     } catch (error) {
       console.error('Failed to save system prompt:', error);
       showToast('Failed to save system prompt');

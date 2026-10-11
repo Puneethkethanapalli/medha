@@ -27,8 +27,7 @@ import {
   getConfiguredProviders,
   peekConfiguredProviders,
 } from '@/stores/settings-store';
-import { MINIMAX_MODELS } from '@/lib/providers/minimax';
-import { CLOUDFLARE_FALLBACK_MODELS } from '@/lib/providers/cloudflare-ai';
+import { getFallbackModels, getProviderDisplayName } from '@/lib/providers/catalog';
 import { keepSelectedModelVisible } from '@/lib/models';
 import { getModelCapabilities } from '@/lib/models/capabilities';
 import { CAPABILITY_ORDER } from '@/lib/models/capability-metadata';
@@ -49,65 +48,6 @@ const MODEL_ROW_HEIGHT = 56;
 const SEARCH_DEBOUNCE_MS = 120;
 const OPEN_DURATION_MS = 260;
 const CLOSE_DURATION_MS = 200;
-
-// Shown only when a provider has no cached list and the live fetch failed.
-const FALLBACK_MODELS: Record<string, Model[]> = {
-  openrouter: [
-    { id: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash', provider: 'openrouter' },
-    { id: 'deepseek/deepseek-chat-v3:free', name: 'DeepSeek Chat V3', provider: 'openrouter' },
-    { id: 'deepseek/deepseek-r1:free', name: 'DeepSeek R1 (Thinking)', provider: 'openrouter' },
-    { id: 'qwen/qwen-2.5-72b-instruct:free', name: 'Qwen 2.5 72B', provider: 'openrouter' },
-    { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', provider: 'openrouter' },
-    { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'openrouter' },
-  ],
-  openai: [
-    { id: 'gpt-5.5', name: 'GPT-5.5', provider: 'openai' },
-    { id: 'gpt-5.4', name: 'GPT-5.4', provider: 'openai' },
-    { id: 'gpt-5.4-mini', name: 'GPT-5.4 Mini', provider: 'openai' },
-    { id: 'gpt-5.4-nano', name: 'GPT-5.4 Nano', provider: 'openai' },
-    { id: 'gpt-5.3-chat-latest', name: 'GPT-5.3 Chat', provider: 'openai' },
-    { id: 'gpt-4.1', name: 'GPT-4.1', provider: 'openai' },
-    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'openai' },
-  ],
-  'openai-codex': [
-    { id: 'gpt-5.5', name: 'GPT-5.5', provider: 'openai-codex' },
-    { id: 'gpt-5.4', name: 'GPT-5.4', provider: 'openai-codex' },
-    { id: 'gpt-5.4-mini', name: 'GPT-5.4 Mini', provider: 'openai-codex' },
-    { id: 'gpt-5.3-codex', name: 'GPT-5.3 Codex', provider: 'openai-codex' },
-    { id: 'gpt-5.2-codex', name: 'GPT-5.2 Codex', provider: 'openai-codex' },
-    { id: 'gpt-5.1-codex-max', name: 'GPT-5.1 Codex Max', provider: 'openai-codex' },
-    { id: 'gpt-5.1-codex', name: 'GPT-5.1 Codex', provider: 'openai-codex' },
-    { id: 'gpt-5.1-codex-mini', name: 'GPT-5.1 Codex Mini', provider: 'openai-codex' },
-  ],
-  'google-ai': [
-    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'google-ai' },
-    { id: 'gemini-2.5-flash-preview-04-17', name: 'Gemini 2.5 Flash Preview', provider: 'google-ai' },
-    { id: 'gemini-2.5-pro-preview-03-25', name: 'Gemini 2.5 Pro Preview', provider: 'google-ai' },
-    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'google-ai' },
-  ],
-  anthropic: [
-    { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', provider: 'anthropic' },
-    { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet', provider: 'anthropic' },
-    { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku', provider: 'anthropic' },
-    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet v2', provider: 'anthropic' },
-  ],
-  minimax: [
-    ...MINIMAX_MODELS,
-  ],
-  'cloudflare-ai': [
-    ...CLOUDFLARE_FALLBACK_MODELS,
-  ],
-};
-
-const PROVIDER_DISPLAY: Record<string, string> = {
-  openrouter: 'OpenRouter',
-  openai: 'OpenAI',
-  'openai-codex': 'ChatGPT Codex',
-  'google-ai': 'Google AI',
-  anthropic: 'Anthropic',
-  minimax: 'MiniMax',
-  'cloudflare-ai': 'Cloudflare AI',
-};
 
 const FILTER_LABELS: Record<ModelCapability, string> = {
   vision: 'Vision',
@@ -300,7 +240,7 @@ function ModelPickerSheet({
     if (!activeTab || isInitialLoading) return [];
     const providerModels = providerList.models?.length
       ? providerList.models
-      : FALLBACK_MODELS[activeTab] ?? [];
+      : getFallbackModels(activeTab);
 
     if ((lastProvider || activeTab) !== activeTab) return providerModels;
     return keepSelectedModelVisible(providerModels, lastModel, activeTab, lastModelName);
@@ -501,7 +441,7 @@ function ModelPickerSheet({
                       { backgroundColor: colors.surface, borderColor: colors.border },
                     ]}
                     accessibilityRole="button"
-                    accessibilityLabel={`Refresh ${PROVIDER_DISPLAY[activeTab] || activeTab} models`}
+                    accessibilityLabel={`Refresh ${getProviderDisplayName(activeTab)} models`}
                   >
                     {isRefreshing ? (
                       <ActivityIndicator size="small" color={colors.icon} />
@@ -856,7 +796,7 @@ const ProviderTabs = memo(function ProviderTabs({
         ]}
       >
         <Text style={{ color: colors.mutedText, fontSize: 12, fontWeight: '500' }} numberOfLines={1}>
-          {PROVIDER_DISPLAY[activeTab] || activeTab}
+          {getProviderDisplayName(activeTab)}
         </Text>
       </View>
     );
@@ -907,7 +847,7 @@ const ProviderTabs = memo(function ProviderTabs({
                 }}
                 numberOfLines={1}
               >
-                {PROVIDER_DISPLAY[pid] || pid}
+                {getProviderDisplayName(pid)}
               </Text>
             </Pressable>
           );

@@ -37,7 +37,7 @@ export function MemoryUpdateChip({ messageId }: { messageId: string }) {
   }, [messageId, undoMessage]);
 
   const handleOpen = useCallback(() => {
-    router.push('/settings/memories' as any);
+    router.push('/settings/memories');
   }, [router]);
 
   if (!events || events.length === 0) return null;

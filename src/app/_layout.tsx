@@ -19,7 +19,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { Drawer as DrawerLayout } from 'react-native-drawer-layout';
 
-import { NAV_THEME } from '@/lib/theme';
+import { getNavTheme } from '@/lib/theme';
 import { getPalette } from '@/lib/palette';
 import { useSettingsStore } from '@/stores/settings-store';
 import { useUIStore } from '@/stores/ui-store';
@@ -51,12 +51,7 @@ function AppContent() {
   // CSS class: '' for light (:root), 'dark' for dark, 'dark oled' for OLED
   const themeClass = currentTheme === 'light' ? '' : currentTheme === 'oled' ? 'dark oled' : 'dark';
   const palette = getPalette(currentTheme);
-  // Screen transitions reveal the navigator background, so match the app's.
-  const baseNavTheme = NAV_THEME[resolvedScheme];
-  const navTheme = {
-    ...baseNavTheme,
-    colors: { ...baseNavTheme.colors, background: palette.background, card: palette.background, border: palette.border },
-  };
+  const navTheme = getNavTheme(currentTheme);
   const router = useRouter();
 
   const drawerOpen = useUIStore((s) => s.drawerOpen);
@@ -137,7 +132,7 @@ function AppContent() {
       setActiveConversation(id);
       closeDrawer();
       // Use navigate instead of push — avoids stacking duplicate chat screens
-      router.navigate(`/chat/${id}` as any);
+      router.navigate(`/chat/${id}`);
     },
     [closeDrawer, router, setActiveConversation]
   );
@@ -154,12 +149,12 @@ function AppContent() {
 
   const handleOpenSettings = useCallback(() => {
     closeDrawer();
-    router.push('/settings' as any);
+    router.push('/settings');
   }, [closeDrawer, router]);
 
   const handleOpenSearch = useCallback(() => {
     closeDrawer();
-    router.push('/search' as any);
+    router.push('/search');
   }, [closeDrawer, router]);
 
   const handleOpenRules = useCallback(
@@ -168,14 +163,14 @@ function AppContent() {
       router.push({
         pathname: '/settings/rules',
         params: { conversationId },
-      } as any);
+      });
     },
     [closeDrawer, router]
   );
 
   const handleOpenApps = useCallback(() => {
     closeDrawer();
-    router.push('/apps' as any);
+    router.push('/apps');
   }, [closeDrawer, router]);
 
   const renderDrawerContent = useCallback(

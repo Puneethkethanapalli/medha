@@ -7,7 +7,6 @@ import { ClipboardPaste, Check, TriangleAlert, ArrowRight } from 'lucide-react-n
 import * as WebBrowser from 'expo-web-browser';
 import { cn } from '@/lib/utils';
 import { useSettingsStore, saveProviderKey, hasAnyProviderKey } from '@/stores/settings-store';
-import { setCloudflareAccountId } from '@/lib/storage/mmkv';
 import { warmProviderModelListCache } from '@/lib/models/model-list-sync';
 import {
   OPENAI_CODEX_DEVICE_URL,
@@ -15,48 +14,39 @@ import {
   requestCodexDeviceAuthorization,
   serializeCodexCredential,
 } from '@/lib/auth/openai-codex';
+import {
+  DEFAULT_PROVIDER_ID,
+  findMissingSetupField,
+  listProviderInfo,
+  PROVIDER_CATALOG,
+  type ProviderId,
+  type ProviderSetupValues,
+} from '@/lib/providers/catalog';
+import { saveProviderSetupFields } from '@/lib/providers/setup-fields';
 import { BrandTile } from '@/components/branding/BrandTile';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { usePalette } from '@/lib/palette';
 import { Motion } from '@/lib/motion';
 import * as Clipboard from 'expo-clipboard';
 
-type ProviderId = 'openrouter' | 'openai' | 'openai-codex' | 'google-ai' | 'anthropic' | 'minimax' | 'cloudflare-ai';
-
-interface ProviderOption {
-  id: ProviderId;
-  name: string;
-  placeholder: string;
-  hint: string;
-  authMode?: 'api-key' | 'codex-oauth';
-}
-
-const PROVIDERS: ProviderOption[] = [
-  { id: 'openrouter', name: 'OpenRouter', placeholder: 'sk-or-...', hint: 'openrouter.ai/keys' },
-  { id: 'openai', name: 'OpenAI', placeholder: 'sk-proj-...', hint: 'platform.openai.com/api-keys' },
-  { id: 'openai-codex', name: 'ChatGPT Codex', placeholder: '', hint: 'ChatGPT Plus/Pro/Business Codex access', authMode: 'codex-oauth' },
-  { id: 'google-ai', name: 'Google AI', placeholder: 'AIza...', hint: 'aistudio.google.com/apikey' },
-  { id: 'anthropic', name: 'Anthropic', placeholder: 'sk-ant-...', hint: 'console.anthropic.com/settings/keys' },
-  { id: 'minimax', name: 'MiniMax', placeholder: 'eyJ...', hint: 'platform.minimax.io' },
-  { id: 'cloudflare-ai', name: 'Cloudflare AI', placeholder: 'Bearer token...', hint: 'dash.cloudflare.com/profile/api-tokens' },
-];
+const PROVIDERS = listProviderInfo();
 
 export default function OnboardingScreen() {
   const router = useRouter();
   const { validateApiKey, setOnboardingComplete, setLastProvider, initialize } = useSettingsStore();
 
-  const [selectedProvider, setSelectedProvider] = useState<ProviderId>('openrouter');
+  const [selectedProvider, setSelectedProvider] = useState<ProviderId>(DEFAULT_PROVIDER_ID);
   const [apiKey, setApiKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [cloudflareAccountId, setCfAccountId] = useState('');
+  const [setupValues, setSetupValues] = useState<ProviderSetupValues>({});
   const [isSuccess, setIsSuccess] = useState(false);
   const [isCheckingExisting, setIsCheckingExisting] = useState(true);
   const [successProvider, setSuccessProvider] = useState<string | null>(null);
   const [codexUserCode, setCodexUserCode] = useState<string | null>(null);
   const codexAbortRef = useRef<AbortController | null>(null);
 
-  const currentProvider = PROVIDERS.find((p) => p.id === selectedProvider)!;
+  const currentProvider = PROVIDER_CATALOG[selectedProvider];
   const palette = usePalette();
   const [keyFocused, setKeyFocused] = useState(false);
 
@@ -84,7 +74,7 @@ export default function OnboardingScreen() {
   };
 
   const handleVerifyAndContinue = async () => {
-    if (selectedProvider === 'openai-codex') {
+    if (currentProvider.authMode === 'codex-oauth') {
       await handleCodexSignIn();
       return;
     }
@@ -99,13 +89,14 @@ export default function OnboardingScreen() {
       return;
     }
 
-    // Cloudflare requires Account ID before validation
-    if (selectedProvider === 'cloudflare-ai') {
-      if (!cloudflareAccountId.trim()) {
-        setError('Please enter your Cloudflare Account ID');
+    // Some providers (Cloudflare's Account ID) need setup values saved before validation
+    if (currentProvider.setupFields) {
+      const missingField = findMissingSetupField(currentProvider, setupValues);
+      if (missingField) {
+        setError(missingField.requiredMessage);
         return;
       }
-      await setCloudflareAccountId(cloudflareAccountId.trim());
+      await saveProviderSetupFields(currentProvider, setupValues);
     }
 
     setIsLoading(true);
@@ -119,7 +110,7 @@ export default function OnboardingScreen() {
         await setLastProvider(selectedProvider);
         await setOnboardingComplete(true);
         await initialize();
-        setSuccessProvider(currentProvider.name);
+        setSuccessProvider(currentProvider.displayName);
         setIsSuccess(true);
         setTimeout(() => {
           router.replace('/');
@@ -156,12 +147,12 @@ export default function OnboardingScreen() {
 
       const tokens = await pollCodexDeviceAuthorization(device, abortController.signal);
       const credential = serializeCodexCredential(tokens);
-      await saveProviderKey('openai-codex', credential);
-      await warmProviderModelListCache('openai-codex', credential);
-      await setLastProvider('openai-codex');
+      await saveProviderKey(currentProvider.id, credential);
+      await warmProviderModelListCache(currentProvider.id, credential);
+      await setLastProvider(currentProvider.id);
       await setOnboardingComplete(true);
       await initialize();
-      setSuccessProvider(currentProvider.name);
+      setSuccessProvider(currentProvider.displayName);
       setIsSuccess(true);
       setTimeout(() => {
         router.replace('/');
@@ -287,7 +278,7 @@ export default function OnboardingScreen() {
                     setSelectedProvider(provider.id);
                     setApiKey('');
                     setError(null);
-                    setCfAccountId('');
+                    setSetupValues({});
                     setCodexUserCode(null);
                   }}
                 >
@@ -297,33 +288,33 @@ export default function OnboardingScreen() {
                       selectedProvider === provider.id ? 'text-on-primary' : 'text-on-surface-variant'
                     )}
                   >
-                    {provider.name}
+                    {provider.displayName}
                   </Text>
                 </PressableScale>
               ))}
             </ScrollView>
 
-            {/* Cloudflare Account ID field */}
-            {selectedProvider === 'cloudflare-ai' && (
-              <View className="mt-4">
+            {/* Extra setup fields (e.g. Cloudflare Account ID) */}
+            {currentProvider.setupFields?.map((field) => (
+              <View key={field.id} className="mt-4">
                 <TextInput
                   className="w-full bg-surface-container-high rounded-xl py-3 pl-3.5 pr-3 text-primary text-[14px]"
                   style={{ borderWidth: 1, borderColor: palette.border }}
                   placeholderTextColor={palette.iconMuted}
-                  placeholder="Cloudflare Account ID"
-                  value={cloudflareAccountId}
+                  placeholder={field.placeholder}
+                  value={setupValues[field.id] ?? ''}
                   onChangeText={(text) => {
-                    setCfAccountId(text);
+                    setSetupValues((prev) => ({ ...prev, [field.id]: text }));
                     setError(null);
                   }}
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
                 <Text className="text-[11px] text-on-surface-variant/60 mt-1 ml-1">
-                  Found in your Cloudflare dashboard URL
+                  {field.hint}
                 </Text>
               </View>
-            )}
+            ))}
 
             {currentProvider.authMode === 'codex-oauth' ? (
               <View className="mt-4 bg-surface-container-high rounded-xl p-3.5">
@@ -355,7 +346,7 @@ export default function OnboardingScreen() {
                   onFocus={() => setKeyFocused(true)}
                   onBlur={() => setKeyFocused(false)}
                   placeholderTextColor={palette.iconMuted}
-                  placeholder={currentProvider.placeholder}
+                  placeholder={currentProvider.keyPlaceholder}
                   value={apiKey}
                   onChangeText={(text) => {
                     setApiKey(text);
@@ -390,7 +381,7 @@ export default function OnboardingScreen() {
 
             {/* Hint */}
             <Text className="text-[11px] text-muted-foreground mt-2">
-              {currentProvider.authMode === 'codex-oauth' ? currentProvider.hint : `Get your key at ${currentProvider.hint}`}
+              {currentProvider.authMode === 'codex-oauth' ? currentProvider.keyHint : `Get your key at ${currentProvider.keyHint}`}
             </Text>
 
             {/* Button */}

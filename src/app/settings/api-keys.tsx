@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { Fragment, useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Plus, Trash2, Shield, X, Check } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as WebBrowser from 'expo-web-browser';
 import { useSettingsStore, hasProviderKey, deleteProviderKey, maskKey } from '@/stores/settings-store';
-import { setCloudflareAccountId } from '@/lib/storage/mmkv';
 import { warmProviderModelListCache } from '@/lib/models/model-list-sync';
 import {
   OPENAI_CODEX_DEVICE_URL,
@@ -13,50 +12,60 @@ import {
   requestCodexDeviceAuthorization,
   serializeCodexCredential,
 } from '@/lib/auth/openai-codex';
+import {
+  findMissingSetupField,
+  listProviderInfo,
+  type ProviderAuthMode,
+  type ProviderId as AIProviderId,
+  type ProviderSetupField,
+  type ProviderSetupValues,
+} from '@/lib/providers/catalog';
+import { clearProviderSetupFields, saveProviderSetupFields } from '@/lib/providers/setup-fields';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { usePalette } from '@/lib/palette';
 
-type ProviderId = 'openrouter' | 'openai' | 'openai-codex' | 'google-ai' | 'anthropic' | 'minimax' | 'cloudflare-ai' | 'tavily' | 'image-gen';
+/** AI providers from the catalog plus the non-AI service keys stored alongside them. */
+type ProviderId = AIProviderId | 'tavily' | 'image-gen';
 
 interface ProviderConfig {
   id: ProviderId;
   name: string;
   description: string;
-  authMode?: 'api-key' | 'codex-oauth';
+  authMode?: ProviderAuthMode;
+  /** Label above the key input when setup fields precede it. */
+  keyLabel?: string;
+  setupFields?: readonly ProviderSetupField[];
+  /** Service keys (web search, image generation) are saved without validation. */
+  isService?: boolean;
 }
 
 const PROVIDERS: ProviderConfig[] = [
-  { id: 'openrouter', name: 'OpenRouter', description: 'Access to 200+ AI models' },
-  { id: 'openai', name: 'OpenAI', description: 'GPT models via the OpenAI platform API' },
-  { id: 'openai-codex', name: 'ChatGPT Codex', description: 'Use Codex models with your ChatGPT plan', authMode: 'codex-oauth' },
-  { id: 'google-ai', name: 'Google AI', description: 'Gemini models via Google AI Studio' },
-  { id: 'anthropic', name: 'Anthropic', description: 'Claude models via Anthropic API' },
-  { id: 'minimax', name: 'MiniMax', description: 'MiniMax M2.7 and M1 models' },
-  { id: 'cloudflare-ai', name: 'Cloudflare AI', description: 'Free tier: 10K neurons/day — Llama, Mistral, Gemma' },
-  { id: 'tavily', name: 'Web Search (Tavily)', description: 'Enable AI web search — free tier: 1000/mo' },
-  { id: 'image-gen', name: 'Image Generation', description: 'DALL-E 3 or Stability AI — generate images in chat' },
+  ...listProviderInfo().map((info) => ({
+    id: info.id,
+    name: info.displayName,
+    description: info.description,
+    authMode: info.authMode,
+    keyLabel: info.keyLabel,
+    setupFields: info.setupFields,
+  })),
+  { id: 'tavily', name: 'Web Search (Tavily)', description: 'Enable AI web search — free tier: 1000/mo', isService: true },
+  { id: 'image-gen', name: 'Image Generation', description: 'DALL-E 3 or Stability AI — generate images in chat', isService: true },
 ];
+
+const EMPTY_KEYS = Object.fromEntries(
+  PROVIDERS.map((provider) => [provider.id, ''])
+) as Record<ProviderId, string>;
 
 export default function ApiKeysScreen() {
   const palette = usePalette();
   const { validateApiKey } = useSettingsStore();
 
   const [connectedProviders, setConnectedProviders] = useState<Set<ProviderId>>(new Set());
-  const [keys, setKeys] = useState<Record<ProviderId, string>>({
-    openrouter: '',
-    openai: '',
-    'openai-codex': '',
-    'google-ai': '',
-    anthropic: '',
-    minimax: '',
-    'cloudflare-ai': '',
-    tavily: '',
-    'image-gen': '',
-  });
+  const [keys, setKeys] = useState<Record<ProviderId, string>>(EMPTY_KEYS);
   const [isAddingKey, setIsAddingKey] = useState<ProviderId | null>(null);
   const [isValidating, setIsValidating] = useState(false);
-  const [cloudflareAccountId, setCloudflareAccountIdState] = useState('');
+  const [setupValues, setSetupValues] = useState<ProviderSetupValues>({});
   const [codexUserCode, setCodexUserCode] = useState<string | null>(null);
   const codexAbortRef = useRef<AbortController | null>(null);
 
@@ -88,8 +97,8 @@ export default function ApiKeysScreen() {
           style: 'destructive',
           onPress: async () => {
             await deleteProviderKey(provider.id);
-            if (provider.id === 'cloudflare-ai') {
-              await setCloudflareAccountId(null);
+            if (provider.setupFields) {
+              await clearProviderSetupFields(provider);
             }
             setConnectedProviders(prev => {
               const next = new Set(prev);
@@ -118,7 +127,7 @@ export default function ApiKeysScreen() {
     setIsValidating(true);
     try {
       // Tavily and image-gen are not AI providers — save directly without validation
-      if (provider.id === 'tavily' || provider.id === 'image-gen') {
+      if (provider.isService) {
         const { saveProviderKey } = await import('@/stores/settings-store');
         await saveProviderKey(provider.id, key.trim());
         setConnectedProviders(prev => new Set([...prev, provider.id]));
@@ -128,14 +137,15 @@ export default function ApiKeysScreen() {
         return;
       }
 
-      // Cloudflare requires Account ID to be saved before key validation
-      if (provider.id === 'cloudflare-ai') {
-        if (!cloudflareAccountId.trim()) {
-          Alert.alert('Error', 'Please enter your Cloudflare Account ID');
+      // Setup fields (Cloudflare's Account ID) must be saved before key validation
+      if (provider.setupFields) {
+        const missingField = findMissingSetupField(provider, setupValues);
+        if (missingField) {
+          Alert.alert('Error', missingField.requiredMessage);
           setIsValidating(false);
           return;
         }
-        await setCloudflareAccountId(cloudflareAccountId.trim());
+        await saveProviderSetupFields(provider, setupValues);
       }
 
       const isValid = await validateApiKey(provider.id, key.trim());
@@ -255,20 +265,26 @@ export default function ApiKeysScreen() {
                 </View>
               ) : isAdding ? (
                 <View className="mt-3 z-10 relative">
-                  {/* Cloudflare Account ID field */}
-                  {provider.id === 'cloudflare-ai' && (
+                  {/* Extra setup fields (e.g. Cloudflare Account ID), then the key's own label */}
+                  {provider.setupFields && (
                     <>
-                      <Text className="text-xs text-on-surface-variant mb-1.5 ml-1">Account ID</Text>
-                      <TextInput
-                        className="w-full bg-surface-container border border-outline-variant/40 rounded-xl px-4 py-2.5 text-primary font-mono text-sm mb-3"
-                        placeholder="Cloudflare Account ID"
-                        placeholderTextColor={palette.iconMuted}
-                        value={cloudflareAccountId}
-                        onChangeText={setCloudflareAccountIdState}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                      />
-                      <Text className="text-xs text-on-surface-variant mb-1.5 ml-1">API Token</Text>
+                      {provider.setupFields.map((field) => (
+                        <Fragment key={field.id}>
+                          <Text className="text-xs text-on-surface-variant mb-1.5 ml-1">{field.label}</Text>
+                          <TextInput
+                            className="w-full bg-surface-container border border-outline-variant/40 rounded-xl px-4 py-2.5 text-primary font-mono text-sm mb-3"
+                            placeholder={field.placeholder}
+                            placeholderTextColor={palette.iconMuted}
+                            value={setupValues[field.id] ?? ''}
+                            onChangeText={(text) => setSetupValues(prev => ({ ...prev, [field.id]: text }))}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                          />
+                        </Fragment>
+                      ))}
+                      {provider.keyLabel ? (
+                        <Text className="text-xs text-on-surface-variant mb-1.5 ml-1">{provider.keyLabel}</Text>
+                      ) : null}
                     </>
                   )}
                   {provider.authMode === 'codex-oauth' ? (
@@ -310,7 +326,7 @@ export default function ApiKeysScreen() {
                       onPress={() => {
                         setIsAddingKey(null);
                         setKeys(prev => ({ ...prev, [provider.id]: '' }));
-                        setCloudflareAccountIdState('');
+                        setSetupValues({});
                         setCodexUserCode(null);
                         codexAbortRef.current?.abort();
                       }}

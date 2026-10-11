@@ -45,7 +45,7 @@ export default function AppsScreen() {
           id: 'new',
           appId: app.id,
         },
-      } as any);
+      });
     },
     [router]
   );
@@ -54,7 +54,7 @@ export default function AppsScreen() {
     (app: MedhaApp) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
-      const actions: Array<{ text: string; style?: 'destructive' | 'cancel'; onPress?: () => void }> = [];
+      const actions: { text: string; style?: 'destructive' | 'cancel'; onPress?: () => void }[] = [];
 
       // Share option for all apps
       actions.push({
@@ -90,7 +90,7 @@ export default function AppsScreen() {
             const file = new FSFile(filePath);
             file.write(JSON.stringify(exportData, null, 2), { encoding: 'utf8' });
             await Sharing.shareAsync(filePath, { mimeType: 'application/json' });
-          } catch (err) {
+          } catch {
             showToast('Failed to export app');
           }
         },
@@ -104,7 +104,7 @@ export default function AppsScreen() {
             router.push({
               pathname: '/apps/create',
               params: { editId: app.id },
-            } as any);
+            });
           },
         });
         actions.push({
@@ -146,7 +146,7 @@ export default function AppsScreen() {
       <ScreenHeader
         title="Apps"
         right={
-          <HeaderIconButton onPress={() => router.push('/apps/create' as any)} accessibilityLabel="Create app">
+          <HeaderIconButton onPress={() => router.push('/apps/create')} accessibilityLabel="Create app">
             <Plus size={22} color={palette.icon} />
           </HeaderIconButton>
         }
@@ -195,7 +195,7 @@ export default function AppsScreen() {
 
         {/* Create App Card */}
         <PressableScale
-          onPress={() => router.push('/apps/create' as any)}
+          onPress={() => router.push('/apps/create')}
           scaleTo={0.97}
           className="border-2 border-dashed border-outline-variant/30 rounded-2xl p-5 items-center justify-center gap-2 mb-8"
           style={{ minHeight: 100 }}

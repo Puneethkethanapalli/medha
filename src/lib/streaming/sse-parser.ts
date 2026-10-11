@@ -46,6 +46,8 @@ export class SSEParser {
   private eventType = '';
   private dataLines: string[] = [];
   private lastId: string | undefined;
+  /** The previous chunk ended in '\r', which may be the first half of a CRLF. */
+  private pendingCR = false;
 
   /**
    * Feed a raw text chunk. Returns fully-parsed SSE events.
@@ -53,7 +55,11 @@ export class SSEParser {
    */
   feed(chunk: string): SSEEvent[] {
     const events: SSEEvent[] = [];
-    this.lineBuf += chunk;
+    // A trailing '\r' was already treated as a line ending, so a '\n' opening
+    // this chunk completes that CRLF rather than ending a second (blank) line.
+    const text = this.pendingCR && chunk.startsWith('\n') ? chunk.slice(1) : chunk;
+    if (chunk) this.pendingCR = chunk.endsWith('\r');
+    this.lineBuf += text;
 
     // Split on any newline variant, keeping partial last line
     const lines = this.lineBuf.split(/\r\n|\r|\n/);
@@ -271,6 +277,30 @@ export class ThinkTagSeparator {
 }
 
 // ─── Content extraction ─────────────────────────────────────────────────
+//
+// Payloads are untrusted JSON. These shapes cover only the fields read below;
+// a field whose type is checked at runtime is typed `unknown`.
+
+/** `choices[0].delta` of an OpenAI-compatible chat completion chunk. */
+interface ChatCompletionDelta {
+  content?: unknown;
+  reasoning?: unknown;
+  reasoning_content?: unknown;
+  reasoning_details?: unknown;
+  tool_calls?: unknown;
+}
+
+/** One entry of `delta.tool_calls`. */
+interface ChatCompletionToolCallDelta {
+  index?: number;
+  id?: string;
+  function?: { name?: string; arguments?: string };
+}
+
+/** One entry of a native Gemini chunk's `candidates`. */
+interface GeminiCandidate {
+  content?: { parts?: { text?: unknown; thought?: unknown }[] };
+}
 
 /** Plain text from an OpenRouter-style reasoning_details array. */
 function reasoningDetailsText(details: unknown): string {
@@ -287,6 +317,21 @@ function reasoningDetailsText(details: unknown): string {
 }
 
 /**
+ * Parse a `data:` payload as a JSON object. Returns null for malformed JSON
+ * (expected for partial frames) and for valid JSON that isn't an object
+ * (`null`, numbers, strings), which would otherwise throw on property access.
+ */
+function parseEventObject(data: string): Record<string, unknown> | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(data);
+  } catch {
+    return null;
+  }
+  return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : null;
+}
+
+/**
  * Extract content/reasoning tokens from a parsed SSE data payload.
  * Handles: OpenAI, OpenRouter, Google AI, MiniMax, Anthropic (native format).
  *
@@ -300,12 +345,8 @@ export function extractTokens(
   // Check for [DONE] sentinel before attempting JSON parse
   if (data === '[DONE]') return null;
 
-  let parsed: Record<string, unknown>;
-  try {
-    parsed = JSON.parse(data);
-  } catch {
-    return null; // Malformed JSON — expected for partial frames
-  }
+  const parsed = parseEventObject(data);
+  if (!parsed) return null;
 
   const result: TokenContent = {};
 
@@ -314,7 +355,7 @@ export function extractTokens(
   // Providers often send the same text in more than one field (OpenRouter
   // sends both `reasoning` and `reasoning_details`; some servers mirror
   // `reasoning_content` into `reasoning`). Use exactly one source per chunk.
-  const delta = (parsed.choices as any)?.[0]?.delta;
+  const delta = (parsed.choices as { delta?: ChatCompletionDelta }[] | undefined)?.[0]?.delta;
   const reasoningText =
     (typeof delta?.reasoning === 'string' && delta.reasoning)
     || (typeof delta?.reasoning_content === 'string' && delta.reasoning_content)
@@ -340,7 +381,7 @@ export function extractTokens(
   // --- Tool call extraction (OpenAI/OpenRouter/Google AI) ---
   if (delta?.tool_calls && Array.isArray(delta.tool_calls)) {
     const toolCalls: ToolCallDelta[] = [];
-    for (const tc of delta.tool_calls) {
+    for (const tc of delta.tool_calls as ChatCompletionToolCallDelta[]) {
       toolCalls.push({
         index: tc.index ?? 0,
         id: tc.id,
@@ -407,7 +448,7 @@ export function extractTokens(
 
   // Anthropic: message_delta has output token usage
   if (parsed.type === 'message_delta') {
-    const deltaUsage = (parsed as any).usage as Record<string, unknown> | undefined;
+    const deltaUsage = parsed.usage as Record<string, unknown> | undefined;
     if (deltaUsage) {
       const completion = Number(deltaUsage.output_tokens ?? 0);
       if (completion > 0) {
@@ -428,16 +469,12 @@ export function extractTokens(
 export function extractGeminiNativeTokens(data: string): TokenContent | null {
   if (data === '[DONE]') return null;
 
-  let parsed: Record<string, unknown>;
-  try {
-    parsed = JSON.parse(data);
-  } catch {
-    return null;
-  }
+  const parsed = parseEventObject(data);
+  if (!parsed) return null;
 
   const result: TokenContent = {};
 
-  const candidates = parsed.candidates as any[];
+  const candidates = parsed.candidates as GeminiCandidate[] | undefined;
   if (!candidates || !candidates[0]) {
     // Even without candidates, the final chunk may have usageMetadata
     const usageMeta = parsed.usageMetadata as Record<string, unknown> | undefined;
@@ -453,7 +490,7 @@ export function extractGeminiNativeTokens(data: string): TokenContent | null {
   }
 
   const candidate = candidates[0];
-  const parts = candidate.content?.parts as any[];
+  const parts = candidate.content?.parts;
   if (parts) {
     for (const part of parts) {
       if (!part.text || typeof part.text !== 'string') continue;
@@ -487,12 +524,8 @@ export function extractGeminiNativeTokens(data: string): TokenContent | null {
 export function extractOpenAIResponsesTokens(data: string): TokenContent | null {
   if (data === '[DONE]') return null;
 
-  let parsed: Record<string, unknown>;
-  try {
-    parsed = JSON.parse(data);
-  } catch {
-    return null;
-  }
+  const parsed = parseEventObject(data);
+  if (!parsed) return null;
 
   const result: TokenContent = {};
   const type = parsed.type;

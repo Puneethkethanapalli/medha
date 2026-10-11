@@ -1,8 +1,8 @@
 /**
  * Skill Picker — Sprint 19
  *
- * Modal bottom card that shows enabled skills for activation in chat.
- * Uses RN Modal (not @gorhom/bottom-sheet) per ui_fix.md guidance.
+ * Bottom sheet that shows enabled skills for activation in chat.
+ * Built on the shared Sheet (@/components/ui/sheet).
  */
 
 import React, { useCallback, useMemo } from 'react';

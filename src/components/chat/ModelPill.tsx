@@ -9,16 +9,7 @@ import { loadModelMetadata, useModelListStore } from '@/lib/models/model-list-sy
 import { CapabilityBadges } from '@/components/chat/CapabilityBadges';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { usePalette } from '@/lib/palette';
-
-const PROVIDER_SHORT: Record<string, string> = {
-  openrouter: 'OR',
-  openai: 'OA',
-  'openai-codex': 'CX',
-  'google-ai': 'G',
-  anthropic: 'A',
-  minimax: 'MM',
-  'cloudflare-ai': 'CF',
-};
+import { getProviderInfo } from '@/lib/providers/catalog';
 
 export function ModelPill() {
   const { width } = useWindowDimensions();
@@ -28,7 +19,7 @@ export function ModelPill() {
   const lastProvider = useSettingsStore((s) => s.lastProvider);
   const metadataVersion = useModelListStore((s) => s.metadataVersion);
   const displayName = lastModelName || getModelDisplayName(lastModel);
-  const providerBadge = lastProvider ? PROVIDER_SHORT[lastProvider] : null;
+  const providerBadge = lastProvider ? getProviderInfo(lastProvider)?.shortName : null;
   const maxPillWidth = Math.max(104, Math.min(176, width * 0.42));
   const palette = usePalette();
 

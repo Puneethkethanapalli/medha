@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, AppState, type AppStateStatus, type LayoutChangeEvent } from 'react-native';
 import { KeyboardStickyView, useKeyboardState } from 'react-native-keyboard-controller';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
@@ -31,49 +31,34 @@ import {
   updateConversation,
   touchConversation,
 } from '@/lib/db/conversations';
-import { getApiKey } from '@/lib/storage/secure';
-import { getProvider, registerBuiltInProviders, listProviders } from '@/lib/providers/registry';
-import { registerTool, listTools, getOpenAIToolSchemas, getAnthropicToolSchemas, getTool } from '@/lib/tools/registry';
+import { registerBuiltInProviders, listProviders } from '@/lib/providers/registry';
+import { registerTool, getTool } from '@/lib/tools/registry';
 import { deepResearchTool, webSearchTool } from '@/lib/tools/web-search';
 import { generateImageTool } from '@/lib/tools/image-gen';
 import { saveMemoryTool, updateMemoryTool, forgetMemoryTool } from '@/lib/tools/memory-tools';
-import { getMemoryToolInstruction } from '@/lib/memory/injector';
-import { scheduleMemoryExtraction } from '@/lib/memory/extractor';
-import { scheduleProfileRefresh } from '@/lib/memory/profile';
-import { searchPastChatsTool, recentChatsTool, CHAT_HISTORY_TOOL_INSTRUCTION } from '@/lib/tools/chat-history-tools';
+import { searchPastChatsTool, recentChatsTool } from '@/lib/tools/chat-history-tools';
 import { useMemoryEventsStore } from '@/stores/memory-events-store';
 import {
   ASK_USER_CHOICE_TOOL_NAME,
   askUserChoiceTool,
   formatAskUserChoiceUserMessage,
-  normalizeAskUserChoiceToolCall,
   parseAskUserChoiceToolCall,
   serializeAskUserChoiceToolResult,
   type AskUserChoiceSubmission,
 } from '@/lib/tools/ask-user-choice';
-import { describeToolCalls, executeToolCall } from '@/lib/tools/orchestrator';
-import {
-  describeToolActivity,
-  WRITING_RESPONSE_ACTIVITY,
-} from '@/lib/streaming/thinking-activity';
 import { composeSystemPrompt } from '@/lib/rules/injector';
-import { parseAllowedTools } from '@/lib/skills/injector';
-import { readSkillFull } from '@/lib/skills/storage';
-import { recordUsage } from '@/lib/db/token-usage';
-import { calculateCost } from '@/lib/tokens/pricing';
-import { estimateMessageTokens, estimateTokens } from '@/lib/tokens/estimator';
-import { formatTokensPerSecond, serializeResponseTokenMetrics } from '@/lib/tokens/metrics';
+import { createTurnRunner } from '@/lib/chat/run-turn';
+import { resolveTurnModel } from '@/lib/chat/turn-config';
+import { createTurnServices } from '@/lib/chat/run-turn.deps';
+import { estimateMessageTokens } from '@/lib/tokens/estimator';
+import { formatTokensPerSecond } from '@/lib/tokens/metrics';
 import { getApp } from '@/lib/db/apps';
 import { getIconByName } from '@/lib/apps/icons';
 import { parseExamplePrompts } from '@/lib/apps/types';
 import { getModelContextWindow } from '@/lib/models/capabilities';
 import { loadModelMetadata, useModelListStore } from '@/lib/models/model-list-sync';
-import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { useRouter } from 'expo-router';
 import type { Message, Attachment } from '@/types';
-
-const MAX_TOOL_ROUNDS = 5;
-const MEMORY_TOOL_NAMES = new Set(['save_memory', 'update_memory', 'forget_memory']);
 
 interface ChatScreenProps {
   conversationId: string | null;
@@ -98,8 +83,21 @@ export const ChatScreen = React.memo(function ChatScreen({
   const [inputBarHeight, setInputBarHeight] = useState(0);
   // Bumps when LiteLLM or provider model metadata loads, so context windows re-resolve.
   const metadataVersion = useModelListStore((s) => s.metadataVersion);
-  const abortRef = useRef<{ abort: () => void } | null>(null);
-  const usageAccumRef = useRef<UsageData>({ promptTokens: 0, completionTokens: 0 });
+  // One reply pipeline per screen; it owns the abort handle and per-turn usage.
+  const [turnRunner] = useState(() =>
+    createTurnRunner({
+      ...createTurnServices(),
+      view: {
+        appendMessage: (message) => setMessages((prev) => [...prev, message]),
+        patchMessage: (messageId, fields) =>
+          setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, ...fields } : m))),
+        replaceMessages: setMessages,
+        onFirstOutput: () => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        },
+      },
+    })
+  );
 
   const openDrawer = useUIStore((s) => s.openDrawer);
   const palette = usePalette();
@@ -118,8 +116,6 @@ export const ChatScreen = React.memo(function ChatScreen({
   const setPendingTemporaryChat = useUIStore((s) => s.setPendingTemporaryChat);
   const [conversationTemporary, setConversationTemporary] = useState(false);
   const loadMemoryEvents = useMemoryEventsStore((s) => s.loadConversation);
-  // Set when the chat model called a memory tool this turn; background extraction then skips it.
-  const memoryToolUsedInTurnRef = useRef(false);
   const imageGenEnabled = useSettingsStore((s) => s.imageGenEnabled);
   const skillPickerOpen = useUIStore((s) => s.skillPickerOpen);
   const closeSkillPicker = useUIStore((s) => s.closeSkillPicker);
@@ -132,15 +128,7 @@ export const ChatScreen = React.memo(function ChatScreen({
     streamingReasoning,
     isStreaming,
     streamingTokensPerSecond,
-    startStreaming,
-    appendToken,
-    appendReasoningToken,
-    setStreamingActivity,
-    setStreamingTokensPerSecond,
-    startToolActivity,
-    stopToolActivity,
     stopStreaming,
-    setError,
   } = useChatStore();
 
   // Ensure providers and tools are registered
@@ -197,15 +185,7 @@ export const ChatScreen = React.memo(function ChatScreen({
     let lastState: AppStateStatus = 'active';
     const handleAppStateChange = (nextState: AppStateStatus) => {
       if (lastState === 'active' && nextState === 'background') {
-        if (abortRef.current) {
-          abortRef.current.abort();
-          abortRef.current = null;
-        }
-        const interrupted = captureInterruptedResponse();
-        if (interrupted) {
-          const { messageId, fields } = interrupted;
-          updateMessage(messageId, fields);
-          setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, ...fields } : m)));
+        if (turnRunner.interrupt()) {
           stopStreaming();
         }
       }
@@ -214,7 +194,7 @@ export const ChatScreen = React.memo(function ChatScreen({
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => subscription.remove();
-  }, [stopStreaming]);
+  }, [stopStreaming, turnRunner]);
 
   // Sync internal state when prop changes
   useEffect(() => {
@@ -278,425 +258,33 @@ export const ChatScreen = React.memo(function ChatScreen({
     return () => clearTimeout(timeout);
   }, [focusMessageId, focusRequestKey]);
 
-  // ─── Core streaming logic (with tool call loop) ─────────────────────
+  // ─── Core streaming logic (see lib/chat/run-turn) ───────────────────
   const streamNewResponse = useCallback(
-    async (convId: string, toolRound = 0) => {
-      const providerId = activeApp?.provider || lastProvider || 'openrouter';
-      const apiKey = await getApiKey(providerId);
-      if (!apiKey) return;
-
-      const provider = getProvider(providerId);
-      if (!provider) return;
-
-      const model = activeApp?.model || lastModel || getDefaultModel(providerId);
-      const conversation = getConversation(convId);
-      // Temporary chats never use memory, search history, or teach the profile.
-      const temporaryChat = conversation?.temporary === 1;
-      const useMemory = memoryEnabled && !temporaryChat;
-      const project = conversation?.app_id
-        ? { id: conversation.app_id, name: activeApp?.name ?? getApp(conversation.app_id)?.name ?? 'Project' }
-        : null;
-      const convActiveSkill = activeSkillName ?? conversation?.active_skill_name ?? null;
-      let systemPrompt = composeSystemPrompt(
-        convId,
-        conversation?.system_prompt,
-        convActiveSkill,
-        // Tool follow-up rounds re-send the same turn; count memory use once.
-        { recordMemoryUse: toolRound === 0 }
-      );
-
-      // If active skill declares allowed-tools, scope tool access
-      let skillAllowedTools: string[] | null = null;
-      if (convActiveSkill) {
-        const skillData = readSkillFull(convActiveSkill);
-        if (skillData?.frontmatter['allowed-tools']) {
-          skillAllowedTools = parseAllowedTools(skillData.frontmatter['allowed-tools'] as string);
-        }
-      }
-
-      // Append memory tool instruction when memory is enabled
-      if (useMemory) {
-        let memoryInstruction = getMemoryToolInstruction(memoryAutoEnabled);
-        if (memoryChatHistoryEnabled) {
-          memoryInstruction = `${memoryInstruction}\n${CHAT_HISTORY_TOOL_INSTRUCTION}`;
-        }
-        systemPrompt = systemPrompt
-          ? `${systemPrompt}\n\n${memoryInstruction}`
-          : memoryInstruction;
-      }
-
-      if (imageGenEnabled) {
-        const imageGenInstruction =
-          'You can generate images. When the user asks to create, draw, or visualize something, use the generate_image tool.';
-        systemPrompt = systemPrompt
-          ? `${systemPrompt}\n\n${imageGenInstruction}`
-          : imageGenInstruction;
-      }
-
-      const choiceInstruction =
-        'You can ask the user to choose between options with the ask_user_choice tool. Use it sparingly, only when the answer would depend on a meaningful user preference or missing decision. Ask 1-4 concise questions at once, provide 2-4 clear options per question, mark a recommended option when appropriate, and do not call any other tool in the same response as ask_user_choice.';
-      systemPrompt = systemPrompt
-        ? `${systemPrompt}\n\n${choiceInstruction}`
-        : choiceInstruction;
-
-      // Create placeholder assistant message
-      const assistantMsgId = addMessage(convId, 'assistant', '', model);
-      updateMessage(assistantMsgId, { status: 'streaming' });
-      const assistantMsg: Message = {
-        id: assistantMsgId,
-        conversation_id: convId,
-        role: 'assistant',
-        content: '',
-        reasoning: null,
-        attachments: null,
-        status: 'streaming',
-        model,
-        tokens_used: null,
-        tool_call_id: null,
-        tool_calls: null,
-        created_at: Date.now(),
-      };
-
-      setMessages((prev) => [...prev, assistantMsg]);
-      startStreaming(assistantMsgId);
-
-      // Build full message history for API
-      const fullMessages = getMessages(convId).filter(
-        (m) => m.role !== 'system' && m.id !== assistantMsgId
-      );
-
-      // Build tool config — choice cards are core; other tools are toggled.
-      let activeToolNames: string[] = [ASK_USER_CHOICE_TOOL_NAME];
-      if (webSearchEnabled) {
-        activeToolNames.push('web_search');
-        activeToolNames.push('deep_research');
-      }
-      if (useMemory) {
-        activeToolNames.push('save_memory');
-        activeToolNames.push('update_memory');
-        activeToolNames.push('forget_memory');
-        if (memoryChatHistoryEnabled) {
-          activeToolNames.push('search_past_chats');
-          activeToolNames.push('recent_chats');
-        }
-      }
-      if (imageGenEnabled) activeToolNames.push('generate_image');
-
-      // If active skill declares allowed-tools, restrict to only those tools
-      if (skillAllowedTools) {
-        activeToolNames = activeToolNames.filter((t) =>
-          t === ASK_USER_CHOICE_TOOL_NAME
-          || skillAllowedTools!.includes(t)
-          || (t === 'deep_research' && skillAllowedTools!.includes('web_search'))
-        );
-      }
-      const hasNonChoiceTools = activeToolNames.some((toolName) => toolName !== ASK_USER_CHOICE_TOOL_NAME);
-      if (hasNonChoiceTools) {
-        const toolInstruction =
-          'When using tools, give a short preamble before the call when possible, use the narrowest useful tool, and cite sources from tool results in the final answer. Prefer deep_research over web_search for broad comparisons, investigations, or multi-source analysis.';
-        systemPrompt = systemPrompt
-          ? `${systemPrompt}\n\n${toolInstruction}`
-          : toolInstruction;
-      }
-      const useTools = activeToolNames.length > 0 && listTools().length > 0;
-      const enableToolCalls = useTools && activeToolNames.length > 0;
-      const toolConfig = enableToolCalls
-        ? {
-            tools: getOpenAIToolSchemas(activeToolNames),
-            anthropicTools: providerId === 'anthropic' ? getAnthropicToolSchemas(activeToolNames) : undefined,
-          }
-        : {};
-
-      // Start streaming
-      let accumulated = '';
-      let accumulatedReasoning = '';
-      let firstTokenFired = false;
-      let currentActivity = '';
-      let firstOutputAt = 0;
-      let lastSpeedUpdateAt = 0;
-      let roundCompletionTokens = 0;
-      // Reset usage accumulator for this response (accumulates across tool call rounds)
-      if (toolRound === 0) {
-        usageAccumRef.current = { promptTokens: 0, completionTokens: 0 };
-        memoryToolUsedInTurnRef.current = false;
-      }
-
-      const fireFirstTokenHaptic = () => {
-        if (!firstOutputAt) {
-          firstOutputAt = Date.now();
-        }
-        if (!firstTokenFired) {
-          firstTokenFired = true;
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }
-      };
-
-      const handleUsage = (usage: UsageData) => {
-        usageAccumRef.current.promptTokens += usage.promptTokens;
-        usageAccumRef.current.completionTokens += usage.completionTokens;
-        roundCompletionTokens += usage.completionTokens;
-      };
-
-      const updateActivity = (activity: string) => {
-        if (activity === currentActivity) return;
-        currentActivity = activity;
-        setStreamingActivity(activity);
-      };
-
-      const calculateTokensPerSecond = (now: number) => {
-        if (!firstOutputAt) return null;
-        const elapsedSeconds = Math.max((now - firstOutputAt) / 1000, 0.1);
-        const outputTokens = roundCompletionTokens > 0
-          ? roundCompletionTokens
-          : estimateTokens(`${accumulated}\n${accumulatedReasoning}`);
-
-        if (outputTokens <= 0) return null;
-        return outputTokens / elapsedSeconds;
-      };
-
-      const updateTokensPerSecond = () => {
-        const now = Date.now();
-        if (!firstOutputAt || now - firstOutputAt < 750) return;
-        if (now - lastSpeedUpdateAt < 500) return;
-
-        const tokensPerSecond = calculateTokensPerSecond(now);
-        if (!tokensPerSecond) return;
-
-        lastSpeedUpdateAt = now;
-        setStreamingTokensPerSecond(tokensPerSecond);
-      };
-
-      /** How long the model thought before answering, if it reasoned at all. */
-      const getReasoningMs = () =>
-        accumulatedReasoning.trim() ? useChatStore.getState().getThinkingDurationMs() : null;
-
-      const handleDone = () => {
-        // Save usage data
-        const { promptTokens, completionTokens } = usageAccumRef.current;
-        const tokensPerSecond = calculateTokensPerSecond(Date.now());
-        const reasoningMs = getReasoningMs();
-        const tokensUsedJson = serializeResponseTokenMetrics({
-          prompt: promptTokens,
-          completion: completionTokens,
-          ...(tokensPerSecond ? { tokensPerSecond } : {}),
-          ...(reasoningMs ? { reasoningMs } : {}),
-        });
-        const costUsd = calculateCost(promptTokens, completionTokens, model);
-
-        updateMessage(assistantMsgId, {
-          content: accumulated,
-          reasoning: accumulatedReasoning || null,
-          status: 'complete',
-          tokens_used: tokensUsedJson,
-        });
-
-        // Record to token_usage table
-        if (promptTokens > 0 || completionTokens > 0) {
-          recordUsage(convId, assistantMsgId, model, promptTokens, completionTokens, costUsd);
-        }
-
-        touchConversation(convId);
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantMsgId
-              ? {
-                  ...m,
-                  content: accumulated,
-                  reasoning: accumulatedReasoning || null,
-                  status: 'complete',
-                  tokens_used: tokensUsedJson,
-                }
-              : m
-          )
-        );
-        stopStreaming();
-
-        // Learn from this exchange in the background, unless the model already
-        // handled memory itself via a tool this turn.
-        const lastUserMessage = [...fullMessages].reverse().find((m) => m.role === 'user');
-        if (useMemory && accumulated.trim() && lastUserMessage && !memoryToolUsedInTurnRef.current) {
-          scheduleMemoryExtraction({
-            conversationId: convId,
-            userMessageId: lastUserMessage.id,
-            assistantMessageId: assistantMsgId,
-            userText: lastUserMessage.content,
-            assistantText: accumulated,
-            providerId,
-            apiKey,
-            chatModel: model,
-            project,
-          });
-        }
-        if (useMemory && accumulated.trim()) {
-          scheduleProfileRefresh({
-            providerId,
-            apiKey,
-            chatModel: model,
-            usageTarget: { conversationId: convId, messageId: assistantMsgId },
-          });
-        }
-      };
-
-      const handleError = (error: Error) => {
-        const reasoningMs = getReasoningMs();
-        updateMessage(assistantMsgId, {
-          content: accumulated || 'Error: ' + error.message,
-          reasoning: accumulatedReasoning || null,
-          status: 'error',
-          ...(reasoningMs
-            ? { tokens_used: serializeResponseTokenMetrics({ prompt: 0, completion: 0, reasoningMs }) }
-            : {}),
-        });
-        touchConversation(convId);
-        setError(error.message);
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantMsgId
-              ? { ...m, content: accumulated || error.message, reasoning: accumulatedReasoning || null, status: 'error' }
-              : m
-          )
-        );
-      };
-
-      const handleToolCalls = async (toolCalls: AccumulatedToolCall[]) => {
-        const pendingChoice = toolCalls
-          .map((call) => normalizeAskUserChoiceToolCall(call))
-          .find((choice) => choice !== null);
-
-        if (pendingChoice) {
-          const promptText = accumulated
-            || 'I need your choice to continue.';
-          const toolCallsJson = JSON.stringify([pendingChoice.call]);
-
-          updateMessage(assistantMsgId, {
-            content: promptText,
-            reasoning: accumulatedReasoning || null,
-            status: 'waiting',
-            tool_calls: toolCallsJson,
-          });
-          touchConversation(convId);
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantMsgId
-                ? {
-                    ...m,
-                    content: promptText,
-                    reasoning: accumulatedReasoning || null,
-                    status: 'waiting',
-                    tool_calls: toolCallsJson,
-                  }
-                : m
-            )
-          );
-          stopStreaming();
-          return;
-        }
-
-        if (toolRound >= MAX_TOOL_ROUNDS) {
-          const fallback = accumulated || 'I reached the tool-use limit for this response. Please ask me to continue if you want me to keep working from the available results.';
-          accumulated = fallback;
-          handleDone();
-          return;
-        }
-
-        const toolActivity = describeToolActivity(toolCalls.map((call) => call.name));
-        updateActivity(toolActivity);
-
-        // Update the assistant message to show tool usage status + save tool_calls metadata
-        const statusText = accumulated || describeToolCalls(toolCalls);
-        const toolCallsJson = JSON.stringify(toolCalls);
-        const reasoningMs = getReasoningMs();
-        const toolRoundMetrics = reasoningMs
-          ? serializeResponseTokenMetrics({ prompt: 0, completion: 0, reasoningMs })
-          : null;
-        updateMessage(assistantMsgId, {
-          content: statusText,
-          reasoning: accumulatedReasoning || null,
-          status: 'complete',
-          tool_calls: toolCallsJson,
-          ...(toolRoundMetrics ? { tokens_used: toolRoundMetrics } : {}),
-        });
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantMsgId
-              ? {
-                  ...m,
-                  content: statusText,
-                  reasoning: accumulatedReasoning || null,
-                  status: 'complete',
-                  tool_calls: toolCallsJson,
-                  ...(toolRoundMetrics ? { tokens_used: toolRoundMetrics } : {}),
-                }
-              : m
-          )
-        );
-        stopStreaming();
-        startToolActivity(assistantMsgId, toolActivity);
-
-        // Execute tool calls in parallel, then save results in model-emitted order.
-        if (toolCalls.some((call) => MEMORY_TOOL_NAMES.has(call.name))) {
-          memoryToolUsedInTurnRef.current = true;
-        }
-        const outcomes = await Promise.all(
-          toolCalls.map((tc) => executeToolCall(tc, { conversationId: convId }))
-        );
-        for (const outcome of outcomes) {
-          addMessage(
-            convId,
-            'tool',
-            outcome.content,
-            model,
-            null,
-            outcome.call.id,
-            JSON.stringify(outcome.display)
-          );
-        }
-
-        // Reload messages to include tool results, then re-stream for final response
-        const updatedMessages = getMessages(convId);
-        setMessages(updatedMessages);
-        stopToolActivity(assistantMsgId);
-        await streamNewResponse(convId, toolRound + 1);
-      };
-
-      const response = provider.stream(
-        fullMessages,
-        {
-          model,
-          apiKey,
-          systemPrompt,
-          thinkingMode: (conversation?.thinking_mode as 'auto' | 'on' | 'off') || thinkingMode,
-          ...toolConfig,
+    (convId: string) =>
+      turnRunner.run({
+        conversationId: convId,
+        app: activeApp
+          ? { provider: activeApp.provider, model: activeApp.model, name: activeApp.name }
+          : null,
+        activeSkillName,
+        settings: {
+          lastProvider,
+          lastModel,
+          thinkingMode,
+          webSearchEnabled,
+          memoryEnabled,
+          memoryAutoEnabled,
+          memoryChatHistoryEnabled,
+          imageGenEnabled,
         },
-        (token) => {
-          fireFirstTokenHaptic();
-          updateActivity(WRITING_RESPONSE_ACTIVITY);
-          accumulated += token;
-          appendToken(token);
-          updateTokensPerSecond();
-        },
-        (reasoningToken) => {
-          fireFirstTokenHaptic();
-          accumulatedReasoning += reasoningToken;
-          appendReasoningToken(reasoningToken);
-          updateTokensPerSecond();
-        },
-        handleDone,
-        handleError,
-        enableToolCalls ? handleToolCalls : undefined,
-        handleUsage
-      );
-
-      abortRef.current = response;
-    },
-    [activeApp?.model, activeApp?.provider, activeApp?.name, lastModel, lastProvider, thinkingMode, webSearchEnabled, memoryEnabled, memoryAutoEnabled, memoryChatHistoryEnabled, imageGenEnabled, activeSkillName, startStreaming, appendToken, appendReasoningToken, setStreamingActivity, setStreamingTokensPerSecond, startToolActivity, stopToolActivity, stopStreaming, setError]
+      }),
+    [turnRunner, activeApp, lastModel, lastProvider, thinkingMode, webSearchEnabled, memoryEnabled, memoryAutoEnabled, memoryChatHistoryEnabled, imageGenEnabled, activeSkillName]
   );
 
   const handleSend = useCallback(
     async (text: string, attachments?: Attachment[]) => {
       // Use app-pinned model/provider if available, otherwise user defaults
-      const providerId = activeApp?.provider || lastProvider || 'openrouter';
-      const model = activeApp?.model || lastModel || getDefaultModel(providerId);
+      const { model } = resolveTurnModel(activeApp, lastProvider, lastModel);
       let convId = currentConvId;
 
       // Create new conversation if needed
@@ -781,18 +369,9 @@ export const ChatScreen = React.memo(function ChatScreen({
   );
 
   const handleStop = useCallback(() => {
-    if (abortRef.current) {
-      abortRef.current.abort();
-      abortRef.current = null;
-    }
-    const interrupted = captureInterruptedResponse();
-    if (interrupted) {
-      const { messageId, fields } = interrupted;
-      updateMessage(messageId, fields);
-      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, ...fields } : m)));
-    }
+    turnRunner.interrupt();
     stopStreaming();
-  }, [stopStreaming]);
+  }, [stopStreaming, turnRunner]);
 
   const handleSuggestion = useCallback(
     (text: string) => {
@@ -920,8 +499,7 @@ export const ChatScreen = React.memo(function ChatScreen({
       if (!pendingChoice) return;
 
       const convId = choiceMessage.conversation_id;
-      const providerId = activeApp?.provider || lastProvider || 'openrouter';
-      const model = choiceMessage.model || activeApp?.model || lastModel || getDefaultModel(providerId);
+      const model = choiceMessage.model || resolveTurnModel(activeApp, lastProvider, lastModel).model;
       const createdAt = Date.now();
       const toolResult = serializeAskUserChoiceToolResult(pendingChoice.request, submission);
       const userSummary = formatAskUserChoiceUserMessage(submission);
@@ -944,7 +522,7 @@ export const ChatScreen = React.memo(function ChatScreen({
       setMessages(updatedMessages);
       await streamNewResponse(convId);
     },
-    [activeApp?.model, activeApp?.provider, lastModel, lastProvider, messages, streamNewResponse]
+    [activeApp, lastModel, lastProvider, messages, streamNewResponse]
   );
 
   const handleChoiceDismiss = useCallback(
@@ -965,8 +543,11 @@ export const ChatScreen = React.memo(function ChatScreen({
   const insets = useSafeAreaInsets();
   const isKeyboardVisible = useKeyboardState((state) => state.isVisible);
   const hasMessages = messages.length > 0;
-  const effectiveProviderId = activeApp?.provider || lastProvider || 'openrouter';
-  const effectiveModelId = activeApp?.model || lastModel || getDefaultModel(effectiveProviderId);
+  const { providerId: effectiveProviderId, model: effectiveModelId } = resolveTurnModel(
+    activeApp,
+    lastProvider,
+    lastModel
+  );
   const contextCircleBottomOffset = (inputBarHeight || Math.max(insets.bottom, 12) + 72) + 12;
   const liveTokensPerSecondLabel = isStreaming
     ? formatTokensPerSecond(streamingTokensPerSecond)
@@ -1223,51 +804,3 @@ export const ChatScreen = React.memo(function ChatScreen({
     </View>
   );
 });
-
-/**
- * Everything a stopped or interrupted response produced so far — reasoning
- * included — as fields to save on its message. Null when nothing is streaming.
- */
-function captureInterruptedResponse(): {
-  messageId: string;
-  fields: Pick<Message, 'content' | 'reasoning' | 'status'> & { tokens_used?: string | null };
-} | null {
-  const store = useChatStore.getState();
-  const messageId = store.streamingMessageId;
-  if (!messageId) return null;
-
-  const { content, reasoning } = store.flushStreaming();
-  const reasoningMs = reasoning.trim() ? store.getThinkingDurationMs() : null;
-  return {
-    messageId,
-    fields: {
-      content,
-      reasoning: reasoning || null,
-      status: 'cancelled',
-      ...(reasoningMs
-        ? { tokens_used: serializeResponseTokenMetrics({ prompt: 0, completion: 0, reasoningMs }) }
-        : {}),
-    },
-  };
-}
-
-function getDefaultModel(providerId: string): string {
-  switch (providerId) {
-    case 'openrouter':
-      return 'google/gemini-2.0-flash-exp:free';
-    case 'openai':
-      return 'gpt-5.4-mini';
-    case 'openai-codex':
-      return 'gpt-5.1-codex';
-    case 'google-ai':
-      return 'gemini-2.0-flash';
-    case 'anthropic':
-      return 'claude-3-5-haiku-20241022';
-    case 'minimax':
-      return 'MiniMax-M2.7';
-    case 'cloudflare-ai':
-      return '@cf/openai/gpt-oss-120b';
-    default:
-      return 'google/gemini-2.0-flash-exp:free';
-  }
-}

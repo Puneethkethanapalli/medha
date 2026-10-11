@@ -43,13 +43,13 @@ export default function SettingsScreen() {
           icon: Key,
           label: 'API Keys',
           description: 'Manage your provider API keys',
-          onPress: () => router.push('/settings/api-keys' as any),
+          onPress: () => router.push('/settings/api-keys'),
         },
         {
           icon: BarChart3,
           label: 'Usage & Costs',
           description: 'Track token usage and estimated costs',
-          onPress: () => router.push('/settings/usage' as any),
+          onPress: () => router.push('/settings/usage'),
         },
       ],
     },
@@ -63,33 +63,33 @@ export default function SettingsScreen() {
           onPress: () =>
             router.push(
               activeConversationId
-                ? ({ pathname: '/settings/system-prompts', params: { conversationId: activeConversationId } } as any)
-                : ('/settings/system-prompts' as any)
+                ? { pathname: '/settings/system-prompts', params: { conversationId: activeConversationId } }
+                : '/settings/system-prompts'
             ),
         },
         {
           icon: SlidersHorizontal,
           label: 'Rules & Instructions',
           description: 'Custom instructions for the AI',
-          onPress: () => router.push('/settings/rules' as any),
+          onPress: () => router.push('/settings/rules'),
         },
         {
           icon: Brain,
           label: 'Memories',
           description: 'Manage what the AI remembers',
-          onPress: () => router.push('/settings/memories' as any),
+          onPress: () => router.push('/settings/memories'),
         },
         {
           icon: Sparkles,
           label: 'Skills',
           description: 'Agent skills for specialized tasks',
-          onPress: () => router.push('/settings/skills' as any),
+          onPress: () => router.push('/settings/skills'),
         },
         {
           icon: Zap,
           label: 'Slash Commands',
           description: 'Create and manage custom / commands',
-          onPress: () => router.push('/settings/slash-commands' as any),
+          onPress: () => router.push('/settings/slash-commands'),
         },
       ],
     },

@@ -1,5 +1,6 @@
 import { fetch } from 'expo/fetch';
 import type { AIProvider, ListModelsOptions, StreamConfig } from './types';
+import { PROVIDER_CATALOG } from './catalog';
 import { streamCompletion } from '@/lib/streaming/stream';
 import type { AccumulatedToolCall, UsageData } from '@/lib/streaming/stream';
 import { buildOpenAIMessages, type OpenAIMessage } from '@/lib/attachments/multimodal';
@@ -9,7 +10,7 @@ const OPENAI_BASE_URL = 'https://api.openai.com/v1';
 
 export class OpenAIProvider implements AIProvider {
   id = 'openai';
-  name = 'OpenAI';
+  name = PROVIDER_CATALOG.openai.displayName;
 
   stream(
     messages: Message[],

@@ -7,10 +7,38 @@ type OpenAITextPart = { type: 'text'; text: string };
 type OpenAIImagePart = { type: 'image_url'; image_url: { url: string } };
 type OpenAIContentPart = OpenAITextPart | OpenAIImagePart;
 
-export type OpenAIMessage = {
+/** A tool call replayed on an assistant turn (Chat Completions `tool_calls` entry). */
+type OpenAIToolCall = {
+  id: string;
+  type: 'function';
+  index: number;
+  function: { name: string; arguments: string };
+};
+
+/** Plain or multimodal turn: system, user, or assistant without tool calls. */
+type OpenAIContentMessage = {
   role: string;
   content: string | OpenAIContentPart[];
 };
+
+/** Tool result answering an earlier assistant tool call. */
+type OpenAIToolResultMessage = {
+  role: 'tool';
+  content: string;
+  tool_call_id?: string;
+};
+
+/** Assistant turn that requested tools; `content` is null when it had no text. */
+type OpenAIToolCallMessage = {
+  role: 'assistant';
+  content: string | null;
+  tool_calls: OpenAIToolCall[];
+};
+
+export type OpenAIMessage =
+  | OpenAIContentMessage
+  | OpenAIToolResultMessage
+  | OpenAIToolCallMessage;
 
 /**
  * Build OpenAI-compatible message array from Message[].
@@ -34,7 +62,7 @@ export function buildOpenAIMessages(
         role: 'tool',
         content: msg.content,
         ...(msg.tool_call_id ? { tool_call_id: msg.tool_call_id } : {}),
-      } as OpenAIMessage & { tool_call_id?: string });
+      });
       continue;
     }
 
@@ -72,7 +100,7 @@ export function buildOpenAIMessages(
           role: 'assistant',
           content: textContent || null,
           tool_calls: apiToolCalls,
-        } as any);
+        });
         continue;
       } catch {
         // Malformed tool_calls JSON — fall through to normal handling
